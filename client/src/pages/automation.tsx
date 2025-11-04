@@ -156,6 +156,9 @@ function ModuleConfigurationDialog({
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>(
     (config?.defaultEmployees as string[]) || []
   );
+  const [processAttachments, setProcessAttachments] = useState<boolean>(
+    config?.processAttachments ?? false
+  );
 
   const { data: employees = [] } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
@@ -169,6 +172,7 @@ function ModuleConfigurationDialog({
         isEnabled: true,
         selectedGmailAccounts: selectedAccounts,
         defaultEmployees: selectedEmployees,
+        processAttachments: processAttachments,
       });
     },
     onSuccess: () => {
@@ -188,11 +192,12 @@ function ModuleConfigurationDialog({
   });
 
   const updateConfigMutation = useMutation({
-    mutationFn: async ({ isEnabled, accounts, employees }: { isEnabled?: boolean; accounts?: string[]; employees?: string[] }) => {
+    mutationFn: async ({ isEnabled, accounts, employees, attachments }: { isEnabled?: boolean; accounts?: string[]; employees?: string[]; attachments?: boolean }) => {
       return apiRequest("PATCH", `/api/automation/configs/${config!.id}`, {
         isEnabled,
         selectedGmailAccounts: accounts,
         defaultEmployees: employees,
+        processAttachments: attachments,
       });
     },
     onSuccess: () => {
@@ -226,7 +231,7 @@ function ModuleConfigurationDialog({
 
   const handleSaveSettings = () => {
     if (config) {
-      updateConfigMutation.mutate({ accounts: selectedAccounts, employees: selectedEmployees });
+      updateConfigMutation.mutate({ accounts: selectedAccounts, employees: selectedEmployees, attachments: processAttachments });
     } else {
       createConfigMutation.mutate();
     }
@@ -298,8 +303,10 @@ function ModuleConfigurationDialog({
               employees={employees}
               selectedAccounts={selectedAccounts}
               selectedEmployees={selectedEmployees}
+              processAttachments={processAttachments}
               onAccountsChange={setSelectedAccounts}
               onEmployeesChange={setSelectedEmployees}
+              onProcessAttachmentsChange={setProcessAttachments}
               onSave={handleSaveSettings}
               onDelete={() => {
                 if (confirm("¿Desactivar este módulo completamente?")) {
@@ -328,8 +335,10 @@ function SettingsTab({
   employees,
   selectedAccounts,
   selectedEmployees,
+  processAttachments,
   onAccountsChange,
   onEmployeesChange,
+  onProcessAttachmentsChange,
   onSave,
   onDelete,
   isSaving,
@@ -340,8 +349,10 @@ function SettingsTab({
   employees: Employee[];
   selectedAccounts: string[];
   selectedEmployees: string[];
+  processAttachments: boolean;
   onAccountsChange: (accounts: string[]) => void;
   onEmployeesChange: (employees: string[]) => void;
+  onProcessAttachmentsChange: (enabled: boolean) => void;
   onSave: () => void;
   onDelete: () => void;
   isSaving: boolean;
@@ -438,6 +449,23 @@ function SettingsTab({
             ))}
           </div>
         )}
+      </div>
+
+      <div className="border rounded-lg p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <Label className="text-base font-semibold">Procesar Adjuntos de Email</Label>
+            <p className="text-sm text-muted-foreground mt-1">
+              Cuando está activado, los archivos adjuntos de los correos serán descargados automáticamente
+              y organizados en carpetas por categoría (Pagos, Gastos, Fotos, Facturas, Contratos, Documentos)
+            </p>
+          </div>
+          <Switch
+            checked={processAttachments}
+            onCheckedChange={onProcessAttachmentsChange}
+            data-testid="switch-process-attachments"
+          />
+        </div>
       </div>
 
       {config && config.lastProcessedAt && (
