@@ -1,8 +1,8 @@
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmployeeMultiSelect } from "@/components/employee-multi-select";
@@ -30,13 +30,128 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertOperationSchema, type Client, type Employee } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import type { z } from "zod";
 
+// Fix leaflet default icon issue
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
+
 type OperationFormData = z.infer<typeof insertOperationSchema>;
+
+interface LocationSuggestion {
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
+function AddressAutocomplete({ 
+  value, 
+  onChange, 
+  placeholder,
+  onLocationSelect 
+}: { 
+  value: string; 
+  onChange: (value: string) => void; 
+  placeholder: string;
+  onLocationSelect?: (lat: number, lon: number) => void;
+}) {
+  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    if (value.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}&limit=5`
+        );
+        const data = await response.json();
+        setSuggestions(data);
+        setShowSuggestions(true);
+      } catch (error) {
+        console.error("Error fetching suggestions:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 500);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [value]);
+
+  const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
+    onChange(suggestion.display_name);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    if (onLocationSelect) {
+      onLocationSelect(parseFloat(suggestion.lat), parseFloat(suggestion.lon));
+    }
+  };
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={3}
+          className="pl-10"
+        />
+      </div>
+      {isLoading && (
+        <div className="absolute top-full mt-1 w-full bg-popover border border-border rounded-md p-2 text-sm text-muted-foreground z-50">
+          Buscando direcciones...
+        </div>
+      )}
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="absolute top-full mt-1 w-full bg-popover border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+          {suggestions.map((suggestion, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => handleSelectSuggestion(suggestion)}
+              className="w-full text-left px-4 py-2 hover:bg-accent text-sm border-b border-border last:border-b-0 transition-colors"
+            >
+              <div className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <span>{suggestion.display_name}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function OperationsCreatePage() {
   const [, setLocation] = useLocation();
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [pickupLocation, setPickupLocation] = useState<[number, number] | null>(null);
+  const [deliveryLocation, setDeliveryLocation] = useState<[number, number] | null>(null);
   const { toast } = useToast();
 
   const { data: clients = [] } = useQuery<Client[]>({
@@ -467,7 +582,7 @@ export default function OperationsCreatePage() {
                 <CardHeader>
                   <CardTitle className="text-lg">Direcciones</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   <FormField
                     control={form.control}
                     name="pickUpAddress"
@@ -475,12 +590,34 @@ export default function OperationsCreatePage() {
                       <FormItem>
                         <FormLabel>Dirección de Recogida</FormLabel>
                         <FormControl>
-                          <Textarea {...field} value={field.value || ""} data-testid="input-pickup-address" placeholder="Ingrese la dirección de recogida" rows={3} />
+                          <AddressAutocomplete
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Buscar dirección de recogida..."
+                            onLocationSelect={(lat, lon) => setPickupLocation([lat, lon])}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  
+                  {pickupLocation && (
+                    <div className="h-[250px] rounded-lg overflow-hidden border border-border">
+                      <MapContainer
+                        center={pickupLocation}
+                        zoom={13}
+                        style={{ height: "100%", width: "100%" }}
+                        className="z-0"
+                      >
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <Marker position={pickupLocation} />
+                      </MapContainer>
+                    </div>
+                  )}
                   
                   <FormField
                     control={form.control}
@@ -489,12 +626,34 @@ export default function OperationsCreatePage() {
                       <FormItem>
                         <FormLabel>Dirección de Entrega</FormLabel>
                         <FormControl>
-                          <Textarea {...field} value={field.value || ""} data-testid="input-delivery-address" placeholder="Ingrese la dirección de entrega" rows={3} />
+                          <AddressAutocomplete
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Buscar dirección de entrega..."
+                            onLocationSelect={(lat, lon) => setDeliveryLocation([lat, lon])}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  
+                  {deliveryLocation && (
+                    <div className="h-[250px] rounded-lg overflow-hidden border border-border">
+                      <MapContainer
+                        center={deliveryLocation}
+                        zoom={13}
+                        style={{ height: "100%", width: "100%" }}
+                        className="z-0"
+                      >
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <Marker position={deliveryLocation} />
+                      </MapContainer>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
