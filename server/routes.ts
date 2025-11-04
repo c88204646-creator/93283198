@@ -1358,6 +1358,226 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Automation Config Routes
+  app.get("/api/automation/configs", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const configs = await storage.getAutomationConfigs(userId);
+      res.json(configs);
+    } catch (error) {
+      console.error("Get automation configs error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/automation/configs/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const config = await storage.getAutomationConfig(id);
+      if (!config || config.userId !== userId) {
+        return res.status(404).json({ message: "Config not found" });
+      }
+
+      res.json(config);
+    } catch (error) {
+      console.error("Get automation config error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/automation/configs", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { moduleName, moduleDescription, isEnabled, selectedGmailAccounts } = req.body;
+
+      // Check if config already exists for this module
+      const existing = await storage.getAutomationConfigByModule(userId, moduleName);
+      if (existing) {
+        return res.status(400).json({ message: "Configuration for this module already exists" });
+      }
+
+      const config = await storage.createAutomationConfig({
+        userId,
+        moduleName,
+        moduleDescription,
+        isEnabled: isEnabled || false,
+        selectedGmailAccounts: selectedGmailAccounts || [],
+      });
+
+      res.json(config);
+    } catch (error) {
+      console.error("Create automation config error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/automation/configs/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const config = await storage.getAutomationConfig(id);
+      if (!config || config.userId !== userId) {
+        return res.status(404).json({ message: "Config not found" });
+      }
+
+      const { moduleDescription, isEnabled, selectedGmailAccounts } = req.body;
+      const updated = await storage.updateAutomationConfig(id, {
+        moduleDescription,
+        isEnabled,
+        selectedGmailAccounts,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Update automation config error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/automation/configs/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const config = await storage.getAutomationConfig(id);
+      if (!config || config.userId !== userId) {
+        return res.status(404).json({ message: "Config not found" });
+      }
+
+      await storage.deleteAutomationConfig(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete automation config error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Automation Rule Routes
+  app.get("/api/automation/configs/:configId/rules", requireAuth, async (req, res) => {
+    try {
+      const { configId } = req.params;
+      const userId = req.session.userId!;
+      
+      const config = await storage.getAutomationConfig(configId);
+      if (!config || config.userId !== userId) {
+        return res.status(404).json({ message: "Config not found" });
+      }
+
+      const rules = await storage.getAutomationRulesByConfig(configId);
+      res.json(rules);
+    } catch (error) {
+      console.error("Get automation rules error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/automation/configs/:configId/rules", requireAuth, async (req, res) => {
+    try {
+      const { configId } = req.params;
+      const userId = req.session.userId!;
+      
+      const config = await storage.getAutomationConfig(configId);
+      if (!config || config.userId !== userId) {
+        return res.status(404).json({ message: "Config not found" });
+      }
+
+      const { ruleName, description, isEnabled, priority, conditions, actions } = req.body;
+      
+      const rule = await storage.createAutomationRule({
+        configId,
+        ruleName,
+        description,
+        isEnabled: isEnabled !== undefined ? isEnabled : true,
+        priority: priority || 0,
+        conditions: conditions || [],
+        actions: actions || [],
+      });
+
+      res.json(rule);
+    } catch (error) {
+      console.error("Create automation rule error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/automation/rules/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const rule = await storage.getAutomationRule(id);
+      if (!rule) {
+        return res.status(404).json({ message: "Rule not found" });
+      }
+
+      const config = await storage.getAutomationConfig(rule.configId);
+      if (!config || config.userId !== userId) {
+        return res.status(404).json({ message: "Rule not found" });
+      }
+
+      const { ruleName, description, isEnabled, priority, conditions, actions } = req.body;
+      const updated = await storage.updateAutomationRule(id, {
+        ruleName,
+        description,
+        isEnabled,
+        priority,
+        conditions,
+        actions,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Update automation rule error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/automation/rules/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const rule = await storage.getAutomationRule(id);
+      if (!rule) {
+        return res.status(404).json({ message: "Rule not found" });
+      }
+
+      const config = await storage.getAutomationConfig(rule.configId);
+      if (!config || config.userId !== userId) {
+        return res.status(404).json({ message: "Rule not found" });
+      }
+
+      await storage.deleteAutomationRule(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete automation rule error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Automation Log Routes
+  app.get("/api/automation/configs/:configId/logs", requireAuth, async (req, res) => {
+    try {
+      const { configId } = req.params;
+      const userId = req.session.userId!;
+      const limit = parseInt(req.query.limit as string || '100');
+      
+      const config = await storage.getAutomationConfig(configId);
+      if (!config || config.userId !== userId) {
+        return res.status(404).json({ message: "Config not found" });
+      }
+
+      const logs = await storage.getAutomationLogs(configId, limit);
+      res.json(logs);
+    } catch (error) {
+      console.error("Get automation logs error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
