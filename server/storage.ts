@@ -4,10 +4,12 @@ import { eq, desc, and } from "drizzle-orm";
 import {
   users, clients, employees, operations, invoices, proposals, expenses, leads, 
   invoiceItems, proposalItems, payments, customFields, customFieldValues,
+  operationEmployees, gmailAccounts, gmailMessages, gmailAttachments,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Employee, type InsertEmployee,
   type Operation, type InsertOperation,
+  type OperationEmployee, type InsertOperationEmployee,
   type Invoice, type InsertInvoice,
   type Proposal, type InsertProposal,
   type Expense, type InsertExpense,
@@ -17,6 +19,9 @@ import {
   type Payment, type InsertPayment,
   type CustomField, type InsertCustomField,
   type CustomFieldValue, type InsertCustomFieldValue,
+  type GmailAccount, type InsertGmailAccount,
+  type GmailMessage, type InsertGmailMessage,
+  type GmailAttachment, type InsertGmailAttachment,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -113,6 +118,34 @@ export interface IStorage {
   createCustomFieldValue(value: InsertCustomFieldValue): Promise<CustomFieldValue>;
   updateCustomFieldValue(id: string, value: Partial<InsertCustomFieldValue>): Promise<CustomFieldValue | undefined>;
   deleteCustomFieldValue(id: string): Promise<void>;
+
+  // Operation Employees (many-to-many)
+  getOperationEmployees(operationId: string): Promise<string[]>; // Returns employee IDs
+  setOperationEmployees(operationId: string, employeeIds: string[]): Promise<void>;
+  addOperationEmployee(operationId: string, employeeId: string): Promise<OperationEmployee>;
+  removeOperationEmployee(operationId: string, employeeId: string): Promise<void>;
+
+  // Gmail Accounts
+  getAllGmailAccounts(userId: string): Promise<GmailAccount[]>;
+  getGmailAccount(id: string): Promise<GmailAccount | undefined>;
+  getGmailAccountByEmail(email: string): Promise<GmailAccount | undefined>;
+  createGmailAccount(account: InsertGmailAccount): Promise<GmailAccount>;
+  updateGmailAccount(id: string, account: Partial<InsertGmailAccount>): Promise<GmailAccount | undefined>;
+  deleteGmailAccount(id: string): Promise<void>;
+
+  // Gmail Messages
+  getGmailMessages(accountId: string, limit?: number, offset?: number): Promise<GmailMessage[]>;
+  getGmailMessage(id: string): Promise<GmailMessage | undefined>;
+  getGmailMessageByMessageId(messageId: string): Promise<GmailMessage | undefined>;
+  createGmailMessage(message: InsertGmailMessage): Promise<GmailMessage>;
+  updateGmailMessage(id: string, message: Partial<InsertGmailMessage>): Promise<GmailMessage | undefined>;
+  deleteGmailMessage(id: string): Promise<void>;
+
+  // Gmail Attachments
+  getGmailAttachments(messageId: string): Promise<GmailAttachment[]>;
+  getGmailAttachment(id: string): Promise<GmailAttachment | undefined>;
+  createGmailAttachment(attachment: InsertGmailAttachment): Promise<GmailAttachment>;
+  deleteGmailAttachment(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -451,6 +484,116 @@ export class DatabaseStorage implements IStorage {
 
   async deletePayment(id: string): Promise<void> {
     await db.delete(payments).where(eq(payments.id, id));
+  }
+
+  // Operation Employees (many-to-many)
+  async getOperationEmployees(operationId: string): Promise<string[]> {
+    const assignments = await db.select().from(operationEmployees).where(eq(operationEmployees.operationId, operationId));
+    return assignments.map(a => a.employeeId);
+  }
+
+  async setOperationEmployees(operationId: string, employeeIds: string[]): Promise<void> {
+    await db.delete(operationEmployees).where(eq(operationEmployees.operationId, operationId));
+    if (employeeIds.length > 0) {
+      await db.insert(operationEmployees).values(
+        employeeIds.map(employeeId => ({ operationId, employeeId }))
+      );
+    }
+  }
+
+  async addOperationEmployee(operationId: string, employeeId: string): Promise<OperationEmployee> {
+    const [assignment] = await db.insert(operationEmployees).values({ operationId, employeeId }).returning();
+    return assignment;
+  }
+
+  async removeOperationEmployee(operationId: string, employeeId: string): Promise<void> {
+    await db.delete(operationEmployees).where(
+      and(
+        eq(operationEmployees.operationId, operationId),
+        eq(operationEmployees.employeeId, employeeId)
+      )
+    );
+  }
+
+  // Gmail Accounts
+  async getAllGmailAccounts(userId: string): Promise<GmailAccount[]> {
+    return await db.select().from(gmailAccounts).where(eq(gmailAccounts.userId, userId)).orderBy(desc(gmailAccounts.createdAt));
+  }
+
+  async getGmailAccount(id: string): Promise<GmailAccount | undefined> {
+    const [account] = await db.select().from(gmailAccounts).where(eq(gmailAccounts.id, id));
+    return account || undefined;
+  }
+
+  async getGmailAccountByEmail(email: string): Promise<GmailAccount | undefined> {
+    const [account] = await db.select().from(gmailAccounts).where(eq(gmailAccounts.email, email));
+    return account || undefined;
+  }
+
+  async createGmailAccount(insertAccount: InsertGmailAccount): Promise<GmailAccount> {
+    const [account] = await db.insert(gmailAccounts).values(insertAccount).returning();
+    return account;
+  }
+
+  async updateGmailAccount(id: string, updateData: Partial<InsertGmailAccount>): Promise<GmailAccount | undefined> {
+    const [account] = await db.update(gmailAccounts).set(updateData).where(eq(gmailAccounts.id, id)).returning();
+    return account || undefined;
+  }
+
+  async deleteGmailAccount(id: string): Promise<void> {
+    await db.delete(gmailAccounts).where(eq(gmailAccounts.id, id));
+  }
+
+  // Gmail Messages
+  async getGmailMessages(accountId: string, limit = 100, offset = 0): Promise<GmailMessage[]> {
+    return await db.select().from(gmailMessages)
+      .where(eq(gmailMessages.gmailAccountId, accountId))
+      .orderBy(desc(gmailMessages.date))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async getGmailMessage(id: string): Promise<GmailMessage | undefined> {
+    const [message] = await db.select().from(gmailMessages).where(eq(gmailMessages.id, id));
+    return message || undefined;
+  }
+
+  async getGmailMessageByMessageId(messageId: string): Promise<GmailMessage | undefined> {
+    const [message] = await db.select().from(gmailMessages).where(eq(gmailMessages.messageId, messageId));
+    return message || undefined;
+  }
+
+  async createGmailMessage(insertMessage: InsertGmailMessage): Promise<GmailMessage> {
+    const [message] = await db.insert(gmailMessages).values(insertMessage).returning();
+    return message;
+  }
+
+  async updateGmailMessage(id: string, updateData: Partial<InsertGmailMessage>): Promise<GmailMessage | undefined> {
+    const [message] = await db.update(gmailMessages).set(updateData).where(eq(gmailMessages.id, id)).returning();
+    return message || undefined;
+  }
+
+  async deleteGmailMessage(id: string): Promise<void> {
+    await db.delete(gmailMessages).where(eq(gmailMessages.id, id));
+  }
+
+  // Gmail Attachments
+  async getGmailAttachments(messageId: string): Promise<GmailAttachment[]> {
+    return await db.select().from(gmailAttachments).where(eq(gmailAttachments.gmailMessageId, messageId));
+  }
+
+  async getGmailAttachment(id: string): Promise<GmailAttachment | undefined> {
+    const [attachment] = await db.select().from(gmailAttachments).where(eq(gmailAttachments.id, id));
+    return attachment || undefined;
+  }
+
+  async createGmailAttachment(insertAttachment: InsertGmailAttachment): Promise<GmailAttachment> {
+    const [attachment] = await db.insert(gmailAttachments).values(insertAttachment).returning();
+    return attachment;
+  }
+
+  async deleteGmailAttachment(id: string): Promise<void> {
+    await db.delete(gmailAttachments).where(eq(gmailAttachments.id, id));
   }
 }
 

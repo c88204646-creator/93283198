@@ -11,6 +11,7 @@ import {
   insertCustomFieldSchema
 } from "@shared/schema";
 import { z } from "zod";
+import * as gmailSync from "./gmail-sync";
 
 const PgSession = ConnectPgSimple(session);
 
@@ -332,7 +333,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/operations", requireAuth, async (req, res) => {
     try {
       const allOperations = await storage.getAllOperations();
-      res.json(allOperations);
+      const operationsWithEmployees = await Promise.all(
+        allOperations.map(async (op) => ({
+          ...op,
+          employeeIds: await storage.getOperationEmployees(op.id),
+        }))
+      );
+      res.json(operationsWithEmployees);
     } catch (error) {
       console.error("Get operations error:", error);
       res.status(500).json({ message: "Internal server error" });
@@ -341,8 +348,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/operations", requireAuth, async (req, res) => {
     try {
-      const data = insertOperationSchema.parse(req.body);
+      const { employeeIds, ...operationData } = req.body;
+      const data = insertOperationSchema.parse(operationData);
       const operation = await storage.createOperation(data);
+      
+      if (employeeIds && Array.isArray(employeeIds) && employeeIds.length > 0) {
+        await storage.setOperationEmployees(operation.id, employeeIds);
+      }
+      
       res.json(operation);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -356,11 +369,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/operations/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const data = insertOperationSchema.partial().parse(req.body);
+      const { employeeIds, ...operationData } = req.body;
+      const data = insertOperationSchema.partial().parse(operationData);
       const operation = await storage.updateOperation(id, data);
       
       if (!operation) {
         return res.status(404).json({ message: "Operation not found" });
+      }
+      
+      if (employeeIds !== undefined && Array.isArray(employeeIds)) {
+        await storage.setOperationEmployees(id, employeeIds);
       }
       
       res.json(operation);
@@ -897,6 +915,242 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Custom field deleted successfully" });
     } catch (error) {
       console.error("Delete custom field error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Gmail OAuth Routes
+  app.get("/api/gmail/oauth/start", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const authUrl = gmailSync.getAuthUrl(userId);
+      res.json({ authUrl });
+    } catch (error) {
+      console.error("Gmail OAuth start error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/gmail/oauth/callback", async (req, res) => {
+    try {
+      const { code, state } = req.query;
+      
+      if (!code || typeof code !== 'string') {
+        return res.status(400).send('Missing authorization code');
+      }
+
+      if (!state || typeof state !== 'string') {
+        return res.status(400).send('Missing state parameter');
+      }
+
+      const { userId } = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
+      
+      const syncRangeMonths = parseInt(req.query.syncRange as string || '1');
+      const syncFromDate = new Date();
+      syncFromDate.setMonth(syncFromDate.getMonth() - syncRangeMonths);
+
+      await gmailSync.handleOAuthCallback(code, userId, syncFromDate);
+
+      res.send(`
+        <html>
+          <head><title>Gmail Connected</title></head>
+          <body style="font-family: system-ui; text-align: center; padding: 50px;">
+            <h1>✓ Gmail Account Connected</h1>
+            <p>Your Gmail account has been successfully connected and is now syncing in the background.</p>
+            <p>You can close this window and return to the application.</p>
+            <script>
+              setTimeout(() => { window.close(); }, 3000);
+            </script>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      console.error("Gmail OAuth callback error:", error);
+      res.status(500).send('Failed to connect Gmail account');
+    }
+  });
+
+  // Gmail Account Routes
+  app.get("/api/gmail/accounts", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const accounts = await storage.getAllGmailAccounts(userId);
+      
+      const accountsWithoutTokens = accounts.map(({ accessToken, refreshToken, ...account }) => account);
+      res.json(accountsWithoutTokens);
+    } catch (error) {
+      console.error("Get Gmail accounts error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/gmail/accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const account = await storage.getGmailAccount(id);
+      if (!account || account.userId !== userId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      await storage.deleteGmailAccount(id);
+      res.json({ message: "Gmail account disconnected successfully" });
+    } catch (error) {
+      console.error("Delete Gmail account error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/gmail/accounts/:id/toggle-sync", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const account = await storage.getGmailAccount(id);
+      if (!account || account.userId !== userId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      const updatedAccount = await storage.updateGmailAccount(id, {
+        syncEnabled: !account.syncEnabled,
+      });
+
+      if (updatedAccount?.syncEnabled) {
+        gmailSync.startSync(id);
+      }
+
+      res.json(updatedAccount);
+    } catch (error) {
+      console.error("Toggle Gmail sync error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/gmail/accounts/:id/resync", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const account = await storage.getGmailAccount(id);
+      if (!account || account.userId !== userId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      if (!account.syncEnabled) {
+        return res.status(400).json({ message: "Sync is disabled for this account" });
+      }
+
+      gmailSync.startSync(id);
+      res.json({ message: "Sync started" });
+    } catch (error) {
+      console.error("Resync Gmail account error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Gmail Message Routes
+  app.get("/api/gmail/accounts/:accountId/messages", requireAuth, async (req, res) => {
+    try {
+      const { accountId } = req.params;
+      const userId = req.session.userId!;
+      const limit = parseInt(req.query.limit as string || '100');
+      const offset = parseInt(req.query.offset as string || '0');
+      
+      const account = await storage.getGmailAccount(accountId);
+      if (!account || account.userId !== userId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      const messages = await storage.getGmailMessages(accountId, limit, offset);
+      res.json(messages);
+    } catch (error) {
+      console.error("Get Gmail messages error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/gmail/messages/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const message = await storage.getGmailMessage(id);
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      const account = await storage.getGmailAccount(message.gmailAccountId);
+      if (!account || account.userId !== userId) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      res.json(message);
+    } catch (error) {
+      console.error("Get Gmail message error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Gmail Attachment Routes
+  app.get("/api/gmail/messages/:messageId/attachments", requireAuth, async (req, res) => {
+    try {
+      const { messageId } = req.params;
+      const userId = req.session.userId!;
+      
+      const message = await storage.getGmailMessage(messageId);
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      const account = await storage.getGmailAccount(message.gmailAccountId);
+      if (!account || account.userId !== userId) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      const attachments = await storage.getGmailAttachments(messageId);
+      res.json(attachments);
+    } catch (error) {
+      console.error("Get Gmail attachments error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/gmail/attachments/:id/download", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const attachment = await storage.getGmailAttachment(id);
+      if (!attachment) {
+        return res.status(404).json({ message: "Attachment not found" });
+      }
+
+      const message = await storage.getGmailMessage(attachment.gmailMessageId);
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      const account = await storage.getGmailAccount(message.gmailAccountId);
+      if (!account || account.userId !== userId) {
+        return res.status(404).json({ message: "Attachment not found" });
+      }
+
+      const attachmentData = await gmailSync.getAttachmentData(
+        account,
+        message.messageId,
+        attachment.attachmentId
+      );
+
+      const buffer = Buffer.from(attachmentData, 'base64');
+      
+      res.setHeader('Content-Type', attachment.mimeType);
+      res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
+      res.setHeader('Content-Length', buffer.length);
+      
+      res.send(buffer);
+    } catch (error) {
+      console.error("Download Gmail attachment error:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
