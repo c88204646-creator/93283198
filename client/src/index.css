@@ -174,14 +174,27 @@
     @apply hidden;
   }
 
-  input[type="number"]::-webkit-inner-spin-button,
-  input[type="number"]::-webkit-outer-spin-button {
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
     margin: 0;
   }
-
   input[type="number"] {
     -moz-appearance: textfield;
+  }
+
+  /* Asegurar fondos correctos en tema oscuro */
+  .dark input,
+  .dark select,
+  .dark textarea {
+    background-color: hsl(var(--input));
+    color: hsl(var(--foreground));
+  }
+
+  .dark input:focus,
+  .dark select:focus,
+  .dark textarea:focus {
+    background-color: hsl(var(--input));
   }
 
   [contenteditable][data-placeholder]:empty::before {
