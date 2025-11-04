@@ -513,8 +513,16 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true, creat
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true });
 export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: true, createdAt: true, birthdayEventId: true, userId: true }).extend({
   department: z.string().optional(),
-  birthdate: z.date().optional().nullable(),
-  hireDate: z.date().optional().nullable(),
+  birthdate: z.union([z.string(), z.date()]).optional().nullable().transform((val) => {
+    if (!val) return null;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
+  hireDate: z.union([z.string(), z.date()]).optional().nullable().transform((val) => {
+    if (!val) return null;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
   phone: z.string().optional(),
 });
 export const insertOperationSchema = createInsertSchema(operations).omit({ id: true, createdAt: true });

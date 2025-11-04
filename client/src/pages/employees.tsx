@@ -72,12 +72,7 @@ export default function EmployeesPage() {
 
   const createMutation = useMutation({
     mutationFn: (data: EmployeeFormData) => {
-      const formattedData = {
-        ...data,
-        hireDate: data.hireDate ? new Date(data.hireDate) : undefined,
-        birthdate: data.birthdate ? new Date(data.birthdate) : undefined,
-      };
-      return apiRequest("POST", "/api/employees", formattedData);
+      return apiRequest("POST", "/api/employees", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
@@ -98,12 +93,7 @@ export default function EmployeesPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: EmployeeFormData }) => {
-      const formattedData = {
-        ...data,
-        hireDate: data.hireDate ? new Date(data.hireDate) : undefined,
-        birthdate: data.birthdate ? new Date(data.birthdate) : undefined,
-      };
-      return apiRequest("PATCH", `/api/employees/${id}`, formattedData);
+      return apiRequest("PATCH", `/api/employees/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
