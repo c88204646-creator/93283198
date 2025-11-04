@@ -1,6 +1,6 @@
 // Reference: javascript_database blueprint integration
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import {
   users, clients, employees, operations, invoices, proposals, expenses, leads, 
   invoiceItems, proposalItems, payments, customFields, customFieldValues,
@@ -614,10 +614,10 @@ export class DatabaseStorage implements IStorage {
     const accounts = await this.getAllGmailAccounts(userId);
     const accountIds = accounts.map(a => a.id);
     
-    // Obtener eventos de Google Calendar
+    // Obtener eventos de Google Calendar de todas las cuentas vinculadas
     const googleEvents = accountIds.length > 0 
       ? await db.select().from(calendarEvents)
-          .where(eq(calendarEvents.gmailAccountId, accountIds[0]))
+          .where(inArray(calendarEvents.gmailAccountId, accountIds))
           .orderBy(desc(calendarEvents.startTime))
       : [];
     
