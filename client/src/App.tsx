@@ -69,15 +69,15 @@ function AppLayout() {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 overflow-hidden">
-          <header className="flex items-center justify-between px-6 py-4 border-b border-border bg-card/50 backdrop-blur-sm shrink-0 shadow-sm">
-            <div className="flex items-center gap-4">
+          <header className="flex items-center justify-between px-6 py-3.5 border-b border-border bg-card shrink-0">
+            <div className="flex items-center gap-3">
               <SidebarTrigger data-testid="button-sidebar-toggle" className="hover:bg-accent" />
-              <div className="h-6 w-px bg-border"></div>
-              <h2 className="text-sm font-semibold text-foreground/80">Logistics Control Center</h2>
+              <div className="h-5 w-px bg-border"></div>
+              <h2 className="text-sm font-medium text-foreground/70">Logistics Control Center</h2>
             </div>
             <ThemeToggle />
           </header>
-          <main className="flex-1 overflow-auto p-8 bg-gradient-to-br from-background to-muted/20">
+          <main className="flex-1 overflow-auto p-6 bg-background">
             <div className="max-w-7xl mx-auto">
               <Switch>
                 <Route path="/dashboard" component={() => <ProtectedRoute component={DashboardPage} />} />

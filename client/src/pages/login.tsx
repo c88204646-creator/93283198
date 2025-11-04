@@ -39,20 +39,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
-      <Card className="w-full max-w-md shadow-2xl border-0">
-        <CardHeader className="space-y-4 text-center pb-8">
-          <div className="mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center mb-2 shadow-xl shadow-primary/25">
-            <Truck className="w-10 h-10 text-primary-foreground" />
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md shadow-lg border">
+        <CardHeader className="space-y-3 text-center pb-6">
+          <div className="mx-auto w-16 h-16 rounded-xl bg-primary flex items-center justify-center mb-1 shadow-md">
+            <Truck className="w-8 h-8 text-primary-foreground" />
           </div>
           <div>
-            <CardTitle className="text-3xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+            <CardTitle className="text-2xl font-bold mb-1 text-foreground">
               NNEXIO
             </CardTitle>
-            <p className="text-sm font-semibold text-muted-foreground">Logistics Control Panel</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Logistics Control Panel</p>
           </div>
-          <CardDescription className="text-base">
-            Sign in to access your command center
+          <CardDescription className="text-sm">
+            Sign in to access your dashboard
           </CardDescription>
         </CardHeader>
         <CardContent>

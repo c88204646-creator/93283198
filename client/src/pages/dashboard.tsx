@@ -35,8 +35,8 @@ const moduleCards = [
     description: "Active freight operations",
     icon: Package,
     url: "/operations",
-    color: "text-blue-600 dark:text-blue-400",
-    bgColor: "bg-blue-50 dark:bg-blue-950/30",
+    color: "text-white",
+    bgColor: "bg-blue-500",
     statsKey: "operations" as const,
   },
   {
@@ -44,8 +44,8 @@ const moduleCards = [
     description: "Customer accounts",
     icon: Building2,
     url: "/clients",
-    color: "text-emerald-600 dark:text-emerald-400",
-    bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
+    color: "text-white",
+    bgColor: "bg-emerald-500",
     statsKey: "clients" as const,
   },
   {
@@ -53,8 +53,8 @@ const moduleCards = [
     description: "Team members",
     icon: UserCircle,
     url: "/employees",
-    color: "text-violet-600 dark:text-violet-400",
-    bgColor: "bg-violet-50 dark:bg-violet-950/30",
+    color: "text-white",
+    bgColor: "bg-violet-500",
     statsKey: "employees" as const,
     roles: ["admin", "manager"],
   },
@@ -63,8 +63,8 @@ const moduleCards = [
     description: "Billing & payments",
     icon: FileText,
     url: "/invoices",
-    color: "text-orange-600 dark:text-orange-400",
-    bgColor: "bg-orange-50 dark:bg-orange-950/30",
+    color: "text-white",
+    bgColor: "bg-orange-500",
     statsKey: "invoices" as const,
   },
   {
@@ -72,8 +72,8 @@ const moduleCards = [
     description: "Freight quotations",
     icon: DollarSign,
     url: "/proposals",
-    color: "text-amber-600 dark:text-amber-400",
-    bgColor: "bg-amber-50 dark:bg-amber-950/30",
+    color: "text-white",
+    bgColor: "bg-amber-500",
     statsKey: "proposals" as const,
   },
   {
@@ -81,8 +81,8 @@ const moduleCards = [
     description: "Operational costs",
     icon: Receipt,
     url: "/expenses",
-    color: "text-rose-600 dark:text-rose-400",
-    bgColor: "bg-rose-50 dark:bg-rose-950/30",
+    color: "text-white",
+    bgColor: "bg-rose-500",
     statsKey: "expenses" as const,
   },
   {
@@ -90,8 +90,8 @@ const moduleCards = [
     description: "New opportunities",
     icon: TrendingUp,
     url: "/leads",
-    color: "text-cyan-600 dark:text-cyan-400",
-    bgColor: "bg-cyan-50 dark:bg-cyan-950/30",
+    color: "text-white",
+    bgColor: "bg-cyan-500",
     statsKey: "leads" as const,
   },
 ];
@@ -110,16 +110,16 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-2">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
             Dashboard Overview
           </h1>
-          <p className="text-muted-foreground mt-2 text-base">
-            Welcome back, <span className="font-semibold text-foreground">{user?.fullName}</span>. Here's your logistics control center.
+          <p className="text-muted-foreground mt-1.5 text-sm">
+            Welcome back, <span className="font-medium text-foreground">{user?.fullName}</span>
           </p>
         </div>
-        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+        <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-sm shadow-sm">
           {user?.fullName?.charAt(0).toUpperCase()}
         </div>
       </div>
@@ -131,30 +131,32 @@ export default function DashboardPage() {
 
           return (
             <Link key={card.title} href={card.url}>
-              <Card className="group hover:shadow-xl transition-all duration-300 border-0 overflow-hidden bg-card/80 backdrop-blur-sm hover:scale-[1.02]">
-                <CardHeader className="pb-3">
+              <Card className="group hover:shadow-lg transition-all duration-200 border overflow-hidden bg-card hover:border-primary/50">
+                <CardHeader className="pb-4">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-base font-semibold text-foreground mb-1">
+                      <CardTitle className="text-sm font-semibold text-foreground/90 mb-1">
                         {card.title}
                       </CardTitle>
                       <p className="text-xs text-muted-foreground">
                         {card.description}
                       </p>
                     </div>
-                    <div className={`p-3 rounded-xl ${card.bgColor} shadow-lg group-hover:scale-110 transition-transform`}>
-                      <Icon className="w-6 h-6 text-white" />
+                    <div className={`p-2.5 rounded-lg ${card.bgColor} shadow-sm`}>
+                      <Icon className={`w-5 h-5 ${card.color}`} />
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="flex items-end justify-between">
-                    <div className="text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
-                      {count}
+                    <div className="text-3xl font-bold text-foreground">
+                      {isLoading ? (
+                        <Skeleton className="h-10 w-16" />
+                      ) : (
+                        count
+                      )}
                     </div>
-                    <div className="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                      View all →
-                    </div>
+                    <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
                 </CardContent>
               </Card>

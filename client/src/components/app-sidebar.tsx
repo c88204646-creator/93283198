@@ -95,26 +95,24 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-sidebar-border">
       <SidebarContent className="gap-0 bg-sidebar">
-        <div className="px-6 py-8 border-b border-sidebar-border/50">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shrink-0 shadow-lg shadow-primary/25">
-                <Truck className="w-7 h-7 text-primary-foreground" />
-              </div>
+        <div className="px-4 py-5 border-b border-sidebar-border/50">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shrink-0 shadow-sm">
+              <Truck className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-sidebar-foreground tracking-tight">NNEXIO</h1>
-              <p className="text-xs text-sidebar-foreground/60 mt-0.5 font-medium">Control Panel</p>
+              <h1 className="text-xl font-bold text-sidebar-foreground tracking-tight">NNEXIO</h1>
+              <p className="text-[10px] text-sidebar-foreground/50 mt-0 font-medium uppercase tracking-wider">Control Panel</p>
             </div>
           </div>
         </div>
 
-        <SidebarGroup className="px-3 py-4">
-          <SidebarGroupLabel className="px-3 py-2 text-[10px] uppercase tracking-widest text-sidebar-foreground/50 font-semibold">
-            Main Menu
+        <SidebarGroup className="px-2 py-3">
+          <SidebarGroupLabel className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-sidebar-foreground/40 font-semibold">
+            Navigation
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
+            <SidebarMenu className="gap-0.5">
               {filteredMenuItems.map((item) => {
                 const isActive = location === item.url;
                 return (
@@ -124,16 +122,16 @@ export function AppSidebar() {
                       isActive={isActive} 
                       data-testid={`link-sidebar-${item.title.toLowerCase()}`}
                       className={`
-                        h-11 rounded-lg transition-all duration-200
+                        h-10 rounded-md transition-all duration-150
                         ${isActive 
-                          ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md hover:bg-sidebar-primary/90' 
-                          : 'hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground'
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+                          : 'hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground'
                         }
                       `}
                     >
-                      <Link href={item.url} className="flex items-center gap-3 px-3">
-                        <item.icon className={`w-5 h-5 ${isActive ? 'text-sidebar-primary-foreground' : ''}`} />
-                        <span className="font-medium text-sm">{item.title}</span>
+                      <Link href={item.url} className="flex items-center gap-2.5 px-3">
+                        <item.icon className={`w-4 h-4 ${isActive ? 'text-primary-foreground' : ''}`} />
+                        <span className="font-medium text-[13px]">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -144,23 +142,23 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-sidebar-border/50 bg-sidebar">
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar-accent/50">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-semibold shadow-md">
+      <SidebarFooter className="p-3 border-t border-sidebar-border/50 bg-sidebar">
+        <div className="flex items-center gap-2.5 p-2.5 rounded-md bg-sidebar-accent/30">
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-xs shadow-sm">
             {user?.fullName?.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.fullName}</p>
-            <p className="text-xs text-sidebar-foreground/60 capitalize font-medium">{user?.role}</p>
+            <p className="text-[13px] font-medium text-sidebar-foreground truncate">{user?.fullName}</p>
+            <p className="text-[11px] text-sidebar-foreground/50 capitalize">{user?.role}</p>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => logout()}
-            className="shrink-0 h-9 w-9 hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground"
+            className="shrink-0 h-8 w-8 hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground"
             data-testid="button-logout"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="w-3.5 h-3.5" />
           </Button>
         </div>
       </SidebarFooter>
