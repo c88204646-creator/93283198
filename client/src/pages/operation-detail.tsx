@@ -1084,7 +1084,7 @@ function FilesTab({ operationId }: { operationId: string }) {
     mutationFn: async (folderName: string) => {
       return apiRequest(`/api/operations/${operationId}/folders`, "POST", {
         name: folderName,
-        parentId: selectedFolder,
+        parentFolderId: selectedFolder,
       });
     },
     onSuccess: () => {

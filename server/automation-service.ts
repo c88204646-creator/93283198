@@ -309,7 +309,8 @@ export class AutomationService {
     const newFolder = await storage.createOperationFolder({
       operationId,
       name: folderName,
-      parentId: null,
+      parentFolderId: null,
+      createdBy: config.userId,
     });
 
     return newFolder.id;
