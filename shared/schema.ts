@@ -290,6 +290,8 @@ export const calendarEvents = pgTable("calendar_events", {
   syncStatus: text("sync_status").notNull().default("synced"), // synced, pending, error
   lastSyncedAt: timestamp("last_synced_at"),
   createdBy: varchar("created_by").references(() => users.id, { onDelete: "set null" }), // User who created local event
+  isBirthday: boolean("is_birthday").notNull().default(false), // Mark birthday events
+  employeeId: varchar("employee_id").references(() => employees.id, { onDelete: "cascade" }), // Link to employee for birthdays
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

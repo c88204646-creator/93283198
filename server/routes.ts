@@ -274,6 +274,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to create or update birthday event
+  async function handleBirthdayEvent(employeeId: string, employeeName: string, birthdate: Date | null, currentBirthdayEventId?: string | null) {
+    if (!birthdate) {
+      // If no birthdate, delete existing birthday event if any
+      if (currentBirthdayEventId) {
+        await storage.deleteCalendarEvent(currentBirthdayEventId);
+        await storage.updateEmployee(employeeId, { birthdayEventId: null });
+      }
+      return;
+    }
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const birthMonth = birthdate.getMonth();
+    const birthDay = birthdate.getDate();
+
+    // Calculate next birthday (this year or next year)
+    let nextBirthday = new Date(currentYear, birthMonth, birthDay);
+    if (nextBirthday < now) {
+      nextBirthday = new Date(currentYear + 1, birthMonth, birthDay);
+    }
+
+    // Set as all-day event
+    nextBirthday.setHours(0, 0, 0, 0);
+    const endDate = new Date(nextBirthday);
+    endDate.setHours(23, 59, 59, 999);
+
+    const eventData = {
+      title: `🎂 Cumpleaños de ${employeeName}`,
+      description: `Hoy es el cumpleaños de ${employeeName}!`,
+      startTime: nextBirthday,
+      endTime: endDate,
+      isAllDay: true,
+      status: 'confirmed' as const,
+      source: 'local' as const,
+      isBirthday: true,
+      employeeId,
+    };
+
+    let birthdayEventId = currentBirthdayEventId;
+
+    if (currentBirthdayEventId) {
+      // Update existing event
+      await storage.updateCalendarEvent(currentBirthdayEventId, eventData);
+    } else {
+      // Create new event
+      const event = await storage.createCalendarEvent(eventData);
+      birthdayEventId = event.id;
+      // Update employee with birthday event ID
+      await storage.updateEmployee(employeeId, { birthdayEventId });
+    }
+  }
+
   // Employee Routes (Admin/Manager only for viewing all, create, delete)
   app.get("/api/employees", requireAuth, async (req, res) => {
     try {
@@ -289,6 +342,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = insertEmployeeSchema.parse(req.body);
       const employee = await storage.createEmployee(data);
+      
+      // Handle birthday event creation
+      await handleBirthdayEvent(employee.id, employee.name, employee.birthdate, null);
+      
       res.json(employee);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -303,11 +360,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const data = insertEmployeeSchema.partial().parse(req.body);
+      
+      // Get current employee to check existing birthday event
+      const currentEmployee = await storage.getEmployee(id);
+      if (!currentEmployee) {
+        return res.status(404).json({ message: "Employee not found" });
+      }
+      
       const employee = await storage.updateEmployee(id, data);
       
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
+      
+      // Handle birthday event update
+      await handleBirthdayEvent(
+        employee.id, 
+        employee.name, 
+        employee.birthdate, 
+        employee.birthdayEventId
+      );
       
       res.json(employee);
     } catch (error) {
