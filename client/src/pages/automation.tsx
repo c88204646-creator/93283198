@@ -473,7 +473,7 @@ function RulesTab({ configId }: { configId: string }) {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <CardTitle className="text-base">{rule.ruleName}</CardTitle>
+                      <CardTitle className="text-base">{(rule as any).name}</CardTitle>
                       <Badge variant={rule.isEnabled ? "default" : "secondary"} data-testid={`badge-rule-status-${rule.id}`}>
                         {rule.isEnabled ? "Activa" : "Inactiva"}
                       </Badge>
@@ -573,7 +573,7 @@ function RuleFormDialog({
   onClose: () => void;
 }) {
   const { toast } = useToast();
-  const [ruleName, setRuleName] = useState(rule?.ruleName || "");
+  const [ruleName, setRuleName] = useState((rule as any)?.name || "");
   const [description, setDescription] = useState(rule?.description || "");
   const [priority, setPriority] = useState(rule?.priority?.toString() || "0");
   const [pattern, setPattern] = useState(() => {
@@ -585,7 +585,7 @@ function RuleFormDialog({
   const saveMutation = useMutation({
     mutationFn: async () => {
       const data = {
-        ruleName,
+        name: ruleName,
         description,
         priority: parseInt(priority) || 0,
         isEnabled: true,

@@ -1484,11 +1484,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Config not found" });
       }
 
-      const { ruleName, description, isEnabled, priority, conditions, actions } = req.body;
+      const { name, description, isEnabled, priority, conditions, actions } = req.body;
       
       const rule = await storage.createAutomationRule({
         configId,
-        ruleName,
+        name,
         description,
         isEnabled: isEnabled !== undefined ? isEnabled : true,
         priority: priority || 0,
@@ -1518,9 +1518,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Rule not found" });
       }
 
-      const { ruleName, description, isEnabled, priority, conditions, actions } = req.body;
+      const { name, description, isEnabled, priority, conditions, actions } = req.body;
       const updated = await storage.updateAutomationRule(id, {
-        ruleName,
+        name,
         description,
         isEnabled,
         priority,
