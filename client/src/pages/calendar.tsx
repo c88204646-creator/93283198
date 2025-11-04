@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar as CalendarIcon, Plus, Clock, MapPin, Users, Trash2, RefreshCw } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, Clock, MapPin, Users, Trash2 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, startOfWeek, endOfWeek, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import type { CalendarEvent } from "@shared/schema";
@@ -198,19 +198,6 @@ export default function Calendar() {
     },
   });
 
-  const syncCalendarMutation = useMutation({
-    mutationFn: async (accountId: string) => {
-      return apiRequest(`/api/calendar/accounts/${accountId}/sync`, "POST");
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
-      toast({ title: "Calendario sincronizado" });
-    },
-    onError: () => {
-      toast({ title: "Error al sincronizar", variant: "destructive" });
-    },
-  });
-
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -276,28 +263,6 @@ export default function Calendar() {
           </p>
         </div>
         <div className="flex gap-2">
-          {gmailAccounts.length > 0 && gmailAccounts[0]?.id && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                const accountId = gmailAccounts[0]?.id;
-                if (accountId) {
-                  syncCalendarMutation.mutate(accountId);
-                } else {
-                  toast({ 
-                    title: "Error", 
-                    description: "No se encontró una cuenta válida para sincronizar",
-                    variant: "destructive" 
-                  });
-                }
-              }}
-              disabled={syncCalendarMutation.isPending}
-              data-testid="button-sync"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${syncCalendarMutation.isPending ? 'animate-spin' : ''}`} />
-              {syncCalendarMutation.isPending ? 'Sincronizando...' : 'Sincronizar'}
-            </Button>
-          )}
           <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
             <DialogTrigger asChild>
               <Button data-testid="button-create-event">

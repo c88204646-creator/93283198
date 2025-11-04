@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, MapPin } from "lucide-react";
+import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +39,139 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { z } from "zod";
 
+// Fix leaflet default icon issue
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
+
+interface LocationSuggestion {
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
+function AddressAutocomplete({ 
+  value, 
+  onChange, 
+  placeholder,
+  onLocationSelect 
+}: { 
+  value: string; 
+  onChange: (value: string) => void; 
+  placeholder: string;
+  onLocationSelect?: (lat: number, lon: number) => void;
+}) {
+  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    if (value.length < 3) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}&limit=5&addressdetails=1&extratags=1`
+        );
+        const data = await response.json();
+        setSuggestions(data);
+        setShowSuggestions(data.length > 0);
+      } catch (error) {
+        console.error("Error fetching suggestions:", error);
+        setSuggestions([]);
+        setShowSuggestions(false);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [value]);
+
+  const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
+    onChange(suggestion.display_name);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    if (onLocationSelect) {
+      onLocationSelect(parseFloat(suggestion.lat), parseFloat(suggestion.lon));
+    }
+  };
+
+  const handleBlur = () => {
+    setTimeout(() => {
+      setShowSuggestions(false);
+    }, 200);
+  };
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+            if (e.target.value.length >= 3) {
+              setShowSuggestions(true);
+            }
+          }}
+          onBlur={handleBlur}
+          placeholder={placeholder}
+          className="pl-10"
+        />
+      </div>
+      {isLoading && (
+        <div className="absolute top-full mt-1 w-full bg-popover border border-border rounded-md p-2 text-sm text-muted-foreground z-50">
+          Buscando direcciones...
+        </div>
+      )}
+      {!isLoading && value.length >= 3 && suggestions.length === 0 && showSuggestions && (
+        <div className="absolute top-full mt-1 w-full bg-popover border border-border rounded-md p-3 text-sm text-muted-foreground z-50">
+          <p className="text-center">No se encontraron sugerencias.</p>
+          <p className="text-center text-xs mt-1">Puedes escribir la dirección manualmente.</p>
+        </div>
+      )}
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="absolute top-full mt-1 w-full bg-popover border border-border rounded-md shadow-lg z-50 max-h-60 overflow-y-auto">
+          {suggestions.map((suggestion, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => handleSelectSuggestion(suggestion)}
+              className="w-full text-left px-4 py-2 hover:bg-accent text-sm border-b border-border last:border-b-0 transition-colors"
+            >
+              <div className="flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <span>{suggestion.display_name}</span>
+              </div>
+            </button>
+          ))}
+          <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border bg-muted/30">
+            O escribe tu propia dirección
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const statusColors = {
   active: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
   inactive: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
@@ -47,6 +183,7 @@ type ClientFormData = z.infer<typeof insertClientSchema>;
 export default function ClientsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [locationCoords, setLocationCoords] = useState<[number, number] | null>(null);
   const { toast } = useToast();
 
   const { data: clients = [], isLoading } = useQuery<Client[]>({
@@ -184,6 +321,7 @@ export default function ClientsPage() {
           if (!open) {
             setIsCreateOpen(false);
             setEditingClient(null);
+            setLocationCoords(null);
             form.reset();
           }
         }}>
@@ -250,12 +388,33 @@ export default function ClientsPage() {
                     <FormItem>
                       <FormLabel>Address</FormLabel>
                       <FormControl>
-                        <Input {...field} value={field.value || ""} data-testid="input-address" />
+                        <AddressAutocomplete
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Buscar dirección..."
+                          onLocationSelect={(lat, lon) => setLocationCoords([lat, lon])}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                {locationCoords && (
+                  <div className="h-[200px] rounded-lg overflow-hidden border border-border">
+                    <MapContainer
+                      center={locationCoords}
+                      zoom={15}
+                      style={{ height: "100%", width: "100%" }}
+                      className="z-0"
+                    >
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                      />
+                      <Marker position={locationCoords} />
+                    </MapContainer>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
