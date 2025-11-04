@@ -66,7 +66,11 @@ Design preference: Logistics-focused iconography and terminology.
 - **users**: Authentication and role management (admin/manager/employee)
 - **employees**: Extended employee information linked to user accounts
 - **clients**: Customer relationship management
-- **operations**: Project/task tracking with status, priority, client, and employee assignments
+- **operations**: Freight forwarding shipment tracking with comprehensive logistics fields:
+  - Basic info: name, description, status, priority, client, assigned employee
+  - Project details: project category, operation type (FCL/LCL/Air/Road/Rail), shipping mode (sea/air/land/multimodal), insurance, currency
+  - Shipping info: courier, pick up address, delivery address
+  - Tracking & dates: booking/tracking number, pick up date, ETD, ETA, MBL/AWB, HBL/AWB
 - **invoices**: Financial tracking with status workflow (draft/sent/paid/overdue/cancelled)
 - **proposals**: Sales proposal management with acceptance workflow
 - **expenses**: Employee expense tracking with approval workflow
