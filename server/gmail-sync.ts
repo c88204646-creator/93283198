@@ -2,10 +2,30 @@ import { google } from 'googleapis';
 import { storage } from './storage';
 import type { GmailAccount } from '@shared/schema';
 
+// Construir la URL de redirección automáticamente
+function getRedirectUri(): string {
+  const redirectPath = process.env.GOOGLE_REDIRECT_URI || '/api/gmail/oauth/callback';
+  
+  // Si GOOGLE_REDIRECT_URI ya es una URL completa, usarla tal cual
+  if (redirectPath.startsWith('http://') || redirectPath.startsWith('https://')) {
+    return redirectPath;
+  }
+  
+  // Caso contrario, construir la URL completa
+  const baseUrl = process.env.REPL_SLUG 
+    ? `https://${process.env.REPL_SLUG}.${process.env.REPLIT_DEV_DOMAIN}`
+    : 'http://localhost:5000';
+  
+  // Asegurar que el path empiece con /
+  const normalizedPath = redirectPath.startsWith('/') ? redirectPath : `/${redirectPath}`;
+  
+  return `${baseUrl}${normalizedPath}`;
+}
+
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI || `${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000'}/api/gmail/oauth/callback`
+  getRedirectUri()
 );
 
 export function getAuthUrl(userId: string): string {

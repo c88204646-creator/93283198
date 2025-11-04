@@ -37,21 +37,27 @@ https://workspace.83a571b0-d081-4ff7-a5b3-042fe980ca21-00-72xj66t1j9ct.worf.repl
 
 ### 6. Secrets de Replit
 
-**IMPORTANTE**: Asegúrate de que estos secrets estén configurados EXACTAMENTE como se indica:
+Configura estos secrets en tu Repl:
 
 - `GOOGLE_CLIENT_ID`: El ID de cliente que obtienes de Google Cloud Console
 - `GOOGLE_CLIENT_SECRET`: El secreto de cliente de Google Cloud Console
-- `GOOGLE_REDIRECT_URI`: **DEBE SER LA URL COMPLETA (no solo el path)**:
-  ```
-  https://workspace.83a571b0-d081-4ff7-a5b3-042fe980ca21-00-72xj66t1j9ct.worf.replit.dev/api/gmail/oauth/callback
-  ```
+- `GOOGLE_REDIRECT_URI`: (Opcional) Por defecto usa `/api/gmail/oauth/callback`
+  
+**Opciones para GOOGLE_REDIRECT_URI:**
 
-**❌ INCORRECTO:**
-- `/api/gmail/oauth/callback`
-- `/api/google-auth/callback`
+✅ **Opción 1 (Recomendada):** Solo el path - se detecta la URL automáticamente
+```
+/api/gmail/oauth/callback
+```
 
-**✅ CORRECTO:**
-- `https://workspace.83a571b0-d081-4ff7-a5b3-042fe980ca21-00-72xj66t1j9ct.worf.replit.dev/api/gmail/oauth/callback`
+✅ **Opción 2:** URL completa (si necesitas usar un dominio específico)
+```
+https://workspace.83a571b0-d081-4ff7-a5b3-042fe980ca21-00-72xj66t1j9ct.worf.replit.dev/api/gmail/oauth/callback
+```
+
+✅ **Opción 3:** Dejar vacío - usará `/api/gmail/oauth/callback` por defecto
+
+**Nota:** La aplicación detecta automáticamente la URL base de Replit, así que solo necesitas configurar el path.
 
 ### 7. Notas importantes
 
