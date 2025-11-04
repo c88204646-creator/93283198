@@ -259,6 +259,32 @@ export const gmailAttachments = pgTable("gmail_attachments", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Calendar Events table
+export const calendarEvents = pgTable("calendar_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gmailAccountId: varchar("gmail_account_id").references(() => gmailAccounts.id, { onDelete: "cascade" }), // null if local event
+  eventId: text("event_id"), // Google Calendar event ID (null if local)
+  calendarId: text("calendar_id"), // Google Calendar ID (null if local)
+  title: text("title").notNull(),
+  description: text("description"),
+  location: text("location"),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  isAllDay: boolean("is_all_day").notNull().default(false),
+  attendees: jsonb("attendees"), // Array of attendee emails [{email, name, responseStatus}]
+  status: text("status").notNull().default("confirmed"), // confirmed, tentative, cancelled
+  visibility: text("visibility").notNull().default("default"), // default, public, private, confidential
+  reminders: jsonb("reminders"), // Array of reminder configurations [{method, minutes}]
+  recurrence: text("recurrence").array(), // Array of RRULE strings
+  color: text("color"), // Event color
+  source: text("source").notNull().default("local"), // local, google
+  syncStatus: text("sync_status").notNull().default("synced"), // synced, pending, error
+  lastSyncedAt: timestamp("last_synced_at"),
+  createdBy: varchar("created_by").references(() => users.id, { onDelete: "set null" }), // User who created local event
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one }) => ({
   employee: one(employees, {
@@ -400,6 +426,7 @@ export const gmailAccountsRelations = relations(gmailAccounts, ({ one, many }) =
     references: [users.id],
   }),
   messages: many(gmailMessages),
+  calendarEvents: many(calendarEvents),
 }));
 
 export const gmailMessagesRelations = relations(gmailMessages, ({ one, many }) => ({
@@ -414,6 +441,17 @@ export const gmailAttachmentsRelations = relations(gmailAttachments, ({ one }) =
   message: one(gmailMessages, {
     fields: [gmailAttachments.gmailMessageId],
     references: [gmailMessages.id],
+  }),
+}));
+
+export const calendarEventsRelations = relations(calendarEvents, ({ one }) => ({
+  gmailAccount: one(gmailAccounts, {
+    fields: [calendarEvents.gmailAccountId],
+    references: [gmailAccounts.id],
+  }),
+  creator: one(users, {
+    fields: [calendarEvents.createdBy],
+    references: [users.id],
   }),
 }));
 
@@ -435,6 +473,7 @@ export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues
 export const insertGmailAccountSchema = createInsertSchema(gmailAccounts).omit({ id: true, createdAt: true });
 export const insertGmailMessageSchema = createInsertSchema(gmailMessages).omit({ id: true, createdAt: true });
 export const insertGmailAttachmentSchema = createInsertSchema(gmailAttachments).omit({ id: true, createdAt: true });
+export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -487,3 +526,6 @@ export type GmailMessage = typeof gmailMessages.$inferSelect;
 
 export type InsertGmailAttachment = z.infer<typeof insertGmailAttachmentSchema>;
 export type GmailAttachment = typeof gmailAttachments.$inferSelect;
+
+export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
