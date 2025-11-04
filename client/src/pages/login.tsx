@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Truck } from "lucide-react";
 
 export default function LoginPage() {
   const [, setLocation] = useLocation();
@@ -42,13 +42,13 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center">
-              <span className="text-xl font-bold text-primary-foreground">L</span>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center">
+              <Truck className="w-7 h-7 text-primary-foreground" />
             </div>
             <div>
-              <CardTitle className="text-2xl">LogistiCore</CardTitle>
-              <CardDescription>Business Management Platform</CardDescription>
+              <CardTitle className="text-2xl font-bold">LogistiCore</CardTitle>
+              <CardDescription className="text-sm">Freight Forwarding Platform</CardDescription>
             </div>
           </div>
         </CardHeader>

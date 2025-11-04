@@ -7,8 +7,9 @@ import {
   Receipt, 
   UserCircle, 
   TrendingUp,
-  Settings,
-  LogOut
+  Package,
+  LogOut,
+  Truck
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
@@ -39,9 +40,9 @@ const menuItems: MenuItem[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "Operations",
+    title: "Shipments",
     url: "/operations",
-    icon: Settings,
+    icon: Package,
   },
   {
     title: "Clients",
@@ -49,7 +50,7 @@ const menuItems: MenuItem[] = [
     icon: Building2,
   },
   {
-    title: "Employees",
+    title: "Staff",
     url: "/employees",
     icon: UserCircle,
     roles: ["admin", "manager"],
@@ -60,7 +61,7 @@ const menuItems: MenuItem[] = [
     icon: FileText,
   },
   {
-    title: "Proposals",
+    title: "Quotes",
     url: "/proposals",
     icon: DollarSign,
   },
@@ -95,13 +96,20 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarContent className="gap-0">
         <div className="p-6 border-b border-sidebar-border">
-          <h1 className="text-xl font-semibold text-sidebar-foreground">LogistiCore</h1>
-          <p className="text-xs text-muted-foreground mt-1">Business Management</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-md bg-primary flex items-center justify-center shrink-0">
+              <Truck className="w-6 h-6 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-sidebar-foreground">LogistiCore</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">Freight Forwarding</p>
+            </div>
+          </div>
         </div>
 
         <SidebarGroup>
           <SidebarGroupLabel className="px-4 py-2 text-xs uppercase tracking-wider text-muted-foreground">
-            Main Menu
+            Logistics Operations
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>

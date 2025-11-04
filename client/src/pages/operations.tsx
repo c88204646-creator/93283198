@@ -220,8 +220,8 @@ export default function OperationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-foreground">Operations</h1>
-          <p className="text-muted-foreground mt-1">Manage your business operations and projects</p>
+          <h1 className="text-3xl font-bold text-foreground">Shipments</h1>
+          <p className="text-muted-foreground mt-2">Manage freight operations and logistics</p>
         </div>
         <Dialog open={isCreateOpen || !!editingOperation} onOpenChange={(open) => {
           if (!open) {
@@ -233,14 +233,14 @@ export default function OperationsPage() {
           <DialogTrigger asChild>
             <Button onClick={() => setIsCreateOpen(true)} data-testid="button-create-operation">
               <Plus className="w-4 h-4 mr-2" />
-              New Operation
+              New Shipment
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{editingOperation ? "Edit Operation" : "Create Operation"}</DialogTitle>
+              <DialogTitle>{editingOperation ? "Edit Shipment" : "Create Shipment"}</DialogTitle>
               <DialogDescription>
-                {editingOperation ? "Update operation details" : "Add a new operation to your system"}
+                {editingOperation ? "Update shipment details" : "Add a new shipment to track"}
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -422,9 +422,9 @@ export default function OperationsPage() {
       <DataTable
         data={operations}
         columns={columns}
-        searchPlaceholder="Search operations..."
+        searchPlaceholder="Search shipments..."
         isLoading={isLoading}
-        emptyMessage="No operations found. Create your first operation to get started."
+        emptyMessage="No shipments found. Create your first shipment to get started."
       />
     </div>
   );
