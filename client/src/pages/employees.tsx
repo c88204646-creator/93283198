@@ -64,7 +64,7 @@ export default function EmployeesPage() {
       userId: "",
       position: "",
       department: "",
-      hireDate: new Date() as any,
+      hireDate: new Date().toISOString().split('T')[0] as any,
       status: "active",
       phone: "",
     },
@@ -123,9 +123,14 @@ export default function EmployeesPage() {
 
   const handleEdit = (employee: Employee) => {
     setEditingEmployee(employee);
+    const formattedDate = new Date(employee.hireDate).toISOString().split('T')[0];
     form.reset({
-      ...employee,
-      hireDate: new Date(employee.hireDate).toISOString().split('T')[0] as any,
+      userId: employee.userId,
+      position: employee.position,
+      department: employee.department,
+      status: employee.status,
+      phone: employee.phone || "",
+      hireDate: formattedDate as any,
     });
   };
 
