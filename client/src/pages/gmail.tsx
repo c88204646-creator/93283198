@@ -23,9 +23,14 @@ export default function GmailPage() {
     queryKey: ["/api/gmail/accounts"],
   });
 
-  const { data: messages = [], isLoading: messagesLoading } = useQuery<GmailMessage[]>({
+  const { data: messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useQuery<GmailMessage[]>({
     queryKey: ["/api/gmail/accounts", selectedAccount, "messages"],
     enabled: !!selectedAccount,
+    refetchInterval: (data) => {
+      // Refrescar automáticamente si hay una cuenta seleccionada y está sincronizando
+      const account = accounts.find(a => a.id === selectedAccount);
+      return account?.syncStatus === 'syncing' ? 3000 : false;
+    },
   });
 
   const { data: attachments = [] } = useQuery<GmailAttachment[]>({
@@ -84,9 +89,18 @@ export default function GmailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gmail/accounts"] });
+      // Iniciar refetch automático de mensajes
+      const intervalId = setInterval(() => {
+        refetchMessages();
+        queryClient.invalidateQueries({ queryKey: ["/api/gmail/accounts"] });
+      }, 3000);
+      
+      // Detener después de 5 minutos
+      setTimeout(() => clearInterval(intervalId), 300000);
+      
       toast({
         title: "Sincronización iniciada",
-        description: "La sincronización de correos ha iniciado en segundo plano.",
+        description: "La sincronización de correos ha iniciado. Los mensajes aparecerán gradualmente.",
       });
     },
   });
@@ -241,11 +255,18 @@ export default function GmailPage() {
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>
+            <CardTitle className="flex items-center gap-2">
               {currentAccount ? `Correos de ${currentAccount.email}` : "Selecciona una cuenta"}
+              {currentAccount?.syncStatus === 'syncing' && (
+                <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
+              )}
             </CardTitle>
             <CardDescription>
               {messages.length} {messages.length === 1 ? "correo" : "correos"}
+              {currentAccount?.syncStatus === 'syncing' && " - Sincronizando..."}
+              {currentAccount?.syncStatus === 'completed' && currentAccount.lastSyncDate && 
+                ` - Última sync: ${format(new Date(currentAccount.lastSyncDate), "dd/MM/yyyy HH:mm")}`
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>

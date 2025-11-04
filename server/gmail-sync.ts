@@ -120,22 +120,31 @@ export async function startSync(accountId: string) {
 
     let pageToken: string | undefined;
     let syncedCount = 0;
+    let totalProcessed = 0;
+
+    console.log(`Starting sync for account ${accountId} from date ${account.syncFromDate}`);
 
     do {
       const response = await gmail.users.messages.list({
         userId: 'me',
         q: query,
-        maxResults: 100,
+        maxResults: 500, // Aumentar a 500 mensajes por página
         pageToken,
       });
 
       const messages = response.data.messages || [];
+      totalProcessed += messages.length;
+
+      console.log(`Processing ${messages.length} messages (total processed: ${totalProcessed})`);
 
       for (const message of messages) {
         if (!message.id) continue;
 
         const existing = await storage.getGmailMessageByMessageId(message.id);
-        if (existing) continue;
+        if (existing) {
+          console.log(`Message ${message.id} already exists, skipping...`);
+          continue;
+        }
 
         const fullMessage = await gmail.users.messages.get({
           userId: 'me',
@@ -243,8 +252,12 @@ export async function startSync(accountId: string) {
 
       pageToken = response.data.nextPageToken || undefined;
 
-      if (syncedCount % 100 === 0) {
-        console.log(`Synced ${syncedCount} messages for account ${accountId}`);
+      // Actualizar progreso cada página procesada
+      console.log(`Synced ${syncedCount} new messages so far for account ${accountId}`);
+
+      // Pequeña pausa para evitar rate limiting de Google
+      if (pageToken) {
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
     } while (pageToken);
@@ -255,7 +268,7 @@ export async function startSync(accountId: string) {
       errorMessage: null,
     });
 
-    console.log(`Sync completed for account ${accountId}. Total: ${syncedCount} messages`);
+    console.log(`Sync completed for account ${accountId}. Total processed: ${totalProcessed} messages, New messages synced: ${syncedCount}`);
 
   } catch (error: any) {
     console.error(`Sync error for account ${accountId}:`, error);

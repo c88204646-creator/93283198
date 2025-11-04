@@ -558,7 +558,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Gmail Messages
-  async getGmailMessages(accountId: string, limit = 100, offset = 0): Promise<GmailMessage[]> {
+  async getGmailMessages(accountId: string, limit = 200, offset = 0): Promise<GmailMessage[]> {
     return await db.select().from(gmailMessages)
       .where(eq(gmailMessages.gmailAccountId, accountId))
       .orderBy(desc(gmailMessages.date))
