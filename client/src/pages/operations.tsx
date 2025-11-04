@@ -12,6 +12,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import {
   Form,
   FormControl,
@@ -71,8 +73,12 @@ export default function OperationsPage() {
 
   const form = useForm<OperationFormData>({
     resolver: zodResolver(insertOperationSchema.extend({
-      startDate: insertOperationSchema.shape.startDate.nullable(),
       endDate: insertOperationSchema.shape.endDate.nullable(),
+      clientId: insertOperationSchema.shape.clientId.nullable(),
+      assignedEmployeeId: insertOperationSchema.shape.assignedEmployeeId.nullable(),
+      pickUpDate: insertOperationSchema.shape.pickUpDate.nullable(),
+      etd: insertOperationSchema.shape.etd.nullable(),
+      eta: insertOperationSchema.shape.eta.nullable(),
     })),
     defaultValues: {
       name: "",
@@ -83,6 +89,20 @@ export default function OperationsPage() {
       assignedEmployeeId: null,
       startDate: null,
       endDate: null,
+      projectCategory: "",
+      operationType: "",
+      shippingMode: "",
+      insurance: "",
+      projectCurrency: "USD",
+      courier: "",
+      pickUpAddress: "",
+      deliveryAddress: "",
+      bookingTracking: "",
+      pickUpDate: null,
+      etd: null,
+      eta: null,
+      mblAwb: "",
+      hblAwb: "",
     },
   });
 
@@ -123,6 +143,15 @@ export default function OperationsPage() {
       ...data,
       startDate: data.startDate ? new Date(data.startDate) : null,
       endDate: data.endDate ? new Date(data.endDate) : null,
+      pickUpDate: data.pickUpDate ? new Date(data.pickUpDate) : null,
+      etd: data.etd ? new Date(data.etd) : null,
+      eta: data.eta ? new Date(data.eta) : null,
+      courier: data.courier || null,
+      pickUpAddress: data.pickUpAddress || null,
+      deliveryAddress: data.deliveryAddress || null,
+      bookingTracking: data.bookingTracking || null,
+      mblAwb: data.mblAwb || null,
+      hblAwb: data.hblAwb || null,
     };
 
     if (editingOperation) {
@@ -143,6 +172,20 @@ export default function OperationsPage() {
       assignedEmployeeId: operation.assignedEmployeeId,
       startDate: operation.startDate ? new Date(operation.startDate).toISOString().split('T')[0] as any : null,
       endDate: operation.endDate ? new Date(operation.endDate).toISOString().split('T')[0] as any : null,
+      projectCategory: operation.projectCategory,
+      operationType: operation.operationType,
+      shippingMode: operation.shippingMode,
+      insurance: operation.insurance,
+      projectCurrency: operation.projectCurrency,
+      courier: operation.courier || "",
+      pickUpAddress: operation.pickUpAddress || "",
+      deliveryAddress: operation.deliveryAddress || "",
+      bookingTracking: operation.bookingTracking || "",
+      pickUpDate: operation.pickUpDate ? new Date(operation.pickUpDate).toISOString().split('T')[0] as any : null,
+      etd: operation.etd ? new Date(operation.etd).toISOString().split('T')[0] as any : null,
+      eta: operation.eta ? new Date(operation.eta).toISOString().split('T')[0] as any : null,
+      mblAwb: operation.mblAwb || "",
+      hblAwb: operation.hblAwb || "",
     });
   };
 
@@ -236,7 +279,7 @@ export default function OperationsPage() {
               New Shipment
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingOperation ? "Edit Shipment" : "Create Shipment"}</DialogTitle>
               <DialogDescription>
@@ -245,158 +288,397 @@ export default function OperationsPage() {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} value={field.value || ""} data-testid="input-description" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                <Tabs defaultValue="details" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="details">Project Details</TabsTrigger>
+                    <TabsTrigger value="shipping">Shipping Info</TabsTrigger>
+                    <TabsTrigger value="tracking">Tracking & Dates</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="details" className="space-y-4 mt-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Project Name *</FormLabel>
                           <FormControl>
-                            <SelectTrigger data-testid="select-status">
-                              <SelectValue />
-                            </SelectTrigger>
+                            <Input {...field} data-testid="input-name" placeholder="Enter project name" />
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="planning">Planning</SelectItem>
-                            <SelectItem value="in-progress">In Progress</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="priority"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Priority</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="clientId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Client *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || undefined}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-client">
+                                  <SelectValue placeholder="Select client" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {clients.map((client) => (
+                                  <SelectItem key={client.id} value={client.id}>
+                                    {client.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="projectCategory"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Project Category *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-project-category">
+                                  <SelectValue placeholder="Select category" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="import">Import</SelectItem>
+                                <SelectItem value="export">Export</SelectItem>
+                                <SelectItem value="domestic">Domestic</SelectItem>
+                                <SelectItem value="warehousing">Warehousing</SelectItem>
+                                <SelectItem value="customs-clearance">Customs Clearance</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Status *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-status">
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="planning">Planning</SelectItem>
+                                <SelectItem value="in-progress">In Progress</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="startDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Start Date *</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={(field.value as unknown as string) || ""} data-testid="input-start-date" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="endDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Deadline</FormLabel>
                           <FormControl>
-                            <SelectTrigger data-testid="select-priority">
-                              <SelectValue />
-                            </SelectTrigger>
+                            <Input type="date" {...field} value={(field.value as unknown as string) || ""} data-testid="input-end-date" />
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="urgent">Urgent</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="clientId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Client</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || undefined}>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="operationType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Operation Type *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-operation-type">
+                                  <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="FCL">FCL (Full Container Load)</SelectItem>
+                                <SelectItem value="LCL">LCL (Less Container Load)</SelectItem>
+                                <SelectItem value="Air">Air Freight</SelectItem>
+                                <SelectItem value="Road">Road Transport</SelectItem>
+                                <SelectItem value="Rail">Rail Freight</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="shippingMode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Shipping Mode *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-shipping-mode">
+                                  <SelectValue placeholder="Select mode" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="sea">Sea</SelectItem>
+                                <SelectItem value="air">Air</SelectItem>
+                                <SelectItem value="land">Land</SelectItem>
+                                <SelectItem value="multimodal">Multimodal</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="insurance"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Insurance *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-insurance">
+                                  <SelectValue placeholder="Select insurance" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="yes">Yes</SelectItem>
+                                <SelectItem value="no">No</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="projectCurrency"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Project Currency *</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-currency">
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="USD">USD</SelectItem>
+                                <SelectItem value="EUR">EUR</SelectItem>
+                                <SelectItem value="GBP">GBP</SelectItem>
+                                <SelectItem value="MXN">MXN</SelectItem>
+                                <SelectItem value="CAD">CAD</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="assignedEmployeeId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Assigned To *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || undefined}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-employee">
+                                <SelectValue placeholder="Select employee" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {employees.map((employee) => (
+                                <SelectItem key={employee.id} value={employee.id}>
+                                  {employee.position}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="shipping" className="space-y-4 mt-4">
+                    <FormField
+                      control={form.control}
+                      name="courier"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Courier</FormLabel>
                           <FormControl>
-                            <SelectTrigger data-testid="select-client">
-                              <SelectValue placeholder="Select client" />
-                            </SelectTrigger>
+                            <Input {...field} value={field.value || ""} data-testid="input-courier" placeholder="e.g., DHL, FedEx, Maersk" />
                           </FormControl>
-                          <SelectContent>
-                            {clients.map((client) => (
-                              <SelectItem key={client.id} value={client.id}>
-                                {client.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="assignedEmployeeId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Assigned Employee</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value || undefined}>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="pickUpAddress"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Pick Up Address</FormLabel>
                           <FormControl>
-                            <SelectTrigger data-testid="select-employee">
-                              <SelectValue placeholder="Select employee" />
-                            </SelectTrigger>
+                            <Textarea {...field} value={field.value || ""} data-testid="input-pickup-address" placeholder="Enter pick up address" rows={3} />
                           </FormControl>
-                          <SelectContent>
-                            {employees.map((employee) => (
-                              <SelectItem key={employee.id} value={employee.id}>
-                                {employee.position}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="startDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Start Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} value={(field.value as unknown as string) || ""} data-testid="input-start-date" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="endDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>End Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} value={(field.value as unknown as string) || ""} data-testid="input-end-date" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="deliveryAddress"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Delivery Address</FormLabel>
+                          <FormControl>
+                            <Textarea {...field} value={field.value || ""} data-testid="input-delivery-address" placeholder="Enter delivery address" rows={3} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="tracking" className="space-y-4 mt-4">
+                    <FormField
+                      control={form.control}
+                      name="bookingTracking"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Booking / Shipment Tracking</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} data-testid="input-booking-tracking" placeholder="Enter booking or tracking number" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="pickUpDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Pick Up Date</FormLabel>
+                          <FormControl>
+                            <Input type="date" {...field} value={(field.value as unknown as string) || ""} data-testid="input-pickup-date" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="etd"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>ETD (Estimated Time of Departure)</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={(field.value as unknown as string) || ""} data-testid="input-etd" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="eta"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>ETA (Estimated Time of Arrival)</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} value={(field.value as unknown as string) || ""} data-testid="input-eta" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="mblAwb"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>MBL / AWB</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} data-testid="input-mbl-awb" placeholder="Master Bill of Lading / Air Waybill" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="hblAwb"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>HBL / AWB</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} data-testid="input-hbl-awb" placeholder="House Bill of Lading / Air Waybill" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+                
+                <Separator className="my-4" />
+                
                 <div className="flex justify-end gap-2">
                   <Button
                     type="button"
