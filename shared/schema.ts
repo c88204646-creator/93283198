@@ -21,6 +21,7 @@ export const clients = pgTable("clients", {
   email: text("email").notNull(),
   phone: text("phone"),
   address: text("address"),
+  currency: text("currency").notNull().default("USD"), // MXN, USD, ARS
   status: text("status").notNull().default("active"), // active, inactive, potential
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -80,7 +81,10 @@ export const invoices = pgTable("invoices", {
   operationId: varchar("operation_id").references(() => operations.id, { onDelete: "set null" }),
   employeeId: varchar("employee_id").notNull().references(() => employees.id, { onDelete: "restrict" }),
   clientId: varchar("client_id").notNull().references(() => clients.id, { onDelete: "restrict" }),
-  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("USD"), // MXN, USD, ARS - from client
+  subtotal: decimal("subtotal", { precision: 12, scale: 2 }).notNull().default("0"),
+  tax: decimal("tax", { precision: 12, scale: 2 }).notNull().default("0"),
+  total: decimal("total", { precision: 12, scale: 2 }).notNull().default("0"),
   status: text("status").notNull().default("draft"), // draft, sent, paid, overdue, cancelled
   dueDate: timestamp("due_date").notNull(),
   paidDate: timestamp("paid_date"),
@@ -96,9 +100,13 @@ export const proposals = pgTable("proposals", {
   employeeId: varchar("employee_id").notNull().references(() => employees.id, { onDelete: "restrict" }),
   title: text("title").notNull(),
   description: text("description"),
-  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
-  status: text("status").notNull().default("draft"), // draft, sent, accepted, rejected, expired
+  currency: text("currency").notNull().default("USD"), // MXN, USD, ARS - from client
+  subtotal: decimal("subtotal", { precision: 12, scale: 2 }).notNull().default("0"),
+  tax: decimal("tax", { precision: 12, scale: 2 }).notNull().default("0"),
+  total: decimal("total", { precision: 12, scale: 2 }).notNull().default("0"),
+  status: text("status").notNull().default("draft"), // draft, sent, accepted, rejected, expired, converted
   validUntil: timestamp("valid_until").notNull(),
+  convertedToInvoiceId: varchar("converted_to_invoice_id").references(() => invoices.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -128,6 +136,40 @@ export const leads = pgTable("leads", {
   assignedEmployeeId: varchar("assigned_employee_id").references(() => employees.id, { onDelete: "set null" }),
   notes: text("notes"),
   convertedToClientId: varchar("converted_to_client_id").references(() => clients.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Invoice Items table
+export const invoiceItems = pgTable("invoice_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceId: varchar("invoice_id").notNull().references(() => invoices.id, { onDelete: "cascade" }),
+  description: text("description").notNull(),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull().default("1"),
+  unitPrice: decimal("unit_price", { precision: 12, scale: 2 }).notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Proposal Items table
+export const proposalItems = pgTable("proposal_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  proposalId: varchar("proposal_id").notNull().references(() => proposals.id, { onDelete: "cascade" }),
+  description: text("description").notNull(),
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull().default("1"),
+  unitPrice: decimal("unit_price", { precision: 12, scale: 2 }).notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Payments table
+export const payments = pgTable("payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceId: varchar("invoice_id").notNull().references(() => invoices.id, { onDelete: "cascade" }),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  paymentDate: timestamp("payment_date").notNull(),
+  paymentMethod: text("payment_method").notNull(), // cash, transfer, check, card, other
+  reference: text("reference"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -194,7 +236,7 @@ export const operationsRelations = relations(operations, ({ one, many }) => ({
   expenses: many(expenses),
 }));
 
-export const invoicesRelations = relations(invoices, ({ one }) => ({
+export const invoicesRelations = relations(invoices, ({ one, many }) => ({
   operation: one(operations, {
     fields: [invoices.operationId],
     references: [operations.id],
@@ -207,9 +249,11 @@ export const invoicesRelations = relations(invoices, ({ one }) => ({
     fields: [invoices.clientId],
     references: [clients.id],
   }),
+  items: many(invoiceItems),
+  payments: many(payments),
 }));
 
-export const proposalsRelations = relations(proposals, ({ one }) => ({
+export const proposalsRelations = relations(proposals, ({ one, many }) => ({
   client: one(clients, {
     fields: [proposals.clientId],
     references: [clients.id],
@@ -217,6 +261,32 @@ export const proposalsRelations = relations(proposals, ({ one }) => ({
   employee: one(employees, {
     fields: [proposals.employeeId],
     references: [employees.id],
+  }),
+  convertedToInvoice: one(invoices, {
+    fields: [proposals.convertedToInvoiceId],
+    references: [invoices.id],
+  }),
+  items: many(proposalItems),
+}));
+
+export const invoiceItemsRelations = relations(invoiceItems, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [invoiceItems.invoiceId],
+    references: [invoices.id],
+  }),
+}));
+
+export const proposalItemsRelations = relations(proposalItems, ({ one }) => ({
+  proposal: one(proposals, {
+    fields: [proposalItems.proposalId],
+    references: [proposals.id],
+  }),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  invoice: one(invoices, {
+    fields: [payments.invoiceId],
+    references: [invoices.id],
   }),
 }));
 
@@ -262,6 +332,9 @@ export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true,
 export const insertProposalSchema = createInsertSchema(proposals).omit({ id: true, createdAt: true });
 export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true, createdAt: true });
 export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
+export const insertInvoiceItemSchema = createInsertSchema(invoiceItems).omit({ id: true, createdAt: true });
+export const insertProposalItemSchema = createInsertSchema(proposalItems).omit({ id: true, createdAt: true });
+export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, createdAt: true });
 export const insertCustomFieldSchema = createInsertSchema(customFields).omit({ id: true, createdAt: true });
 export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues).omit({ id: true, createdAt: true });
 
@@ -280,6 +353,15 @@ export type Operation = typeof operations.$inferSelect;
 
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = typeof invoices.$inferSelect;
+
+export type InsertInvoiceItem = z.infer<typeof insertInvoiceItemSchema>;
+export type InvoiceItem = typeof invoiceItems.$inferSelect;
+
+export type InsertProposalItem = z.infer<typeof insertProposalItemSchema>;
+export type ProposalItem = typeof proposalItems.$inferSelect;
+
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Payment = typeof payments.$inferSelect;
 
 export type InsertProposal = z.infer<typeof insertProposalSchema>;
 export type Proposal = typeof proposals.$inferSelect;
