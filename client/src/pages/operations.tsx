@@ -191,13 +191,25 @@ export default function OperationsPage() {
 
   const columns = [
     {
-      header: "Name",
+      header: "Shipment",
       accessor: (row: Operation) => (
         <div>
           <div className="font-medium">{row.name}</div>
-          {row.description && (
-            <div className="text-sm text-muted-foreground line-clamp-1">{row.description}</div>
+          {row.bookingTracking && (
+            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+              <Link2 className="w-3 h-3" />
+              {row.bookingTracking}
+            </div>
           )}
+        </div>
+      ),
+    },
+    {
+      header: "Type / Mode",
+      accessor: (row: Operation) => (
+        <div className="space-y-1">
+          <div className="text-sm font-medium">{row.operationType}</div>
+          <div className="text-xs text-muted-foreground capitalize">{row.shippingMode}</div>
         </div>
       ),
     },
@@ -210,19 +222,29 @@ export default function OperationsPage() {
       ),
     },
     {
-      header: "Priority",
-      accessor: (row: Operation) => (
-        <Badge className={priorityColors[row.priority as keyof typeof priorityColors]}>
-          {row.priority}
-        </Badge>
-      ),
-    },
-    {
       header: "Client",
       accessor: (row: Operation) => {
         const client = clients.find((c) => c.id === row.clientId);
         return client ? client.name : "-";
       },
+    },
+    {
+      header: "ETD / ETA",
+      accessor: (row: Operation) => (
+        <div className="text-sm space-y-1">
+          {row.etd && (
+            <div className="text-muted-foreground">
+              ETD: {new Date(row.etd).toLocaleDateString()}
+            </div>
+          )}
+          {row.eta && (
+            <div className="text-foreground font-medium">
+              ETA: {new Date(row.eta).toLocaleDateString()}
+            </div>
+          )}
+          {!row.etd && !row.eta && <span className="text-muted-foreground">-</span>}
+        </div>
+      ),
     },
     {
       header: "Assigned To",
