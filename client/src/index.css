@@ -187,14 +187,26 @@
   .dark input,
   .dark select,
   .dark textarea {
-    background-color: hsl(var(--input));
-    color: hsl(var(--foreground));
+    background-color: hsl(var(--input)) !important;
+    color: hsl(var(--foreground)) !important;
   }
 
   .dark input:focus,
   .dark select:focus,
   .dark textarea:focus {
-    background-color: hsl(var(--input));
+    background-color: hsl(var(--input)) !important;
+  }
+
+  /* Forzar estilos en inputs dentro de modals */
+  .dark [role="dialog"] input[type="number"],
+  .dark [role="dialog"] input[type="text"],
+  .dark [role="dialog"] input[type="email"],
+  .dark [role="dialog"] input[type="date"],
+  .dark [role="dialog"] select,
+  .dark [role="dialog"] textarea {
+    background-color: hsl(var(--input)) !important;
+    color: hsl(var(--foreground)) !important;
+    border-color: hsl(var(--border)) !important;
   }
 
   [contenteditable][data-placeholder]:empty::before {

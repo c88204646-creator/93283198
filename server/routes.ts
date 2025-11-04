@@ -190,45 +190,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allExpenses,
         allLeads,
       ] = await Promise.all([
-        storage.getAllOperations(),
-        storage.getAllClients(),
-        storage.getAllEmployees(),
-        storage.getAllInvoices(),
-        storage.getAllProposals(),
-        storage.getAllExpenses(),
-        storage.getAllLeads(),
+        storage.getAllOperations().catch(() => []),
+        storage.getAllClients().catch(() => []),
+        storage.getAllEmployees().catch(() => []),
+        storage.getAllInvoices().catch(() => []),
+        storage.getAllProposals().catch(() => []),
+        storage.getAllExpenses().catch(() => []),
+        storage.getAllLeads().catch(() => []),
       ]);
 
       const stats = {
-        operations: {
-          total: allOperations.length,
-          active: allOperations.filter(o => o.status === "in-progress").length,
-        },
-        clients: {
-          total: allClients.length,
-          active: allClients.filter(c => c.status === "active").length,
-        },
-        employees: {
-          total: allEmployees.length,
-          active: allEmployees.filter(e => e.status === "active").length,
-        },
-        invoices: {
-          total: allInvoices.length,
-          pending: allInvoices.filter(i => i.status === "sent" || i.status === "overdue").length,
-          paid: allInvoices.filter(i => i.status === "paid").length,
-        },
-        proposals: {
-          total: allProposals.length,
-          pending: allProposals.filter(p => p.status === "sent").length,
-        },
-        expenses: {
-          total: allExpenses.length,
-          pending: allExpenses.filter(e => e.status === "pending").length,
-        },
-        leads: {
-          total: allLeads.length,
-          new: allLeads.filter(l => l.status === "new").length,
-        },
+        operations: allOperations.length,
+        clients: allClients.length,
+        employees: allEmployees.length,
+        invoices: allInvoices.length,
+        proposals: allProposals.length,
+        expenses: allExpenses.length,
+        leads: allLeads.length,
       };
 
       res.json(stats);

@@ -138,10 +138,11 @@ export function AppSidebar() {
                               ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
                               : 'hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground'
                             }
+                            ${isCollapsed ? 'justify-center px-2' : 'px-3'}
                           `}
                         >
-                          <Link href={item.url} className={`flex items-center gap-2.5 ${isCollapsed ? 'justify-center' : 'px-3'}`}>
-                            <item.icon className={`w-4 h-4 ${isActive ? 'text-primary-foreground' : ''}`} />
+                          <Link href={item.url} className={`flex items-center gap-2.5 w-full ${isCollapsed ? 'justify-center' : ''}`}>
+                            <item.icon className={`${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'} ${isActive ? 'text-primary-foreground' : ''} shrink-0`} />
                             {!isCollapsed && <span className="font-medium text-[13px]">{item.title}</span>}
                           </Link>
                         </SidebarMenuButton>

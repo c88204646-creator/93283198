@@ -26,9 +26,14 @@ export function ThemeProvider({
   storageKey = "logisticore-ui-theme",
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-  );
+  const [theme, setTheme] = useState<Theme>(() => {
+    const stored = localStorage.getItem(storageKey) as Theme;
+    if (!stored) {
+      localStorage.setItem(storageKey, "dark");
+      return "dark";
+    }
+    return stored;
+  });
 
   useEffect(() => {
     const root = window.document.documentElement;
