@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { Operation, Client } from "@shared/schema";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { Fragment } from "react";
 
 // Fix leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -210,13 +211,13 @@ export default function MapPage() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
-              {mapData.map((item, index) => {
+              {mapData.map((item) => {
                 const { operation, client, pickupCoords, deliveryCoords } = item;
                 const color = statusColors[operation.status as keyof typeof statusColors];
                 const modeIcon = shippingModeIcons[operation.shippingMode as keyof typeof shippingModeIcons];
 
                 return (
-                  <div key={operation.id}>
+                  <Fragment key={operation.id}>
                     {pickupCoords && (
                       <Marker position={pickupCoords}>
                         <Popup>
@@ -278,7 +279,7 @@ export default function MapPage() {
                         dashArray={operation.status === "completed" ? undefined : "10, 10"}
                       />
                     )}
-                  </div>
+                  </Fragment>
                 );
               })}
             </MapContainer>
