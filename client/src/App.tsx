@@ -19,6 +19,7 @@ import ProposalsPage from "@/pages/proposals";
 import ExpensesPage from "@/pages/expenses";
 import LeadsPage from "@/pages/leads";
 import CustomFieldsPage from "@/pages/custom-fields";
+import GmailPage from "@/pages/gmail";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
   const { user, isLoading } = useAuth();
@@ -89,6 +90,7 @@ function AppLayout() {
                 <Route path="/expenses" component={() => <ProtectedRoute component={ExpensesPage} />} />
                 <Route path="/leads" component={() => <ProtectedRoute component={LeadsPage} />} />
                 <Route path="/custom-fields" component={() => <ProtectedRoute component={CustomFieldsPage} />} />
+                <Route path="/gmail" component={() => <ProtectedRoute component={GmailPage} />} />
                 <Route path="/" component={RootRedirect} />
                 <Route component={NotFound} />
               </Switch>

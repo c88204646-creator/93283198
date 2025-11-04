@@ -10,7 +10,8 @@ import {
   TrendingUp,
   Package,
   LogOut,
-  Truck
+  Truck,
+  Mail
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
@@ -77,6 +78,11 @@ const menuItems: MenuItem[] = [
     title: "Leads",
     url: "/leads",
     icon: TrendingUp,
+  },
+  {
+    title: "Gmail",
+    url: "/gmail",
+    icon: Mail,
   },
   {
     title: "Custom Fields",

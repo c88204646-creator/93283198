@@ -4,6 +4,7 @@ import { Plus, Edit, Trash2, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
+import { EmployeeMultiSelect } from "@/components/employee-multi-select";
 import {
   Dialog,
   DialogContent,
@@ -57,6 +58,7 @@ type OperationFormData = z.infer<typeof insertOperationSchema>;
 export default function OperationsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingOperation, setEditingOperation] = useState<Operation | null>(null);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const { toast } = useToast();
 
   const { data: operations = [], isLoading } = useQuery<Operation[]>({
@@ -139,7 +141,7 @@ export default function OperationsPage() {
   });
 
   const onSubmit = (data: OperationFormData) => {
-    const formattedData = {
+    const formattedData: any = {
       ...data,
       startDate: data.startDate ? new Date(data.startDate) : null,
       endDate: data.endDate ? new Date(data.endDate) : null,
@@ -152,6 +154,7 @@ export default function OperationsPage() {
       bookingTracking: data.bookingTracking || null,
       mblAwb: data.mblAwb || null,
       hblAwb: data.hblAwb || null,
+      employeeIds: selectedEmployeeIds,
     };
 
     if (editingOperation) {
@@ -161,8 +164,9 @@ export default function OperationsPage() {
     }
   };
 
-  const handleEdit = (operation: Operation) => {
+  const handleEdit = (operation: any) => {
     setEditingOperation(operation);
+    setSelectedEmployeeIds(operation.employeeIds || []);
     form.reset({
       name: operation.name,
       description: operation.description || "",
@@ -248,11 +252,22 @@ export default function OperationsPage() {
     },
     {
       header: "Assigned To",
-      accessor: (row: Operation) => {
-        const employee = employees.find((e) => e.id === row.assignedEmployeeId);
-        if (!employee) return "-";
-        const user = employees.find((e) => e.id === row.assignedEmployeeId);
-        return user ? employee.position : "-";
+      accessor: (row: any) => {
+        const assignedEmployees = (row.employeeIds || [])
+          .map((id: string) => employees.find((e) => e.id === id))
+          .filter(Boolean);
+        
+        if (assignedEmployees.length === 0) return "-";
+        
+        return (
+          <div className="flex flex-wrap gap-1">
+            {assignedEmployees.map((emp: any) => (
+              <Badge key={emp.id} variant="secondary" className="text-xs">
+                {emp.position}
+              </Badge>
+            ))}
+          </div>
+        );
       },
     },
     {
@@ -292,6 +307,7 @@ export default function OperationsPage() {
           if (!open) {
             setIsCreateOpen(false);
             setEditingOperation(null);
+            setSelectedEmployeeIds([]);
             form.reset();
           }
         }}>
@@ -538,30 +554,15 @@ export default function OperationsPage() {
                       />
                     </div>
                     
-                    <FormField
-                      control={form.control}
-                      name="assignedEmployeeId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Assigned To *</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || undefined}>
-                            <FormControl>
-                              <SelectTrigger data-testid="select-employee">
-                                <SelectValue placeholder="Select employee" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {employees.map((employee) => (
-                                <SelectItem key={employee.id} value={employee.id}>
-                                  {employee.position}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Assigned To</label>
+                      <EmployeeMultiSelect
+                        employees={employees}
+                        selectedIds={selectedEmployeeIds}
+                        onChange={setSelectedEmployeeIds}
+                        placeholder="Select employees..."
+                      />
+                    </div>
                   </TabsContent>
                   
                   <TabsContent value="shipping" className="space-y-4 mt-4">
