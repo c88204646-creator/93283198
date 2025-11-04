@@ -270,3 +270,74 @@ Automatic birthday event creation for employees with calendar integration:
 - Birthday event management in `server/routes.ts` (POST /api/employees, PATCH /api/employees/:id)
 - Calendar view updates in `client/src/pages/calendar.tsx` for birthday event display
 - Employee form improvements in `client/src/pages/employees.tsx` for mobile responsiveness
+
+### File Management Module (November 2025)
+Comprehensive file management system for operations with manual uploads and automatic email attachment processing:
+
+**Features**
+- Manual file upload to operation-specific storage using Replit Object Storage (Google Cloud Storage)
+- Hierarchical folder organization with parent-child relationships
+- Manual folder creation for organizing documents
+- Automatic email attachment processing with category-based folder organization
+- File categorization: Pagos, Gastos, Fotos, Facturas, Contratos, Documentos
+- Integration with automation module for automatic file organization
+- ACL-based permissions for file access control
+- Presigned URLs for secure file uploads and downloads
+
+**Manual File Management**
+- Upload files directly to operations via Files tab in operation detail page
+- Create folders to organize operation documents
+- Filter files by folder
+- Download files with one-click access
+- File metadata: name, size, MIME type, category, description, tags
+- Visual indicators for automated vs manual uploads
+
+**Automation Integration**
+- Toggle in automation module settings to enable/disable attachment processing
+- When enabled, email attachments are automatically:
+  1. Downloaded from Gmail
+  2. Uploaded to Object Storage
+  3. Categorized by content type and filename
+  4. Organized into category-specific folders (auto-created if needed)
+  5. Linked to the operation created from the email
+- Categories detected automatically:
+  - **Pagos**: Payment receipts and transfer confirmations
+  - **Gastos**: Expense receipts
+  - **Fotos**: Images (PNG, JPG, etc.)
+  - **Facturas**: Invoices (PDF with "invoice" or "factura")
+  - **Contratos**: Contracts (PDF with "contract" or "contrato")
+  - **Documentos**: Other documents
+
+**Database Schema**
+- **operationFolders**: Folder hierarchy for each operation
+  - Fields: id, operationId, name, parentId, createdAt
+  - Support for nested folders (parent-child relationships)
+- **operationFiles**: File records with metadata and storage paths
+  - Fields: id, operationId, folderId, name, originalName, mimeType, size, objectPath, category, description, tags, uploadedBy, uploadedVia, createdAt
+  - Tracks upload source (manual vs automation)
+  - Links to Gmail messages for automated uploads
+
+**Object Storage Integration**
+- Uses Replit Object Storage (backed by Google Cloud Storage)
+- ACL-based permissions: owner, visibility (public/private)
+- Presigned URLs for secure uploads without exposing credentials
+- File paths stored in database, actual files in cloud storage
+- Automatic cleanup on file deletion (future enhancement)
+
+**User Interface**
+- Files tab integrated into operation detail page (similar to Tasks/Notes tabs)
+- Folder filter buttons for quick navigation
+- Grid layout for file cards with preview icons
+- Modal dialog for file uploads using custom ObjectUploader component
+- Modal dialog for folder creation
+- Download buttons on each file card
+- Visual badges: category type, automated vs manual upload
+
+**Technical Components**
+- `server/objectStorage.ts`: Object Storage service with ACL policy management
+- `server/automation-service.ts`: Attachment processing with automatic folder creation
+- `client/src/components/ObjectUploader.tsx`: Custom file upload component (Uppy v5 compatible)
+- `client/src/pages/operation-detail.tsx`: Files tab UI with folder management
+- `client/src/pages/automation.tsx`: Toggle for attachment processing in module settings
+- Database tables: operationFolders, operationFiles
+- API routes: `/api/operations/:id/folders`, `/api/operations/:id/files`, `/api/object-storage/*`
