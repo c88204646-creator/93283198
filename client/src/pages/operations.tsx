@@ -183,7 +183,13 @@ export default function OperationsPage() {
       accessor: (row: Operation) => (
         <div>
           <div className="flex items-center gap-2">
-            <div className="font-medium">{row.name}</div>
+            <button
+              className="font-medium text-primary hover:underline text-left"
+              onClick={() => setLocation(`/operations/${row.id}`)}
+              data-testid={`link-operation-${row.id}`}
+            >
+              {row.name}
+            </button>
             {(row as any).createdAutomatically && (
               <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                 <Zap className="w-3 h-3" />

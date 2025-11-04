@@ -13,6 +13,7 @@ import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
 import OperationsPage from "./pages/operations";
 import OperationsCreatePage from "./pages/operations-create";
+import OperationDetailPage from "./pages/operation-detail";
 import MapPage from "./pages/map";
 import ClientsPage from "./pages/clients";
 import EmployeesPage from "./pages/employees";
@@ -104,6 +105,7 @@ function AppLayout() {
                 <Route path="/dashboard" component={DashboardPage} />
                 <Route path="/operations" component={OperationsPage} />
                 <Route path="/operations/create" component={OperationsCreatePage} />
+                <Route path="/operations/:id" component={OperationDetailPage} />
                 <Route path="/map" component={MapPage} />
                 <Route path="/clients" component={ClientsPage} />
                 <Route path="/employees" component={EmployeesPage} />
