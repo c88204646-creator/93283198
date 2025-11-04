@@ -8,15 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Mail, Paperclip, RefreshCw, Trash2, Power, Download, Calendar, User } from "lucide-react";
+import { Mail, Paperclip, RefreshCw, Trash2, Power } from "lucide-react";
 import { format } from "date-fns";
-import type { GmailAccount, GmailMessage, GmailAttachment } from "@shared/schema";
+import type { GmailAccount, GmailMessage } from "@shared/schema";
 
 export default function GmailPage() {
   const { toast } = useToast();
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
-  const [selectedMessage, setSelectedMessage] = useState<GmailMessage | null>(null);
   const [syncRange, setSyncRange] = useState("1");
 
   const { data: accounts = [], isLoading: accountsLoading } = useQuery<Omit<GmailAccount, 'accessToken' | 'refreshToken'>[]>({
@@ -31,11 +29,6 @@ export default function GmailPage() {
       const account = accounts.find(a => a.id === selectedAccount);
       return account?.syncStatus === 'syncing' ? 3000 : false;
     },
-  });
-
-  const { data: attachments = [] } = useQuery<GmailAttachment[]>({
-    queryKey: ["/api/gmail/messages", selectedMessage?.id, "attachments"],
-    enabled: !!selectedMessage?.id,
   });
 
   const connectMutation = useMutation({
@@ -282,8 +275,6 @@ export default function GmailPage() {
                   {messages.map((message) => (
                     <Card
                       key={message.id}
-                      className="cursor-pointer hover-elevate"
-                      onClick={() => setSelectedMessage(message)}
                       data-testid={`message-${message.id}`}
                     >
                       <CardContent className="p-4">
@@ -323,93 +314,7 @@ export default function GmailPage() {
         </Card>
       </div>
 
-      <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>{selectedMessage?.subject || "(Sin asunto)"}</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="h-full max-h-[60vh]">
-            {selectedMessage && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{selectedMessage.fromName || selectedMessage.fromEmail}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>{format(new Date(selectedMessage.date), "dd/MM/yyyy HH:mm")}</span>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Para:</strong> {selectedMessage.toEmails.join(", ")}
-                  </p>
-                  {selectedMessage.ccEmails && selectedMessage.ccEmails.length > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      <strong>CC:</strong> {selectedMessage.ccEmails.join(", ")}
-                    </p>
-                  )}
-                </div>
-
-                <Separator />
-
-                {selectedMessage.bodyHtml ? (
-                  <div
-                    className="prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: selectedMessage.bodyHtml }}
-                  />
-                ) : selectedMessage.bodyText ? (
-                  <pre className="whitespace-pre-wrap text-sm font-sans">{selectedMessage.bodyText}</pre>
-                ) : (
-                  <p className="text-muted-foreground">Sin contenido</p>
-                )}
-
-                {attachments.length > 0 && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-sm">Adjuntos ({attachments.length})</h3>
-                      <div className="grid grid-cols-2 gap-2">
-                        {attachments.map((attachment) => (
-                          <Card key={attachment.id} className="hover-elevate">
-                            <CardContent className="p-3">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                  <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{attachment.filename}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {(attachment.size / 1024).toFixed(1)} KB
-                                    </p>
-                                  </div>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    window.open(`/api/gmail/attachments/${attachment.id}/download`, '_blank');
-                                  }}
-                                  data-testid={`button-download-${attachment.id}`}
-                                >
-                                  <Download className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
+      
     </div>
   );
 }

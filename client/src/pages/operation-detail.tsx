@@ -10,11 +10,13 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import {
   ArrowLeft, Package, FileText, CheckSquare, Mail, Edit2, Trash2, Plus,
-  Calendar, User as UserIcon, MapPin, Ship, Plane, Truck, DollarSign, FolderOpen
+  Calendar, User as UserIcon, MapPin, Ship, Plane, Truck, DollarSign, FolderOpen,
+  Download, Paperclip
 } from "lucide-react";
 import { useState } from "react";
 import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage } from "@shared/schema";
@@ -815,9 +817,16 @@ function EmailsTab({ operationId, operation, gmailMessages }: {
   operation: Operation;
   gmailMessages: GmailMessage[];
 }) {
+  const [selectedMessage, setSelectedMessage] = useState<GmailMessage | null>(null);
+  
   const { data: allAttachments = [] } = useQuery({
     queryKey: ['/api/gmail/attachments/all'],
     enabled: gmailMessages.length > 0,
+  });
+
+  const { data: attachments = [] } = useQuery({
+    queryKey: ['/api/gmail/messages', selectedMessage?.id, 'attachments'],
+    enabled: !!selectedMessage?.id,
   });
 
   const relatedEmails = gmailMessages.filter(msg => {
@@ -856,7 +865,12 @@ function EmailsTab({ operationId, operation, gmailMessages }: {
         </Card>
       ) : (
         relatedEmails.map((email) => (
-          <Card key={email.id} data-testid={`card-email-${email.id}`} className="hover-elevate">
+          <Card 
+            key={email.id} 
+            data-testid={`card-email-${email.id}`} 
+            className="hover-elevate cursor-pointer"
+            onClick={() => setSelectedMessage(email)}
+          >
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="space-y-1 flex-1">
@@ -866,9 +880,15 @@ function EmailsTab({ operationId, operation, gmailMessages }: {
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Mail className="w-3 h-3" />
-                      <span data-testid={`text-email-from-${email.id}`}>{email.from}</span>
+                      <span data-testid={`text-email-from-${email.id}`}>{email.fromEmail}</span>
                     </div>
                     <span>{format(new Date(email.date), 'PPp')}</span>
+                    {email.hasAttachments && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Paperclip className="w-3 h-3 mr-1" />
+                        Adjuntos
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
@@ -881,6 +901,93 @@ function EmailsTab({ operationId, operation, gmailMessages }: {
           </Card>
         ))
       )}
+
+      <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>{selectedMessage?.subject || "(Sin asunto)"}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-full max-h-[60vh]">
+            {selectedMessage && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <UserIcon className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{selectedMessage.fromName || selectedMessage.fromEmail}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span>{format(new Date(selectedMessage.date), "dd/MM/yyyy HH:mm")}</span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Para:</strong> {selectedMessage.toEmails.join(", ")}
+                  </p>
+                  {selectedMessage.ccEmails && selectedMessage.ccEmails.length > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      <strong>CC:</strong> {selectedMessage.ccEmails.join(", ")}
+                    </p>
+                  )}
+                </div>
+
+                <Separator />
+
+                {selectedMessage.bodyHtml ? (
+                  <div
+                    className="prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: selectedMessage.bodyHtml }}
+                  />
+                ) : selectedMessage.bodyText ? (
+                  <pre className="whitespace-pre-wrap text-sm font-sans">{selectedMessage.bodyText}</pre>
+                ) : (
+                  <p className="text-muted-foreground">Sin contenido</p>
+                )}
+
+                {attachments.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-2">
+                      <h3 className="font-semibold text-sm">Adjuntos ({attachments.length})</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        {attachments.map((attachment: any) => (
+                          <Card key={attachment.id} className="hover-elevate">
+                            <CardContent className="p-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{attachment.filename}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {(attachment.size / 1024).toFixed(1)} KB
+                                    </p>
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    window.open(`/api/gmail/attachments/${attachment.id}/download`, '_blank');
+                                  }}
+                                >
+                                  <Download className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
