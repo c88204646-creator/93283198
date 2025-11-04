@@ -465,7 +465,11 @@ export default function Calendar() {
                         <div
                           key={event.id}
                           className={`text-xs truncate px-1 rounded ${
-                            event.source === "google" ? "bg-blue-500/20 text-blue-600" : "bg-green-500/20 text-green-600"
+                            event.isBirthday 
+                              ? "bg-pink-500/20 text-pink-600" 
+                              : event.source === "google" 
+                                ? "bg-blue-500/20 text-blue-600" 
+                                : "bg-green-500/20 text-green-600"
                           }`}
                           title={event.title}
                         >
@@ -551,7 +555,12 @@ export default function Calendar() {
                         </div>
                       )}
 
-                      <div className="mt-2">
+                      <div className="mt-2 flex gap-2">
+                        {event.isBirthday && (
+                          <span className="text-xs px-2 py-1 rounded bg-pink-500/20 text-pink-600">
+                            🎂 Cumpleaños
+                          </span>
+                        )}
                         <span className={`text-xs px-2 py-1 rounded ${
                           event.source === "google" ? "bg-blue-500/20 text-blue-600" : "bg-green-500/20 text-green-600"
                         }`}>
