@@ -46,7 +46,6 @@ export const operations = pgTable("operations", {
   description: text("description"),
   status: text("status").notNull().default("planning"), // planning, in-progress, completed, cancelled
   clientId: varchar("client_id").references(() => clients.id, { onDelete: "set null" }),
-  assignedEmployeeId: varchar("assigned_employee_id").references(() => employees.id, { onDelete: "set null" }),
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date"),
   priority: text("priority").notNull().default("medium"), // low, medium, high, urgent
@@ -71,6 +70,14 @@ export const operations = pgTable("operations", {
   mblAwb: text("mbl_awb"), // Master Bill of Lading / Air Waybill
   hblAwb: text("hbl_awb"), // House Bill of Lading / Air Waybill
   
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Operation Employees junction table (many-to-many)
+export const operationEmployees = pgTable("operation_employees", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operationId: varchar("operation_id").notNull().references(() => operations.id, { onDelete: "cascade" }),
+  employeeId: varchar("employee_id").notNull().references(() => employees.id, { onDelete: "cascade" }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -196,6 +203,62 @@ export const customFieldValues = pgTable("custom_field_values", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Gmail Accounts table
+export const gmailAccounts = pgTable("gmail_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  tokenExpiry: timestamp("token_expiry").notNull(),
+  syncEnabled: boolean("sync_enabled").notNull().default(true),
+  syncFromDate: timestamp("sync_from_date").notNull(), // User-configured start date for sync
+  lastSyncDate: timestamp("last_sync_date"),
+  firstEmailDate: timestamp("first_email_date"), // Detected oldest email in account
+  status: text("status").notNull().default("active"), // active, paused, error, disconnected
+  syncStatus: text("sync_status").notNull().default("pending"), // pending, syncing, completed, error
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Gmail Messages table
+export const gmailMessages = pgTable("gmail_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gmailAccountId: varchar("gmail_account_id").notNull().references(() => gmailAccounts.id, { onDelete: "cascade" }),
+  messageId: text("message_id").notNull().unique(), // Gmail message ID
+  threadId: text("thread_id").notNull(),
+  subject: text("subject"),
+  fromEmail: text("from_email").notNull(),
+  fromName: text("from_name"),
+  toEmails: text("to_emails").array().notNull(), // Array of recipient emails
+  ccEmails: text("cc_emails").array(), // Array of CC emails
+  bccEmails: text("bcc_emails").array(), // Array of BCC emails
+  date: timestamp("date").notNull(),
+  snippet: text("snippet"), // Preview text
+  bodyText: text("body_text"), // Plain text body
+  bodyHtml: text("body_html"), // HTML body
+  labels: text("labels").array(), // Gmail labels
+  hasAttachments: boolean("has_attachments").notNull().default(false),
+  isRead: boolean("is_read").notNull().default(false),
+  isStarred: boolean("is_starred").notNull().default(false),
+  isImportant: boolean("is_important").notNull().default(false),
+  internalDate: text("internal_date"), // Gmail internal date
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Gmail Attachments table
+export const gmailAttachments = pgTable("gmail_attachments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gmailMessageId: varchar("gmail_message_id").notNull().references(() => gmailMessages.id, { onDelete: "cascade" }),
+  attachmentId: text("attachment_id").notNull(), // Gmail attachment ID
+  filename: text("filename").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(), // Size in bytes
+  data: text("data"), // Base64 encoded data (optional, can be fetched on demand)
+  isInline: boolean("is_inline").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one }) => ({
   employee: one(employees, {
@@ -209,7 +272,7 @@ export const employeesRelations = relations(employees, ({ one, many }) => ({
     fields: [employees.userId],
     references: [users.id],
   }),
-  operations: many(operations),
+  operationAssignments: many(operationEmployees),
   invoices: many(invoices),
   proposals: many(proposals),
   expenses: many(expenses),
@@ -228,10 +291,7 @@ export const operationsRelations = relations(operations, ({ one, many }) => ({
     fields: [operations.clientId],
     references: [clients.id],
   }),
-  assignedEmployee: one(employees, {
-    fields: [operations.assignedEmployeeId],
-    references: [employees.id],
-  }),
+  employeeAssignments: many(operationEmployees),
   invoices: many(invoices),
   expenses: many(expenses),
 }));
@@ -323,11 +383,46 @@ export const customFieldValuesRelations = relations(customFieldValues, ({ one })
   }),
 }));
 
+export const operationEmployeesRelations = relations(operationEmployees, ({ one }) => ({
+  operation: one(operations, {
+    fields: [operationEmployees.operationId],
+    references: [operations.id],
+  }),
+  employee: one(employees, {
+    fields: [operationEmployees.employeeId],
+    references: [employees.id],
+  }),
+}));
+
+export const gmailAccountsRelations = relations(gmailAccounts, ({ one, many }) => ({
+  user: one(users, {
+    fields: [gmailAccounts.userId],
+    references: [users.id],
+  }),
+  messages: many(gmailMessages),
+}));
+
+export const gmailMessagesRelations = relations(gmailMessages, ({ one, many }) => ({
+  account: one(gmailAccounts, {
+    fields: [gmailMessages.gmailAccountId],
+    references: [gmailAccounts.id],
+  }),
+  attachments: many(gmailAttachments),
+}));
+
+export const gmailAttachmentsRelations = relations(gmailAttachments, ({ one }) => ({
+  message: one(gmailMessages, {
+    fields: [gmailAttachments.gmailMessageId],
+    references: [gmailMessages.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true });
 export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: true, createdAt: true });
 export const insertOperationSchema = createInsertSchema(operations).omit({ id: true, createdAt: true });
+export const insertOperationEmployeeSchema = createInsertSchema(operationEmployees).omit({ id: true, createdAt: true });
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
 export const insertProposalSchema = createInsertSchema(proposals).omit({ id: true, createdAt: true });
 export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true, createdAt: true });
@@ -337,6 +432,9 @@ export const insertProposalItemSchema = createInsertSchema(proposalItems).omit({
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, createdAt: true });
 export const insertCustomFieldSchema = createInsertSchema(customFields).omit({ id: true, createdAt: true });
 export const insertCustomFieldValueSchema = createInsertSchema(customFieldValues).omit({ id: true, createdAt: true });
+export const insertGmailAccountSchema = createInsertSchema(gmailAccounts).omit({ id: true, createdAt: true });
+export const insertGmailMessageSchema = createInsertSchema(gmailMessages).omit({ id: true, createdAt: true });
+export const insertGmailAttachmentSchema = createInsertSchema(gmailAttachments).omit({ id: true, createdAt: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -350,6 +448,9 @@ export type Employee = typeof employees.$inferSelect;
 
 export type InsertOperation = z.infer<typeof insertOperationSchema>;
 export type Operation = typeof operations.$inferSelect;
+
+export type InsertOperationEmployee = z.infer<typeof insertOperationEmployeeSchema>;
+export type OperationEmployee = typeof operationEmployees.$inferSelect;
 
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type Invoice = typeof invoices.$inferSelect;
@@ -377,3 +478,12 @@ export type CustomField = typeof customFields.$inferSelect;
 
 export type InsertCustomFieldValue = z.infer<typeof insertCustomFieldValueSchema>;
 export type CustomFieldValue = typeof customFieldValues.$inferSelect;
+
+export type InsertGmailAccount = z.infer<typeof insertGmailAccountSchema>;
+export type GmailAccount = typeof gmailAccounts.$inferSelect;
+
+export type InsertGmailMessage = z.infer<typeof insertGmailMessageSchema>;
+export type GmailMessage = typeof gmailMessages.$inferSelect;
+
+export type InsertGmailAttachment = z.infer<typeof insertGmailAttachmentSchema>;
+export type GmailAttachment = typeof gmailAttachments.$inferSelect;
