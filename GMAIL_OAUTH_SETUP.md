@@ -37,11 +37,21 @@ https://workspace.83a571b0-d081-4ff7-a5b3-042fe980ca21-00-72xj66t1j9ct.worf.repl
 
 ### 6. Secrets de Replit
 
-Asegúrate de que estos secrets estén configurados en tu Repl:
+**IMPORTANTE**: Asegúrate de que estos secrets estén configurados EXACTAMENTE como se indica:
 
 - `GOOGLE_CLIENT_ID`: El ID de cliente que obtienes de Google Cloud Console
 - `GOOGLE_CLIENT_SECRET`: El secreto de cliente de Google Cloud Console
-- `GOOGLE_REDIRECT_URI`: `https://workspace.83a571b0-d081-4ff7-a5b3-042fe980ca21-00-72xj66t1j9ct.worf.replit.dev/api/gmail/oauth/callback`
+- `GOOGLE_REDIRECT_URI`: **DEBE SER LA URL COMPLETA (no solo el path)**:
+  ```
+  https://workspace.83a571b0-d081-4ff7-a5b3-042fe980ca21-00-72xj66t1j9ct.worf.replit.dev/api/gmail/oauth/callback
+  ```
+
+**❌ INCORRECTO:**
+- `/api/gmail/oauth/callback`
+- `/api/google-auth/callback`
+
+**✅ CORRECTO:**
+- `https://workspace.83a571b0-d081-4ff7-a5b3-042fe980ca21-00-72xj66t1j9ct.worf.replit.dev/api/gmail/oauth/callback`
 
 ### 7. Notas importantes
 
