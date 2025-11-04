@@ -11,15 +11,16 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
-import OperationsPage from "@/pages/operations";
-import ClientsPage from "@/pages/clients";
-import EmployeesPage from "@/pages/employees";
-import InvoicesPage from "@/pages/invoices";
-import ProposalsPage from "@/pages/proposals";
-import ExpensesPage from "@/pages/expenses";
-import LeadsPage from "@/pages/leads";
-import CustomFieldsPage from "@/pages/custom-fields";
-import GmailPage from "@/pages/gmail";
+import OperationsPage from "./pages/operations";
+import MapPage from "./pages/map";
+import ClientsPage from "./pages/clients";
+import EmployeesPage from "./pages/employees";
+import InvoicesPage from "./pages/invoices";
+import ProposalsPage from "./pages/proposals";
+import ExpensesPage from "./pages/expenses";
+import LeadsPage from "./pages/leads";
+import CustomFieldsPage from "./pages/custom-fields";
+import GmailPage from "./pages/gmail";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
   const { user, isLoading } = useAuth();
@@ -83,6 +84,7 @@ function AppLayout() {
               <Switch>
                 <Route path="/dashboard" component={() => <ProtectedRoute component={DashboardPage} />} />
                 <Route path="/operations" component={() => <ProtectedRoute component={OperationsPage} />} />
+                <Route path="/map" component={() => <ProtectedRoute component={MapPage} />} />
                 <Route path="/clients" component={() => <ProtectedRoute component={ClientsPage} />} />
                 <Route path="/employees" component={() => <ProtectedRoute component={EmployeesPage} />} />
                 <Route path="/invoices" component={() => <ProtectedRoute component={InvoicesPage} />} />

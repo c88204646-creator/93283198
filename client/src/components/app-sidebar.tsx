@@ -1,4 +1,3 @@
-
 import { 
   LayoutDashboard, 
   Users, 
@@ -11,7 +10,8 @@ import {
   Package,
   LogOut,
   Truck,
-  Mail
+  Mail,
+  MapPin
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
@@ -47,6 +47,11 @@ const menuItems: MenuItem[] = [
     title: "Shipments",
     url: "/operations",
     icon: Package,
+  },
+  {
+    title: "Map",
+    url: "/map",
+    icon: MapPin,
   },
   {
     title: "Clients",
@@ -131,7 +136,7 @@ export function AppSidebar() {
               {filteredMenuItems.map((item) => {
                 const isActive = location === item.url;
                 const ItemIcon = item.icon;
-                
+
                 return (
                   <SidebarMenuItem key={item.title}>
                     {isCollapsed ? (
