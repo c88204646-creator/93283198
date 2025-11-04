@@ -52,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const userData = await response.json();
     setUser(userData);
+    await refreshUser();
   };
 
   const logout = async () => {

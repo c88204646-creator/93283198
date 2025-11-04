@@ -61,10 +61,26 @@ function RootRedirect() {
 }
 
 function AppLayout() {
+  const { user, isLoading } = useAuth();
   const style = {
     "--sidebar-width": "18rem",
     "--sidebar-width-icon": "4rem",
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Redirect to="/login" />;
+  }
 
   return (
     <SidebarProvider style={style as React.CSSProperties}>
@@ -82,17 +98,17 @@ function AppLayout() {
           <main className="flex-1 overflow-auto p-6 bg-background">
             <div className="max-w-7xl mx-auto">
               <Switch>
-                <Route path="/dashboard" component={() => <ProtectedRoute component={DashboardPage} />} />
-                <Route path="/operations" component={() => <ProtectedRoute component={OperationsPage} />} />
-                <Route path="/map" component={() => <ProtectedRoute component={MapPage} />} />
-                <Route path="/clients" component={() => <ProtectedRoute component={ClientsPage} />} />
-                <Route path="/employees" component={() => <ProtectedRoute component={EmployeesPage} />} />
-                <Route path="/invoices" component={() => <ProtectedRoute component={InvoicesPage} />} />
-                <Route path="/proposals" component={() => <ProtectedRoute component={ProposalsPage} />} />
-                <Route path="/expenses" component={() => <ProtectedRoute component={ExpensesPage} />} />
-                <Route path="/leads" component={() => <ProtectedRoute component={LeadsPage} />} />
-                <Route path="/custom-fields" component={() => <ProtectedRoute component={CustomFieldsPage} />} />
-                <Route path="/gmail" component={() => <ProtectedRoute component={GmailPage} />} />
+                <Route path="/dashboard" component={DashboardPage} />
+                <Route path="/operations" component={OperationsPage} />
+                <Route path="/map" component={MapPage} />
+                <Route path="/clients" component={ClientsPage} />
+                <Route path="/employees" component={EmployeesPage} />
+                <Route path="/invoices" component={InvoicesPage} />
+                <Route path="/proposals" component={ProposalsPage} />
+                <Route path="/expenses" component={ExpensesPage} />
+                <Route path="/leads" component={LeadsPage} />
+                <Route path="/custom-fields" component={CustomFieldsPage} />
+                <Route path="/gmail" component={GmailPage} />
                 <Route path="/" component={RootRedirect} />
                 <Route component={NotFound} />
               </Switch>
