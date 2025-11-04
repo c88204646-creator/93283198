@@ -518,6 +518,243 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Convert Proposal to Invoice
+  app.post("/api/proposals/:id/convert-to-invoice", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const proposal = await storage.getProposal(id);
+      
+      if (!proposal) {
+        return res.status(404).json({ message: "Proposal not found" });
+      }
+
+      if (proposal.convertedToInvoiceId) {
+        return res.status(400).json({ message: "Proposal already converted to invoice" });
+      }
+
+      const proposalItems = await storage.getProposalItems(id);
+
+      const invoiceNumber = `INV-${Date.now()}`;
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + 30);
+
+      const invoice = await storage.createInvoice({
+        invoiceNumber,
+        clientId: proposal.clientId,
+        employeeId: proposal.employeeId,
+        operationId: null,
+        currency: proposal.currency,
+        subtotal: proposal.subtotal,
+        tax: proposal.tax,
+        total: proposal.total,
+        status: "draft",
+        dueDate,
+        paidDate: null,
+        notes: `Converted from proposal ${proposal.proposalNumber}`,
+      });
+
+      for (const item of proposalItems) {
+        await storage.createInvoiceItem({
+          invoiceId: invoice.id,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          amount: item.amount,
+        });
+      }
+
+      await storage.updateProposal(id, {
+        status: "converted",
+        convertedToInvoiceId: invoice.id,
+      });
+
+      res.json(invoice);
+    } catch (error) {
+      console.error("Convert proposal to invoice error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Invoice Items Routes
+  app.get("/api/invoices/:invoiceId/items", requireAuth, async (req, res) => {
+    try {
+      const { invoiceId } = req.params;
+      const items = await storage.getInvoiceItems(invoiceId);
+      res.json(items);
+    } catch (error) {
+      console.error("Get invoice items error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/invoices/:invoiceId/items", requireAuth, async (req, res) => {
+    try {
+      const { invoiceId } = req.params;
+      const { insertInvoiceItemSchema } = await import("@shared/schema");
+      const data = insertInvoiceItemSchema.parse({ ...req.body, invoiceId });
+      const item = await storage.createInvoiceItem(data);
+      res.json(item);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Create invoice item error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/invoice-items/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { insertInvoiceItemSchema } = await import("@shared/schema");
+      const data = insertInvoiceItemSchema.partial().parse(req.body);
+      const item = await storage.updateInvoiceItem(id, data);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Invoice item not found" });
+      }
+      
+      res.json(item);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Update invoice item error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/invoice-items/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteInvoiceItem(id);
+      res.json({ message: "Invoice item deleted successfully" });
+    } catch (error) {
+      console.error("Delete invoice item error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Proposal Items Routes
+  app.get("/api/proposals/:proposalId/items", requireAuth, async (req, res) => {
+    try {
+      const { proposalId } = req.params;
+      const items = await storage.getProposalItems(proposalId);
+      res.json(items);
+    } catch (error) {
+      console.error("Get proposal items error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/proposals/:proposalId/items", requireAuth, async (req, res) => {
+    try {
+      const { proposalId } = req.params;
+      const { insertProposalItemSchema } = await import("@shared/schema");
+      const data = insertProposalItemSchema.parse({ ...req.body, proposalId });
+      const item = await storage.createProposalItem(data);
+      res.json(item);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Create proposal item error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/proposal-items/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { insertProposalItemSchema } = await import("@shared/schema");
+      const data = insertProposalItemSchema.partial().parse(req.body);
+      const item = await storage.updateProposalItem(id, data);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Proposal item not found" });
+      }
+      
+      res.json(item);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Update proposal item error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/proposal-items/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteProposalItem(id);
+      res.json({ message: "Proposal item deleted successfully" });
+    } catch (error) {
+      console.error("Delete proposal item error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Payments Routes
+  app.get("/api/invoices/:invoiceId/payments", requireAuth, async (req, res) => {
+    try {
+      const { invoiceId } = req.params;
+      const payments = await storage.getPayments(invoiceId);
+      res.json(payments);
+    } catch (error) {
+      console.error("Get payments error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/invoices/:invoiceId/payments", requireAuth, async (req, res) => {
+    try {
+      const { invoiceId } = req.params;
+      const { insertPaymentSchema } = await import("@shared/schema");
+      const data = insertPaymentSchema.parse({ ...req.body, invoiceId });
+      const payment = await storage.createPayment(data);
+      res.json(payment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Create payment error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/payments/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { insertPaymentSchema } = await import("@shared/schema");
+      const data = insertPaymentSchema.partial().parse(req.body);
+      const payment = await storage.updatePayment(id, data);
+      
+      if (!payment) {
+        return res.status(404).json({ message: "Payment not found" });
+      }
+      
+      res.json(payment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Update payment error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/payments/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deletePayment(id);
+      res.json({ message: "Payment deleted successfully" });
+    } catch (error) {
+      console.error("Delete payment error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Expense Routes
   app.get("/api/expenses", requireAuth, async (req, res) => {
     try {
