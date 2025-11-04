@@ -103,7 +103,7 @@ function AddressAutocomplete({
     <div className="relative">
       <div className="relative">
         <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-        <Input
+        <Textarea
           value={value}
           onChange={(e) => {
             onChange(e.target.value);
@@ -113,6 +113,7 @@ function AddressAutocomplete({
           }}
           onBlur={handleBlur}
           placeholder={placeholder}
+          rows={3}
           className="pl-10"
         />
       </div>
@@ -124,7 +125,7 @@ function AddressAutocomplete({
       {!isLoading && value.length >= 3 && suggestions.length === 0 && showSuggestions && (
         <div className="absolute top-full mt-1 w-full bg-popover border border-border rounded-md p-3 text-sm text-muted-foreground z-50">
           <p className="text-center">No se encontraron sugerencias.</p>
-          <p className="text-center text-xs mt-1">Puedes escribir la dirección manualmente.</p>
+          <p className="text-center text-xs mt-1">Puedes escribir la dirección manualmente y continuar.</p>
         </div>
       )}
       {showSuggestions && suggestions.length > 0 && (
@@ -143,7 +144,7 @@ function AddressAutocomplete({
             </button>
           ))}
           <div className="px-4 py-2 text-xs text-muted-foreground border-t border-border bg-muted/30">
-            O escribe tu propia dirección
+            O escribe tu propia dirección y presiona fuera del campo
           </div>
         </div>
       )}
