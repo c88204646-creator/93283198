@@ -1652,6 +1652,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Operation Notes Routes
+  app.get("/api/operations/:operationId/notes", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const notes = await storage.getOperationNotes(operationId);
+      res.json(notes);
+    } catch (error) {
+      console.error("Get operation notes error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/operations/:operationId/notes", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const userId = req.session.userId!;
+      const { content } = req.body;
+
+      if (!content || content.trim() === '') {
+        return res.status(400).json({ message: "Content is required" });
+      }
+
+      const note = await storage.createOperationNote({
+        operationId,
+        userId,
+        content: content.trim(),
+      });
+
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Create operation note error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/operations/:operationId/notes/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      const { content } = req.body;
+
+      const note = await storage.getOperationNote(id);
+      if (!note) {
+        return res.status(404).json({ message: "Note not found" });
+      }
+
+      if (note.userId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      const updated = await storage.updateOperationNote(id, { content });
+      res.json(updated);
+    } catch (error) {
+      console.error("Update operation note error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/operations/:operationId/notes/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+
+      const note = await storage.getOperationNote(id);
+      if (!note) {
+        return res.status(404).json({ message: "Note not found" });
+      }
+
+      if (note.userId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      await storage.deleteOperationNote(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete operation note error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Operation Tasks Routes
+  app.get("/api/operations/:operationId/tasks", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const tasks = await storage.getOperationTasks(operationId);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Get operation tasks error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/operations/:operationId/tasks", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const userId = req.session.userId!;
+      const { title, description, status, priority, assignedToId, dueDate } = req.body;
+
+      if (!title || title.trim() === '') {
+        return res.status(400).json({ message: "Title is required" });
+      }
+
+      const task = await storage.createOperationTask({
+        operationId,
+        title: title.trim(),
+        description,
+        status: status || 'pending',
+        priority: priority || 'medium',
+        assignedToId,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+        createdById: userId,
+      });
+
+      res.status(201).json(task);
+    } catch (error) {
+      console.error("Create operation task error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/operations/:operationId/tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { title, description, status, priority, assignedToId, dueDate, completedAt } = req.body;
+
+      const task = await storage.getOperationTask(id);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+
+      const updated = await storage.updateOperationTask(id, {
+        title,
+        description,
+        status,
+        priority,
+        assignedToId,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+        completedAt: completedAt ? new Date(completedAt) : undefined,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Update operation task error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/operations/:operationId/tasks/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const task = await storage.getOperationTask(id);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+
+      await storage.deleteOperationTask(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete operation task error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
