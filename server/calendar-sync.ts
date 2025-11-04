@@ -58,7 +58,12 @@ export async function syncCalendarEvents(accountId: string) {
     const account = await storage.getGmailAccount(accountId);
     if (!account) {
       console.error('Account not found:', accountId);
-      return;
+      throw new Error('Account not found');
+    }
+
+    if (!account.accessToken || !account.refreshToken) {
+      console.error('Invalid account credentials:', accountId);
+      throw new Error('Invalid account credentials');
     }
 
     const oauth2Client = await getCalendarOAuthClient(account);
@@ -91,9 +96,14 @@ export async function syncCalendarEvents(accountId: string) {
     }
 
     console.log(`Synced ${googleEvents.length} events for account ${account.email}`);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error syncing calendar events:', error);
-    throw error;
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      status: error.status
+    });
+    throw new Error(`Failed to sync calendar: ${error.message || 'Unknown error'}`);
   }
 }
 
