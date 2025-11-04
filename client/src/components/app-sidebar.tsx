@@ -139,48 +139,25 @@ export function AppSidebar() {
 
                 return (
                   <SidebarMenuItem key={item.title}>
-                    {isCollapsed ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Link href={item.url}>
-                            <SidebarMenuButton 
-                              isActive={isActive} 
-                              data-testid={`link-sidebar-${item.title.toLowerCase()}`}
-                              className={`
-                                w-10 h-10 rounded-md transition-all duration-150 flex items-center justify-center
-                                ${isActive 
-                                  ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
-                                  : 'hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground'
-                                }
-                              `}
-                            >
-                              <ItemIcon className="w-5 h-5 shrink-0" />
-                            </SidebarMenuButton>
-                          </Link>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          <p>{item.title}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <SidebarMenuButton 
-                        asChild 
-                        isActive={isActive} 
-                        data-testid={`link-sidebar-${item.title.toLowerCase()}`}
-                        className={`
-                          h-10 rounded-md transition-all duration-150 px-3
-                          ${isActive 
-                            ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
-                            : 'hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground'
-                          }
-                        `}
-                      >
-                        <Link href={item.url} className="flex items-center gap-2.5 w-full">
-                          <ItemIcon className="w-4 h-4 shrink-0" />
-                          <span className="font-medium text-[13px]">{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    )}
+                    <SidebarMenuButton 
+                      asChild 
+                      isActive={isActive}
+                      tooltip={isCollapsed ? item.title : undefined}
+                      data-testid={`link-sidebar-${item.title.toLowerCase()}`}
+                      className={`
+                        h-10 rounded-md transition-all duration-150
+                        ${isCollapsed ? 'w-10 px-0 justify-center' : 'px-3'}
+                        ${isActive 
+                          ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+                          : 'hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground'
+                        }
+                      `}
+                    >
+                      <Link href={item.url} className={`flex items-center w-full ${isCollapsed ? 'justify-center' : 'gap-2.5'}`}>
+                        <ItemIcon className={`shrink-0 ${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'}`} />
+                        {!isCollapsed && <span className="font-medium text-[13px]">{item.title}</span>}
+                      </Link>
+                    </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
               })}
