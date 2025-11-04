@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import { storage } from './storage';
 import type { GmailAccount } from '@shared/schema';
+import * as calendarSync from './calendar-sync';
 
 // Construir la URL de redirección automáticamente
 function getRedirectUri(): string {
@@ -64,7 +65,11 @@ export async function handleOAuthCallback(code: string, userId: string, syncFrom
     syncEnabled: true,
   });
 
+  // Iniciar sincronización de Gmail y Calendar
   startSync(account.id);
+  calendarSync.syncCalendarEvents(account.id).catch(err => {
+    console.error('Error syncing calendar on OAuth callback:', err);
+  });
 
   return account;
 }
