@@ -25,6 +25,7 @@ import CustomFieldsPage from "./pages/custom-fields";
 import GmailPage from "./pages/gmail";
 import CalendarPage from "./pages/calendar";
 import AutomationPage from "./pages/automation";
+import OperationFilesPage from "./pages/operation-files";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
   const { user, isLoading } = useAuth();
@@ -106,6 +107,7 @@ function AppLayout() {
                 <Route path="/operations" component={OperationsPage} />
                 <Route path="/operations/create" component={OperationsCreatePage} />
                 <Route path="/operations/:id" component={OperationDetailPage} />
+                <Route path="/operations/:operationId/files" component={OperationFilesPage} />
                 <Route path="/map" component={MapPage} />
                 <Route path="/clients" component={ClientsPage} />
                 <Route path="/employees" component={EmployeesPage} />

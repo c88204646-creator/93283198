@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import {
   ArrowLeft, Package, FileText, CheckSquare, Mail, Edit2, Trash2, Plus,
-  Calendar, User as UserIcon, MapPin, Ship, Plane, Truck, DollarSign
+  Calendar, User as UserIcon, MapPin, Ship, Plane, Truck, DollarSign, FolderOpen
 } from "lucide-react";
 import { useState } from "react";
 import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage } from "@shared/schema";
@@ -135,14 +135,24 @@ export default function OperationDetail() {
             )}
           </div>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => navigate(`/operations`)}
-          data-testid="button-edit"
-        >
-          <Edit2 className="w-4 h-4 mr-2" />
-          Editar
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/operations/${id}/files`)}
+            data-testid="button-files"
+          >
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Archivos
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/operations`)}
+            data-testid="button-edit"
+          >
+            <Edit2 className="w-4 h-4 mr-2" />
+            Editar
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
