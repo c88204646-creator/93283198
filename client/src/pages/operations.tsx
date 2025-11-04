@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Plus, Edit, Trash2, Link2 } from "lucide-react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
@@ -56,7 +56,7 @@ const priorityColors = {
 type OperationFormData = z.infer<typeof insertOperationSchema>;
 
 export default function OperationsPage() {
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [, setLocation] = useLocation();
   const [editingOperation, setEditingOperation] = useState<Operation | null>(null);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const { toast } = useToast();
@@ -106,17 +106,6 @@ export default function OperationsPage() {
     },
   });
 
-  const createMutation = useMutation({
-    mutationFn: (data: OperationFormData) => apiRequest("POST", "/api/operations", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/operations"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      setIsCreateOpen(false);
-      form.reset();
-      toast({ title: "Operation created successfully" });
-    },
-  });
-
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: OperationFormData }) =>
       apiRequest("PATCH", `/api/operations/${id}`, data),
@@ -157,8 +146,6 @@ export default function OperationsPage() {
 
     if (editingOperation) {
       updateMutation.mutate({ id: editingOperation.id, data: formattedData });
-    } else {
-      createMutation.mutate(formattedData);
     }
   };
 
@@ -300,25 +287,22 @@ export default function OperationsPage() {
           <h1 className="text-3xl font-bold text-foreground">Operaciones</h1>
           <p className="text-muted-foreground mt-2">Gestiona operaciones de carga y logística</p>
         </div>
-        <Dialog open={isCreateOpen || !!editingOperation} onOpenChange={(open) => {
+        <Button onClick={() => setLocation("/operations/create")} data-testid="button-create-operation">
+          <Plus className="w-4 h-4 mr-2" />
+          Nueva Operación
+        </Button>
+        <Dialog open={!!editingOperation} onOpenChange={(open) => {
           if (!open) {
-            setIsCreateOpen(false);
             setEditingOperation(null);
             setSelectedEmployeeIds([]);
             form.reset();
           }
         }}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setIsCreateOpen(true)} data-testid="button-create-operation">
-              <Plus className="w-4 h-4 mr-2" />
-              Nueva Operación
-            </Button>
-          </DialogTrigger>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingOperation ? "Editar Operación" : "Crear Operación"}</DialogTitle>
+              <DialogTitle>Editar Operación</DialogTitle>
               <DialogDescription>
-                {editingOperation ? "Actualiza los detalles de la operación" : "Agrega una nueva operación"}
+                Actualiza los detalles de la operación
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -711,8 +695,8 @@ export default function OperationsPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-submit">
-                    {editingOperation ? "Update" : "Create"}
+                  <Button type="submit" disabled={updateMutation.isPending} data-testid="button-submit">
+                    Update
                   </Button>
                 </div>
               </form>
