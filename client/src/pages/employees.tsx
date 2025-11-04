@@ -56,15 +56,13 @@ export default function EmployeesPage() {
     queryKey: ["/api/users"],
   });
 
-  const form = useForm<EmployeeFormData>({
-    resolver: zodResolver(insertEmployeeSchema.extend({
-      hireDate: insertEmployeeSchema.shape.hireDate,
-    })),
+  const form = useForm<z.infer<typeof insertEmployeeSchema>>({
+    resolver: zodResolver(insertEmployeeSchema),
     defaultValues: {
       userId: "",
       position: "",
       department: "",
-      hireDate: new Date().toISOString().split('T')[0] as any,
+      hireDate: new Date() as any,
       status: "active",
       phone: "",
     },
