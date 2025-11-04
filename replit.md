@@ -1,12 +1,14 @@
-# LogistiCore - Business Management Platform
+# LogistiCore - Freight Forwarding Platform
 
 ## Overview
 
-LogistiCore is a comprehensive logistics automation dashboard designed for managing complex business operations. It's a full-stack enterprise application that handles operations, clients, employees, invoices, proposals, expenses, and leads with role-based access control. The platform follows enterprise design principles inspired by Monday.com and Airtable, optimized for data-intensive workflows with high information density.
+LogistiCore is a comprehensive freight forwarding and logistics management platform designed for managing complex shipping operations. It's a full-stack enterprise application that handles shipments, clients, staff, invoices, quotes, expenses, and leads with role-based access control. The platform follows enterprise design principles with logistics-focused iconography and terminology, optimized for freight forwarding workflows.
 
 ## User Preferences
 
-Preferred communication style: Simple, everyday language.
+Preferred communication style: Simple, everyday language (Spanish).
+Industry focus: Freight forwarding and logistics operations.
+Design preference: Logistics-focused iconography and terminology.
 
 ## System Architecture
 
@@ -22,13 +24,14 @@ Preferred communication style: Simple, everyday language.
 - Shadcn/ui component library built on Radix UI primitives
 - Tailwind CSS for utility-first styling with custom design tokens
 - Class Variance Authority (CVA) for variant-based component styling
-- Design system based on Carbon Design System principles for enterprise data visualization
+- Logistics-focused design with freight forwarding iconography (trucks, ships, planes, packages)
 
 **Design Tokens**
-- Custom color palette with primary pink accent (hsl 342 85% 52%) and neutral grays
+- Custom color palette with primary coral/orange accent (hsl 9 75% 61%) and neutral grays
 - Typography system using Poppins font family with consistent weight hierarchy
 - Spacing system based on Tailwind's 2-16 unit scale
 - Dark mode support with CSS variables for theme switching
+- Freight forwarding branding throughout the application
 
 **State Management**
 - React Context for authentication state (AuthContext)
