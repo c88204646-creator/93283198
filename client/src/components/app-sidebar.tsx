@@ -130,35 +130,52 @@ export function AppSidebar() {
             <SidebarMenu className="gap-0.5">
               {filteredMenuItems.map((item) => {
                 const isActive = location === item.url;
+                const ItemIcon = item.icon;
+                
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SidebarMenuButton 
-                          asChild 
-                          isActive={isActive} 
-                          data-testid={`link-sidebar-${item.title.toLowerCase()}`}
-                          className={`
-                            h-10 rounded-md transition-all duration-150
-                            ${isActive 
-                              ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
-                              : 'hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground'
-                            }
-                            ${isCollapsed ? 'justify-center px-2' : 'px-3'}
-                          `}
-                        >
-                          <Link href={item.url} className={`flex items-center gap-2.5 w-full ${isCollapsed ? 'justify-center' : ''}`}>
-                            <item.icon className={`${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'} ${isActive ? 'text-primary-foreground' : ''} shrink-0`} />
-                            {!isCollapsed && <span className="font-medium text-[13px]">{item.title}</span>}
+                    {isCollapsed ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link href={item.url}>
+                            <SidebarMenuButton 
+                              isActive={isActive} 
+                              data-testid={`link-sidebar-${item.title.toLowerCase()}`}
+                              className={`
+                                w-10 h-10 rounded-md transition-all duration-150 flex items-center justify-center
+                                ${isActive 
+                                  ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+                                  : 'hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground'
+                                }
+                              `}
+                            >
+                              <ItemIcon className="w-5 h-5 shrink-0" />
+                            </SidebarMenuButton>
                           </Link>
-                        </SidebarMenuButton>
-                      </TooltipTrigger>
-                      {isCollapsed && (
+                        </TooltipTrigger>
                         <TooltipContent side="right">
                           <p>{item.title}</p>
                         </TooltipContent>
-                      )}
-                    </Tooltip>
+                      </Tooltip>
+                    ) : (
+                      <SidebarMenuButton 
+                        asChild 
+                        isActive={isActive} 
+                        data-testid={`link-sidebar-${item.title.toLowerCase()}`}
+                        className={`
+                          h-10 rounded-md transition-all duration-150 px-3
+                          ${isActive 
+                            ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+                            : 'hover:bg-sidebar-accent text-sidebar-foreground/80 hover:text-sidebar-foreground'
+                          }
+                        `}
+                      >
+                        <Link href={item.url} className="flex items-center gap-2.5 w-full">
+                          <ItemIcon className="w-4 h-4 shrink-0" />
+                          <span className="font-medium text-[13px]">{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    )}
                   </SidebarMenuItem>
                 );
               })}
@@ -168,28 +185,21 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-sidebar-border/50 bg-sidebar">
-        <div className={`flex items-center gap-2.5 p-2.5 rounded-md bg-sidebar-accent/30 ${isCollapsed ? 'justify-center' : ''}`}>
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-xs shadow-sm shrink-0">
-            {user?.fullName?.charAt(0).toUpperCase()}
-          </div>
-          {!isCollapsed && (
-            <>
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-medium text-sidebar-foreground truncate">{user?.fullName}</p>
-                <p className="text-[11px] text-sidebar-foreground/50 capitalize">{user?.role}</p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => logout()}
-                className="shrink-0 h-8 w-8 hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground"
-                data-testid="button-logout"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-              </Button>
-            </>
-          )}
-          {isCollapsed && (
+        {isCollapsed ? (
+          <div className="flex flex-col items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-xs shadow-sm cursor-pointer">
+                  {user?.fullName?.charAt(0).toUpperCase()}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <div>
+                  <p className="font-medium">{user?.fullName}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -206,8 +216,27 @@ export function AppSidebar() {
                 <p>Logout</p>
               </TooltipContent>
             </Tooltip>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2.5 p-2.5 rounded-md bg-sidebar-accent/30">
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-semibold text-xs shadow-sm shrink-0">
+              {user?.fullName?.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-medium text-sidebar-foreground truncate">{user?.fullName}</p>
+              <p className="text-[11px] text-sidebar-foreground/50 capitalize">{user?.role}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => logout()}
+              className="shrink-0 h-8 w-8 hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground"
+              data-testid="button-logout"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        )}
       </SidebarFooter>
     </Sidebar>
   );
