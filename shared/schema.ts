@@ -216,6 +216,7 @@ export const operationNotes = pgTable("operation_notes", {
 export const operationTasks = pgTable("operation_tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   operationId: varchar("operation_id").notNull().references(() => operations.id, { onDelete: "cascade" }),
+  order: integer("order").notNull().default(0),
   title: text("title").notNull(),
   description: text("description"),
   status: text("status").notNull().default("pending"), // pending, in-progress, completed, cancelled
