@@ -169,7 +169,7 @@ export default function Calendar() {
 
   const createEventMutation = useMutation({
     mutationFn: async (data: any) => {
-      if (data.accountId) {
+      if (data.accountId && data.accountId !== "local") {
         return apiRequest("/api/calendar/google-events", "POST", data);
       }
       return apiRequest("/api/calendar/events", "POST", data);
@@ -218,7 +218,7 @@ export default function Calendar() {
     startTime: "",
     endTime: "",
     isAllDay: false,
-    accountId: "",
+    accountId: "local",
   });
 
   const resetForm = () => {
@@ -229,7 +229,7 @@ export default function Calendar() {
       startTime: "",
       endTime: "",
       isAllDay: false,
-      accountId: "",
+      accountId: "local",
     });
     setEditingEvent(null);
     setLocationCoords(null);
@@ -408,7 +408,7 @@ export default function Calendar() {
                         <SelectValue placeholder="Evento local (no sincronizar)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Evento local (no sincronizar)</SelectItem>
+                        <SelectItem value="local">Evento local (no sincronizar)</SelectItem>
                         {gmailAccounts.map((account: any) => (
                           <SelectItem key={account.id} value={account.id}>
                             {account.email}
