@@ -511,7 +511,12 @@ export const calendarEventsRelations = relations(calendarEvents, ({ one }) => ({
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true });
-export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: true, createdAt: true, birthdayEventId: true, userId: true });
+export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: true, createdAt: true, birthdayEventId: true, userId: true }).extend({
+  department: z.string().optional(),
+  birthdate: z.date().optional().nullable(),
+  hireDate: z.date().optional().nullable(),
+  phone: z.string().optional(),
+});
 export const insertOperationSchema = createInsertSchema(operations).omit({ id: true, createdAt: true });
 export const insertOperationEmployeeSchema = createInsertSchema(operationEmployees).omit({ id: true, createdAt: true });
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });

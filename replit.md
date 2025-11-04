@@ -232,3 +232,41 @@ Modular automation system for creating entities automatically from email pattern
 - Extended operations table with: createdAutomatically, automationRuleId, requiresReview
 - API routes: `/api/automation/*`
 - Background processing initialized in `server/index.ts`
+
+### Employee Birthday Tracking System (November 2025)
+Automatic birthday event creation for employees with calendar integration:
+
+**Features**
+- Employees now have independent identity with name, email, position, and birthdate fields
+- Optional link to user accounts (userId is nullable)
+- Automatic birthday calendar event creation when employee birthdate is set
+- Birthday events are created for the next occurrence (this year or next year)
+- Events are marked with special birthday indicator (🎂) in calendar view
+- Birthday events automatically update when employee information changes
+- Pink color coding for birthday events in calendar (distinct from Google/local events)
+
+**Implementation**
+- Employee schema updated with: name, email, birthdate, birthdayEventId fields
+- Calendar events schema extended with: isBirthday, employeeId fields
+- Backend helper function `handleBirthdayEvent()` in `server/routes.ts`:
+  - Calculates next birthday occurrence
+  - Creates/updates all-day calendar events
+  - Links event to employee record
+  - Handles deletion when birthdate is removed
+- Employee form redesigned for mobile-responsive layout
+- Enhanced modal spacing for better mobile experience
+- Improved error handling with user-friendly Spanish messages
+
+**UI Enhancements**
+- Employee creation/edit form with responsive grid layout (1 column mobile, 2 columns desktop)
+- Increased spacing between form fields (space-y-6, gap-6)
+- Better modal padding for mobile devices (p-6 sm:p-8)
+- Full-width buttons on mobile, auto-width on desktop
+- Birthday events displayed with special pink badge in calendar
+- Automatic cache invalidation for calendar events when employees are updated
+
+**Technical Components**
+- Schema updates in `shared/schema.ts` for employees and calendarEvents tables
+- Birthday event management in `server/routes.ts` (POST /api/employees, PATCH /api/employees/:id)
+- Calendar view updates in `client/src/pages/calendar.tsx` for birthday event display
+- Employee form improvements in `client/src/pages/employees.tsx` for mobile responsiveness

@@ -82,9 +82,17 @@ export default function EmployeesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
       setIsCreateOpen(false);
       form.reset();
-      toast({ title: "Employee created successfully" });
+      toast({ title: "Empleado creado exitosamente" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error al crear empleado", 
+        description: error?.message || "Hubo un problema al crear el empleado. Por favor verifica los datos e intenta nuevamente.",
+        variant: "destructive" 
+      });
     },
   });
 
@@ -100,9 +108,17 @@ export default function EmployeesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
       setEditingEmployee(null);
       form.reset();
-      toast({ title: "Employee updated successfully" });
+      toast({ title: "Empleado actualizado exitosamente" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error al actualizar empleado", 
+        description: error?.message || "Hubo un problema al actualizar el empleado. Por favor verifica los datos e intenta nuevamente.",
+        variant: "destructive" 
+      });
     },
   });
 
@@ -219,16 +235,16 @@ export default function EmployeesPage() {
               New Employee
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>{editingEmployee ? "Edit Employee" : "Create Employee"}</DialogTitle>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+            <DialogHeader className="mb-6">
+              <DialogTitle className="text-xl">{editingEmployee ? "Editar Empleado" : "Crear Empleado"}</DialogTitle>
               <DialogDescription>
-                {editingEmployee ? "Update employee details" : "Add a new employee to your system"}
+                {editingEmployee ? "Actualiza la información del empleado" : "Agrega un nuevo empleado al sistema"}
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="name"
@@ -256,7 +272,7 @@ export default function EmployeesPage() {
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="position"
@@ -284,7 +300,7 @@ export default function EmployeesPage() {
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="birthdate"
@@ -312,7 +328,7 @@ export default function EmployeesPage() {
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="status"
@@ -349,7 +365,7 @@ export default function EmployeesPage() {
                     )}
                   />
                 </div>
-                <div className="flex justify-end gap-2">
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
                   <Button
                     type="button"
                     variant="outline"
@@ -358,11 +374,18 @@ export default function EmployeesPage() {
                       setEditingEmployee(null);
                       form.reset();
                     }}
+                    className="w-full sm:w-auto"
+                    data-testid="button-cancel"
                   >
-                    Cancel
+                    Cancelar
                   </Button>
-                  <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending} data-testid="button-submit">
-                    {editingEmployee ? "Update" : "Create"}
+                  <Button 
+                    type="submit" 
+                    disabled={createMutation.isPending || updateMutation.isPending} 
+                    data-testid="button-submit"
+                    className="w-full sm:w-auto"
+                  >
+                    {(createMutation.isPending || updateMutation.isPending) ? "Guardando..." : editingEmployee ? "Actualizar" : "Crear"}
                   </Button>
                 </div>
               </form>
