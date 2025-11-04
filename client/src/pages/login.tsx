@@ -39,18 +39,21 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center">
-              <Truck className="w-7 h-7 text-primary-foreground" />
-            </div>
-            <div>
-              <CardTitle className="text-2xl font-bold">LogistiCore</CardTitle>
-              <CardDescription className="text-sm">Freight Forwarding Platform</CardDescription>
-            </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
+      <Card className="w-full max-w-md shadow-2xl border-0">
+        <CardHeader className="space-y-4 text-center pb-8">
+          <div className="mx-auto w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center mb-2 shadow-xl shadow-primary/25">
+            <Truck className="w-10 h-10 text-primary-foreground" />
           </div>
+          <div>
+            <CardTitle className="text-3xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              NNEXIO
+            </CardTitle>
+            <p className="text-sm font-semibold text-muted-foreground">Logistics Control Panel</p>
+          </div>
+          <CardDescription className="text-base">
+            Sign in to access your command center
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

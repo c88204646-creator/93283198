@@ -98,7 +98,7 @@ const moduleCards = [
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  
+
   const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
   });
@@ -112,57 +112,50 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Logistics Dashboard</h1>
-          <p className="text-muted-foreground mt-2">Welcome back, {user?.fullName}</p>
+          <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+            Dashboard Overview
+          </h1>
+          <p className="text-muted-foreground mt-2 text-base">
+            Welcome back, <span className="font-semibold text-foreground">{user?.fullName}</span>. Here's your logistics control center.
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-card-border">
-            <Truck className="w-5 h-5 text-muted-foreground" />
-            <Ship className="w-5 h-5 text-muted-foreground" />
-            <Plane className="w-5 h-5 text-muted-foreground" />
-          </div>
+        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+          {user?.fullName?.charAt(0).toUpperCase()}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCards.map((card) => {
+          const count = stats?.[card.statsKey] ?? 0;
           const Icon = card.icon;
-          const moduleStats = stats?.[card.statsKey];
-          
+
           return (
             <Link key={card.title} href={card.url}>
-              <Card className="hover-elevate active-elevate-2 cursor-pointer transition-all h-full" data-testid={`card-module-${card.title.toLowerCase()}`}>
-                <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-3">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg font-semibold">{card.title}</CardTitle>
-                    <p className="text-xs text-muted-foreground">{card.description}</p>
-                  </div>
-                  <div className={`w-12 h-12 rounded-lg ${card.bgColor} flex items-center justify-center shrink-0`}>
-                    <Icon className={`w-6 h-6 ${card.color}`} />
+              <Card className="group hover:shadow-xl transition-all duration-300 border-0 overflow-hidden bg-card/80 backdrop-blur-sm hover:scale-[1.02]">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-base font-semibold text-foreground mb-1">
+                        {card.title}
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground">
+                        {card.description}
+                      </p>
+                    </div>
+                    <div className={`p-3 rounded-xl ${card.bgColor} shadow-lg group-hover:scale-110 transition-transform`}>
+                      <Icon className="w-6 h-6 text-white" />
+                    </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  {isLoading ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-9 w-20" />
-                      <Skeleton className="h-4 w-28" />
+                <CardContent className="pt-0">
+                  <div className="flex items-end justify-between">
+                    <div className="text-4xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">
+                      {count}
                     </div>
-                  ) : (
-                    <>
-                      <div className="text-3xl font-bold mb-2" data-testid={`text-${card.statsKey}-total`}>
-                        {moduleStats?.total || 0}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {card.statsKey === "operations" && `${moduleStats && 'active' in moduleStats ? moduleStats.active : 0} in transit`}
-                        {card.statsKey === "clients" && `${moduleStats && 'active' in moduleStats ? moduleStats.active : 0} active`}
-                        {card.statsKey === "employees" && `${moduleStats && 'active' in moduleStats ? moduleStats.active : 0} active`}
-                        {card.statsKey === "invoices" && `${moduleStats && 'paid' in moduleStats ? moduleStats.paid : 0} paid, ${moduleStats && 'pending' in moduleStats ? moduleStats.pending : 0} pending`}
-                        {card.statsKey === "proposals" && `${moduleStats && 'pending' in moduleStats ? moduleStats.pending : 0} awaiting response`}
-                        {card.statsKey === "expenses" && `${moduleStats && 'pending' in moduleStats ? moduleStats.pending : 0} pending`}
-                        {card.statsKey === "leads" && `${moduleStats && 'new' in moduleStats ? moduleStats.new : 0} new this month`}
-                      </p>
-                    </>
-                  )}
+                    <div className="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                      View all →
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </Link>
