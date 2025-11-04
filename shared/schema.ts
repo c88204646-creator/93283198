@@ -329,9 +329,11 @@ export const automationConfigs = pgTable("automation_configs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   moduleName: text("module_name").notNull(), // 'operations', 'invoices', etc.
+  moduleId: text("module_id"), // Unique identifier for this specific automation config
   isEnabled: boolean("is_enabled").notNull().default(false),
   selectedGmailAccounts: jsonb("selected_gmail_accounts"), // Array of gmail account IDs
   defaultEmployees: jsonb("default_employees"), // Array of employee IDs for auto-created operations
+  processAttachments: boolean("process_attachments").notNull().default(false), // Automatically process email attachments
   settings: jsonb("settings"), // Module-specific settings
   lastProcessedAt: timestamp("last_processed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

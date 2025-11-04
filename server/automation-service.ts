@@ -1,5 +1,7 @@
 import { storage } from './storage';
 import type { AutomationConfig, AutomationRule, GmailMessage } from '@shared/schema';
+import { getAttachmentData } from './gmail-sync';
+import { ObjectStorageService } from './objectStorage';
 
 // Automation service that processes emails and creates operations automatically
 export class AutomationService {
@@ -261,6 +263,11 @@ export class AutomationService {
 
     console.log(`Created operation ${operationName} automatically with ${defaultEmployees.length} assigned employees`);
 
+    // Process email attachments if enabled
+    if (config.processAttachments) {
+      await this.processEmailAttachments(message, operation.id, config);
+    }
+
     await storage.createAutomationLog({
       ruleId: rule.id,
       emailMessageId: message.id,
@@ -274,6 +281,139 @@ export class AutomationService {
         assignedEmployees: defaultEmployees.length,
       },
     });
+  }
+
+  private async processEmailAttachments(message: GmailMessage, operationId: string, config: AutomationConfig) {
+    try {
+      // Get attachments for this message
+      const attachments = await storage.getGmailAttachments(message.id);
+      
+      if (attachments.length === 0) {
+        console.log(`[Automation] No attachments found for message ${message.id}`);
+        return;
+      }
+
+      console.log(`[Automation] Processing ${attachments.length} attachments for operation ${operationId}`);
+
+      // Get Gmail account to download attachments
+      const gmailAccount = await storage.getGmailAccount(message.gmailAccountId);
+      if (!gmailAccount) {
+        console.error(`[Automation] Gmail account ${message.gmailAccountId} not found`);
+        return;
+      }
+
+      const objectStorageService = new ObjectStorageService();
+
+      for (const attachment of attachments) {
+        try {
+          // Skip inline images
+          if (attachment.isInline) {
+            continue;
+          }
+
+          // Download attachment data
+          const attachmentData = await getAttachmentData(
+            gmailAccount,
+            message.messageId,
+            attachment.attachmentId
+          );
+
+          // Convert base64 to buffer
+          const buffer = Buffer.from(attachmentData, 'base64');
+
+          // Upload to object storage
+          const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+          
+          // Upload buffer directly (simplified - in production you'd use a proper upload method)
+          const response = await fetch(uploadURL, {
+            method: 'PUT',
+            body: buffer,
+            headers: {
+              'Content-Type': attachment.mimeType || 'application/octet-stream',
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to upload attachment: ${response.statusText}`);
+          }
+
+          const fileURL = uploadURL.split('?')[0];
+
+          // Set ACL policy
+          const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(fileURL, {
+            owner: config.userId,
+            visibility: 'private',
+          });
+
+          // Categorize automatically
+          const category = this.categorizeFile(attachment.filename, attachment.mimeType);
+
+          // Create file record
+          await storage.createOperationFile({
+            operationId,
+            folderId: null,
+            name: attachment.filename,
+            originalName: attachment.filename,
+            mimeType: attachment.mimeType,
+            size: attachment.size,
+            objectPath,
+            category,
+            description: `Adjunto de correo: ${message.subject}`,
+            tags: ['automatico', 'gmail'],
+            uploadedBy: config.userId,
+            uploadedVia: 'automation',
+          });
+
+          console.log(`[Automation] Processed attachment ${attachment.filename} for operation ${operationId}`);
+        } catch (error) {
+          console.error(`[Automation] Error processing attachment ${attachment.filename}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error(`[Automation] Error processing email attachments:`, error);
+    }
+  }
+
+  private categorizeFile(filename: string, mimeType: string): string | null {
+    const lowerFilename = filename.toLowerCase();
+    const lowerMimeType = mimeType.toLowerCase();
+
+    // Images
+    if (lowerMimeType.startsWith('image/')) {
+      return 'image';
+    }
+
+    // Payments - look for keywords in filename
+    if (lowerFilename.includes('payment') || lowerFilename.includes('pago') || 
+        lowerFilename.includes('transferencia') || lowerFilename.includes('transfer')) {
+      return 'payment';
+    }
+
+    // Expenses
+    if (lowerFilename.includes('expense') || lowerFilename.includes('gasto') ||
+        lowerFilename.includes('recibo') || lowerFilename.includes('receipt')) {
+      return 'expense';
+    }
+
+    // Invoices
+    if (lowerFilename.includes('invoice') || lowerFilename.includes('factura') ||
+        lowerFilename.includes('bill')) {
+      return 'invoice';
+    }
+
+    // Contracts
+    if (lowerFilename.includes('contract') || lowerFilename.includes('contrato') ||
+        lowerFilename.includes('agreement')) {
+      return 'contract';
+    }
+
+    // Documents
+    if (lowerMimeType.includes('pdf') || lowerMimeType.includes('word') ||
+        lowerMimeType.includes('document')) {
+      return 'document';
+    }
+
+    return null;
   }
 }
 
