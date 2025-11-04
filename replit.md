@@ -190,3 +190,45 @@ Complete Gmail/GSuite synchronization system with OAuth authentication:
 - Database tables: gmailAccounts, gmailMessages, calendarEvents
 - API routes: `/api/gmail/*`, `/api/calendar/*`
 - Background sync initialized in `server/index.ts`
+
+### Automation Module (November 2025)
+Modular automation system for creating entities automatically from email patterns:
+
+**Architecture**
+- Plugin-based system with available modules catalog
+- Each module can be activated/deactivated independently
+- Rule-based pattern matching with priority system
+- Background processing with 2-minute intervals
+- Comprehensive logging for all automation actions
+
+**Available Modules**
+1. **Operation Email Automation** (Active)
+   - Creates operations automatically from emails matching specific patterns
+   - Supports pattern extraction (e.g., "NAVI-123" from subject)
+   - Configurable default values for operation fields
+   - Marks created operations as "automated" with review flag
+2. **Invoice Email Automation** (Coming Soon)
+3. **Expense Receipt Automation** (Coming Soon)
+
+**Rule System**
+- Multiple rules per module with priority ordering
+- Condition operators: contains, startsWith, endsWith, equals, regex
+- Field matching: subject, from, to, body
+- Action types: create_operation (more to come)
+- Enable/disable rules individually
+
+**User Interface**
+- Module catalog view showing available automation plugins
+- Per-module configuration dialog with tabs:
+  - Settings: Gmail account selection, enable/disable
+  - Rules: Create and manage automation rules
+  - Logs: View execution history
+- Visual indicators for automated operations in operations list
+
+**Technical Components**
+- `server/automation-service.ts`: Background automation processing service
+- `client/src/pages/automation.tsx`: Module catalog and configuration UI
+- Database tables: automationConfigs, automationRules, automationLogs
+- Extended operations table with: createdAutomatically, automationRuleId, requiresReview
+- API routes: `/api/automation/*`
+- Background processing initialized in `server/index.ts`

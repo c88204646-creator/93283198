@@ -8,16 +8,41 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Zap, Plus, Settings, Activity, Trash2, Mail, Filter, CheckCircle, XCircle, AlertCircle, Sparkles } from "lucide-react";
+import { Zap, Settings, Activity, Trash2, Mail, Filter, CheckCircle, XCircle, AlertCircle, Package, FileText, Receipt } from "lucide-react";
 import type { AutomationConfig, AutomationRule, AutomationLog, GmailAccount } from "@shared/schema";
+
+// Módulos de automatización disponibles
+const AVAILABLE_MODULES = [
+  {
+    id: "operation-email-automation",
+    name: "Automatización de Operaciones desde Email",
+    description: "Crea operaciones automáticamente cuando llegan correos con patrones específicos (ej: NAVI-123)",
+    icon: Package,
+    category: "operations",
+  },
+  {
+    id: "invoice-email-automation",
+    name: "Automatización de Facturas desde Email",
+    description: "Genera facturas automáticamente desde correos con información de facturación",
+    icon: FileText,
+    category: "invoices",
+    comingSoon: true,
+  },
+  {
+    id: "expense-receipt-automation",
+    name: "Automatización de Gastos desde Recibos",
+    description: "Registra gastos automáticamente cuando llegan correos con recibos adjuntos",
+    icon: Receipt,
+    category: "expenses",
+    comingSoon: true,
+  },
+];
 
 export default function AutomationPage() {
   const { toast } = useToast();
-  const [selectedConfig, setSelectedConfig] = useState<AutomationConfig | null>(null);
-  const [showNewModuleDialog, setShowNewModuleDialog] = useState(false);
+  const [selectedModule, setSelectedModule] = useState<typeof AVAILABLE_MODULES[0] | null>(null);
 
   const { data: configs = [], isLoading: configsLoading } = useQuery<AutomationConfig[]>({
     queryKey: ["/api/automation/configs"],
@@ -27,18 +52,10 @@ export default function AutomationPage() {
     queryKey: ["/api/gmail/accounts"],
   });
 
-  const toggleConfigMutation = useMutation({
-    mutationFn: async ({ id, isEnabled }: { id: string; isEnabled: boolean }) => {
-      return apiRequest("PATCH", `/api/automation/configs/${id}`, { isEnabled });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/automation/configs"] });
-      toast({
-        title: "Configuración actualizada",
-        description: "El módulo ha sido actualizado correctamente.",
-      });
-    },
-  });
+  // Obtener configuración activa para cada módulo
+  const getModuleConfig = (moduleId: string) => {
+    return configs.find((c) => c.moduleName === moduleId);
+  };
 
   if (configsLoading) {
     return (
@@ -50,283 +67,343 @@ export default function AutomationPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold" data-testid="text-automation-title">Automatizaciones</h1>
-          <p className="text-muted-foreground mt-1">
-            Gestiona módulos de automatización para crear operaciones automáticamente desde correos
-          </p>
-        </div>
-        <Dialog open={showNewModuleDialog} onOpenChange={setShowNewModuleDialog}>
-          <DialogTrigger asChild>
-            <Button data-testid="button-create-module">
-              <Plus className="w-4 h-4 mr-2" />
-              Nuevo Módulo
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <NewModuleForm 
-              gmailAccounts={gmailAccounts} 
-              onSuccess={() => setShowNewModuleDialog(false)} 
-            />
-          </DialogContent>
-        </Dialog>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2" data-testid="text-automation-title">Módulos de Automatización</h1>
+        <p className="text-muted-foreground">
+          Activa y configura módulos para automatizar procesos desde correos electrónicos
+        </p>
       </div>
 
-      {configs.length === 0 ? (
-        <Card className="text-center py-12">
-          <CardContent>
-            <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No hay módulos de automatización</h3>
-            <p className="text-muted-foreground mb-6">
-              Crea tu primer módulo para comenzar a automatizar la creación de operaciones
-            </p>
-            <Button onClick={() => setShowNewModuleDialog(true)} data-testid="button-create-first-module">
-              <Plus className="w-4 h-4 mr-2" />
-              Crear Módulo
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-6">
-          {configs.map((config) => (
-            <Card key={config.id} data-testid={`card-automation-${config.id}`}>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {AVAILABLE_MODULES.map((module) => {
+          const config = getModuleConfig(module.id);
+          const ModuleIcon = module.icon;
+          const isActive = config?.isEnabled || false;
+
+          return (
+            <Card 
+              key={module.id} 
+              className={`relative ${module.comingSoon ? 'opacity-60' : ''}`}
+              data-testid={`card-module-${module.id}`}
+            >
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Zap className="w-5 h-5 text-primary" />
-                      <CardTitle>{config.moduleName}</CardTitle>
-                      <Badge variant={config.isEnabled ? "default" : "secondary"} data-testid={`badge-status-${config.id}`}>
-                        {config.isEnabled ? "Activo" : "Inactivo"}
-                      </Badge>
-                    </div>
-                    <CardDescription>{config.moduleDescription}</CardDescription>
-                    {config.lastProcessedAt && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Última ejecución: {new Date(config.lastProcessedAt).toLocaleString("es-MX")}
-                      </p>
-                    )}
+                <div className="flex items-start justify-between mb-2">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <ModuleIcon className="w-6 h-6 text-primary" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={config.isEnabled}
-                      onCheckedChange={(checked) => 
-                        toggleConfigMutation.mutate({ id: config.id, isEnabled: checked })
-                      }
-                      data-testid={`switch-enable-${config.id}`}
-                    />
-                  </div>
+                  {module.comingSoon ? (
+                    <Badge variant="secondary">Próximamente</Badge>
+                  ) : (
+                    <Badge variant={isActive ? "default" : "outline"} data-testid={`badge-status-${module.id}`}>
+                      {isActive ? "Activo" : "Inactivo"}
+                    </Badge>
+                  )}
                 </div>
+                <CardTitle className="text-lg">{module.name}</CardTitle>
+                <CardDescription className="text-sm">{module.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Cuentas Gmail:</Label>
-                    <div className="flex gap-2 mt-1 flex-wrap">
-                      {(config.selectedGmailAccounts as string[])?.length > 0 ? (
-                        (config.selectedGmailAccounts as string[]).map((accountId) => {
-                          const account = gmailAccounts.find((a) => a.id === accountId);
-                          return account ? (
-                            <Badge key={accountId} variant="outline" className="flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
-                              {account.email}
-                            </Badge>
-                          ) : null;
-                        })
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No hay cuentas seleccionadas</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setSelectedConfig(config)}
-                      data-testid={`button-manage-${config.id}`}
-                    >
-                      <Settings className="w-4 h-4 mr-2" />
-                      Gestionar Reglas
-                    </Button>
-                  </div>
-                </div>
+                {!module.comingSoon && (
+                  <Button
+                    className="w-full"
+                    variant={isActive ? "default" : "outline"}
+                    onClick={() => setSelectedModule(module)}
+                    data-testid={`button-configure-${module.id}`}
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    {config ? "Configurar" : "Activar"}
+                  </Button>
+                )}
+                {module.comingSoon && (
+                  <Button className="w-full" variant="secondary" disabled>
+                    Próximamente
+                  </Button>
+                )}
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
-      {selectedConfig && (
-        <ConfigManagementDialog
-          config={selectedConfig}
+      {selectedModule && (
+        <ModuleConfigurationDialog
+          module={selectedModule}
+          config={getModuleConfig(selectedModule.id)}
           gmailAccounts={gmailAccounts}
-          onClose={() => setSelectedConfig(null)}
+          onClose={() => setSelectedModule(null)}
         />
       )}
     </div>
   );
 }
 
-function NewModuleForm({ gmailAccounts, onSuccess }: { 
-  gmailAccounts: GmailAccount[]; 
-  onSuccess: () => void;
+function ModuleConfigurationDialog({ 
+  module, 
+  config,
+  gmailAccounts,
+  onClose 
+}: { 
+  module: typeof AVAILABLE_MODULES[0];
+  config?: AutomationConfig;
+  gmailAccounts: GmailAccount[];
+  onClose: () => void;
 }) {
   const { toast } = useToast();
-  const [moduleName, setModuleName] = useState("");
-  const [moduleDescription, setModuleDescription] = useState("");
-  const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<"settings" | "rules" | "logs">("settings");
+  const [selectedAccounts, setSelectedAccounts] = useState<string[]>(
+    (config?.selectedGmailAccounts as string[]) || []
+  );
 
-  const createModuleMutation = useMutation({
+  const createConfigMutation = useMutation({
     mutationFn: async () => {
       return apiRequest("POST", "/api/automation/configs", {
-        moduleName,
-        moduleDescription,
-        isEnabled: false,
+        moduleName: module.id,
+        moduleDescription: module.description,
+        isEnabled: true,
         selectedGmailAccounts: selectedAccounts,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/automation/configs"] });
       toast({
-        title: "Módulo creado",
-        description: "El módulo de automatización ha sido creado correctamente.",
+        title: "Módulo activado",
+        description: "El módulo ha sido activado correctamente.",
       });
-      onSuccess();
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "No se pudo crear el módulo",
+        description: error.message || "No se pudo activar el módulo",
         variant: "destructive",
       });
     },
   });
 
+  const updateConfigMutation = useMutation({
+    mutationFn: async ({ isEnabled, accounts }: { isEnabled?: boolean; accounts?: string[] }) => {
+      return apiRequest("PATCH", `/api/automation/configs/${config!.id}`, {
+        isEnabled,
+        selectedGmailAccounts: accounts,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/automation/configs"] });
+      toast({
+        title: "Configuración actualizada",
+        description: "Los cambios han sido guardados correctamente.",
+      });
+    },
+  });
+
+  const deleteConfigMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", `/api/automation/configs/${config!.id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/automation/configs"] });
+      toast({
+        title: "Módulo desactivado",
+        description: "El módulo ha sido desactivado completamente.",
+      });
+      onClose();
+    },
+  });
+
+  const handleToggle = (enabled: boolean) => {
+    if (config) {
+      updateConfigMutation.mutate({ isEnabled: enabled });
+    }
+  };
+
+  const handleSaveAccounts = () => {
+    if (config) {
+      updateConfigMutation.mutate({ accounts: selectedAccounts });
+    } else {
+      createConfigMutation.mutate();
+    }
+  };
+
+  const ModuleIcon = module.icon;
+
   return (
-    <>
-      <DialogHeader>
-        <DialogTitle>Nuevo Módulo de Automatización</DialogTitle>
-        <DialogDescription>
-          Crea un nuevo módulo para automatizar la creación de operaciones
-        </DialogDescription>
-      </DialogHeader>
-      <div className="space-y-4 py-4">
-        <div>
-          <Label htmlFor="moduleName">Nombre del Módulo</Label>
-          <Input
-            id="moduleName"
-            value={moduleName}
-            onChange={(e) => setModuleName(e.target.value)}
-            placeholder="Ej: Importaciones NAVI"
-            data-testid="input-module-name"
-          />
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <ModuleIcon className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1">
+              <DialogTitle>{module.name}</DialogTitle>
+              <DialogDescription>{module.description}</DialogDescription>
+            </div>
+            {config && (
+              <Switch
+                checked={config.isEnabled}
+                onCheckedChange={handleToggle}
+                data-testid="switch-module-enable"
+              />
+            )}
+          </div>
+        </DialogHeader>
+
+        <div className="flex gap-2 border-b">
+          <Button
+            variant={activeTab === "settings" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("settings")}
+            data-testid="button-tab-settings"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Configuración
+          </Button>
+          {config && (
+            <>
+              <Button
+                variant={activeTab === "rules" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setActiveTab("rules")}
+                data-testid="button-tab-rules"
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Reglas
+              </Button>
+              <Button
+                variant={activeTab === "logs" ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setActiveTab("logs")}
+                data-testid="button-tab-logs"
+              >
+                <Activity className="w-4 h-4 mr-2" />
+                Logs
+              </Button>
+            </>
+          )}
         </div>
-        <div>
-          <Label htmlFor="moduleDescription">Descripción</Label>
-          <Textarea
-            id="moduleDescription"
-            value={moduleDescription}
-            onChange={(e) => setModuleDescription(e.target.value)}
-            placeholder="Describe qué hace este módulo"
-            rows={3}
-            data-testid="input-module-description"
-          />
+
+        <div className="py-4">
+          {activeTab === "settings" && (
+            <SettingsTab
+              config={config}
+              gmailAccounts={gmailAccounts}
+              selectedAccounts={selectedAccounts}
+              onAccountsChange={setSelectedAccounts}
+              onSave={handleSaveAccounts}
+              onDelete={() => {
+                if (confirm("¿Desactivar este módulo completamente?")) {
+                  deleteConfigMutation.mutate();
+                }
+              }}
+              isSaving={createConfigMutation.isPending || updateConfigMutation.isPending}
+              isDeleting={deleteConfigMutation.isPending}
+            />
+          )}
+          {activeTab === "rules" && config && (
+            <RulesTab configId={config.id} />
+          )}
+          {activeTab === "logs" && config && (
+            <LogsTab configId={config.id} />
+          )}
         </div>
-        <div>
-          <Label>Cuentas Gmail a Monitorear</Label>
-          <div className="space-y-2 mt-2">
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SettingsTab({
+  config,
+  gmailAccounts,
+  selectedAccounts,
+  onAccountsChange,
+  onSave,
+  onDelete,
+  isSaving,
+  isDeleting,
+}: {
+  config?: AutomationConfig;
+  gmailAccounts: GmailAccount[];
+  selectedAccounts: string[];
+  onAccountsChange: (accounts: string[]) => void;
+  onSave: () => void;
+  onDelete: () => void;
+  isSaving: boolean;
+  isDeleting: boolean;
+}) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <Label className="text-base font-semibold mb-3 block">Cuentas Gmail a Monitorear</Label>
+        <p className="text-sm text-muted-foreground mb-4">
+          Selecciona las cuentas de Gmail desde las cuales este módulo procesará correos
+        </p>
+        {gmailAccounts.length === 0 ? (
+          <Card className="bg-muted/50">
+            <CardContent className="py-6 text-center">
+              <Mail className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">
+                No hay cuentas Gmail conectadas. Ve a la sección Gmail para conectar una cuenta.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2 border rounded-lg p-4">
             {gmailAccounts.map((account) => (
-              <div key={account.id} className="flex items-center gap-2">
+              <div key={account.id} className="flex items-center gap-3 p-2 hover:bg-accent rounded-md">
                 <input
                   type="checkbox"
                   id={`account-${account.id}`}
                   checked={selectedAccounts.includes(account.id)}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setSelectedAccounts([...selectedAccounts, account.id]);
+                      onAccountsChange([...selectedAccounts, account.id]);
                     } else {
-                      setSelectedAccounts(selectedAccounts.filter((id) => id !== account.id));
+                      onAccountsChange(selectedAccounts.filter((id) => id !== account.id));
                     }
                   }}
                   className="rounded border-input"
                   data-testid={`checkbox-account-${account.id}`}
                 />
-                <Label htmlFor={`account-${account.id}`} className="text-sm cursor-pointer">
-                  {account.email}
+                <Label htmlFor={`account-${account.id}`} className="text-sm cursor-pointer flex-1">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    {account.email}
+                  </div>
                 </Label>
+                {account.syncEnabled && (
+                  <Badge variant="secondary" className="text-xs">Sincronizando</Badge>
+                )}
               </div>
             ))}
           </div>
-        </div>
+        )}
       </div>
-      <DialogFooter>
+
+      {config && config.lastProcessedAt && (
+        <div className="text-sm text-muted-foreground">
+          Última ejecución: {new Date(config.lastProcessedAt).toLocaleString("es-MX")}
+        </div>
+      )}
+
+      <div className="flex gap-2 pt-4 border-t">
         <Button
-          onClick={() => createModuleMutation.mutate()}
-          disabled={!moduleName || createModuleMutation.isPending}
-          data-testid="button-save-module"
+          onClick={onSave}
+          disabled={selectedAccounts.length === 0 || isSaving}
+          data-testid="button-save-settings"
         >
-          {createModuleMutation.isPending ? "Creando..." : "Crear Módulo"}
+          {isSaving ? "Guardando..." : config ? "Guardar Cambios" : "Activar Módulo"}
         </Button>
-      </DialogFooter>
-    </>
-  );
-}
-
-function ConfigManagementDialog({ 
-  config, 
-  gmailAccounts,
-  onClose 
-}: { 
-  config: AutomationConfig; 
-  gmailAccounts: GmailAccount[];
-  onClose: () => void;
-}) {
-  const [activeTab, setActiveTab] = useState<"rules" | "logs">("rules");
-  
-  return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Zap className="w-5 h-5" />
-            {config.moduleName}
-          </DialogTitle>
-          <DialogDescription>{config.moduleDescription}</DialogDescription>
-        </DialogHeader>
-
-        <div className="flex gap-2 border-b">
+        {config && (
           <Button
-            variant={activeTab === "rules" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setActiveTab("rules")}
-            data-testid="button-tab-rules"
+            variant="destructive"
+            onClick={onDelete}
+            disabled={isDeleting}
+            data-testid="button-delete-config"
           >
-            <Filter className="w-4 h-4 mr-2" />
-            Reglas
+            {isDeleting ? "Eliminando..." : "Desactivar Módulo"}
           </Button>
-          <Button
-            variant={activeTab === "logs" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setActiveTab("logs")}
-            data-testid="button-tab-logs"
-          >
-            <Activity className="w-4 h-4 mr-2" />
-            Logs
-          </Button>
-        </div>
-
-        <div className="py-4">
-          {activeTab === "rules" && (
-            <RulesTab configId={config.id} />
-          )}
-          {activeTab === "logs" && (
-            <LogsTab configId={config.id} />
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -368,9 +445,12 @@ function RulesTab({ configId }: { configId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="font-semibold">Reglas de Automatización</h3>
+        <div>
+          <h3 className="font-semibold">Reglas de Automatización</h3>
+          <p className="text-sm text-muted-foreground">Define qué correos debe procesar este módulo</p>
+        </div>
         <Button size="sm" onClick={() => setShowNewRuleDialog(true)} data-testid="button-create-rule">
-          <Plus className="w-4 h-4 mr-2" />
+          <Filter className="w-4 h-4 mr-2" />
           Nueva Regla
         </Button>
       </div>
@@ -381,7 +461,7 @@ function RulesTab({ configId }: { configId: string }) {
             <Filter className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
             <p className="text-muted-foreground">No hay reglas configuradas</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Crea reglas para definir qué correos deben procesar este módulo
+              Crea reglas para definir qué correos deben procesarse
             </p>
           </CardContent>
         </Card>
@@ -392,7 +472,7 @@ function RulesTab({ configId }: { configId: string }) {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mb-1">
                       <CardTitle className="text-base">{rule.ruleName}</CardTitle>
                       <Badge variant={rule.isEnabled ? "default" : "secondary"} data-testid={`badge-rule-status-${rule.id}`}>
                         {rule.isEnabled ? "Activa" : "Inactiva"}
@@ -402,7 +482,7 @@ function RulesTab({ configId }: { configId: string }) {
                       )}
                     </div>
                     {rule.description && (
-                      <CardDescription className="mt-1">{rule.description}</CardDescription>
+                      <CardDescription className="text-sm">{rule.description}</CardDescription>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
