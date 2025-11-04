@@ -366,6 +366,43 @@ export const automationLogs = pgTable("automation_logs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Operation Folders table
+export const operationFolders = pgTable("operation_folders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operationId: varchar("operation_id").notNull().references(() => operations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  category: text("category"), // 'payments', 'expenses', 'images', 'documents', 'invoices', 'contracts', 'other'
+  description: text("description"),
+  color: text("color"), // Color for visual organization
+  parentFolderId: varchar("parent_folder_id").references(() => operationFolders.id, { onDelete: "cascade" }), // For nested folders
+  createdBy: varchar("created_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Operation Files table
+export const operationFiles = pgTable("operation_files", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operationId: varchar("operation_id").notNull().references(() => operations.id, { onDelete: "cascade" }),
+  folderId: varchar("folder_id").references(() => operationFolders.id, { onDelete: "set null" }), // null = root level
+  name: text("name").notNull(),
+  originalName: text("original_name").notNull(), // Original filename from upload
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(), // Size in bytes
+  objectPath: text("object_path").notNull(), // Path in object storage (e.g., /objects/uploads/uuid)
+  category: text("category"), // Auto-categorized: 'payment', 'expense', 'image', 'document', 'invoice', 'contract', 'other'
+  description: text("description"),
+  tags: text("tags").array(), // Tags for search and filtering
+  uploadedBy: varchar("uploaded_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  uploadedVia: text("uploaded_via").notNull().default("manual"), // 'manual', 'gmail_automation', 'api'
+  sourceGmailMessageId: varchar("source_gmail_message_id").references(() => gmailMessages.id, { onDelete: "set null" }), // Link to Gmail message if auto-uploaded
+  sourceGmailAttachmentId: varchar("source_gmail_attachment_id").references(() => gmailAttachments.id, { onDelete: "set null" }), // Link to Gmail attachment if auto-uploaded
+  extractedText: text("extracted_text"), // Text extracted from PDF/images via OCR
+  metadata: jsonb("metadata"), // Additional file metadata
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one }) => ({
   employee: one(employees, {
@@ -536,6 +573,49 @@ export const calendarEventsRelations = relations(calendarEvents, ({ one }) => ({
   }),
 }));
 
+export const operationFoldersRelations = relations(operationFolders, ({ one, many }) => ({
+  operation: one(operations, {
+    fields: [operationFolders.operationId],
+    references: [operations.id],
+  }),
+  creator: one(users, {
+    fields: [operationFolders.createdBy],
+    references: [users.id],
+  }),
+  parentFolder: one(operationFolders, {
+    fields: [operationFolders.parentFolderId],
+    references: [operationFolders.id],
+    relationName: "subfolders",
+  }),
+  subfolders: many(operationFolders, {
+    relationName: "subfolders",
+  }),
+  files: many(operationFiles),
+}));
+
+export const operationFilesRelations = relations(operationFiles, ({ one }) => ({
+  operation: one(operations, {
+    fields: [operationFiles.operationId],
+    references: [operations.id],
+  }),
+  folder: one(operationFolders, {
+    fields: [operationFiles.folderId],
+    references: [operationFolders.id],
+  }),
+  uploader: one(users, {
+    fields: [operationFiles.uploadedBy],
+    references: [users.id],
+  }),
+  sourceGmailMessage: one(gmailMessages, {
+    fields: [operationFiles.sourceGmailMessageId],
+    references: [gmailMessages.id],
+  }),
+  sourceGmailAttachment: one(gmailAttachments, {
+    fields: [operationFiles.sourceGmailAttachmentId],
+    references: [gmailAttachments.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true });
@@ -573,6 +653,8 @@ export const insertAutomationRuleSchema = createInsertSchema(automationRules).om
 export const insertAutomationLogSchema = createInsertSchema(automationLogs).omit({ id: true, createdAt: true });
 export const insertOperationNoteSchema = createInsertSchema(operationNotes).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertOperationTaskSchema = createInsertSchema(operationTasks).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertOperationFolderSchema = createInsertSchema(operationFolders).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertOperationFileSchema = createInsertSchema(operationFiles).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -643,3 +725,9 @@ export type OperationNote = typeof operationNotes.$inferSelect;
 
 export type InsertOperationTask = z.infer<typeof insertOperationTaskSchema>;
 export type OperationTask = typeof operationTasks.$inferSelect;
+
+export type InsertOperationFolder = z.infer<typeof insertOperationFolderSchema>;
+export type OperationFolder = typeof operationFolders.$inferSelect;
+
+export type InsertOperationFile = z.infer<typeof insertOperationFileSchema>;
+export type OperationFile = typeof operationFiles.$inferSelect;
