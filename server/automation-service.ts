@@ -175,7 +175,7 @@ export class AutomationService {
     for (const action of actions) {
       try {
         if (action.type === 'create_operation') {
-          await this.createOperation(message, rule, action.params || {});
+          await this.createOperation(message, rule, config, action.params || {});
         }
       } catch (error) {
         console.error(`Error executing action ${action.type}:`, error);
@@ -191,7 +191,7 @@ export class AutomationService {
     }
   }
 
-  private async createOperation(message: GmailMessage, rule: AutomationRule, params: any) {
+  private async createOperation(message: GmailMessage, rule: AutomationRule, config: AutomationConfig, params: any) {
     // Extract operation ID from subject using the pattern
     const pattern = params.idPattern || 'NAVI-';
     const regex = new RegExp(`${pattern}(\\d+)`, 'i');
@@ -240,7 +240,17 @@ export class AutomationService {
       requiresReview: true,
     });
 
-    console.log(`Created operation ${operationName} automatically`);
+    // Assign default employees to the operation
+    const defaultEmployees = (config.defaultEmployees as string[]) || [];
+    for (const employeeId of defaultEmployees) {
+      try {
+        await storage.assignEmployeeToOperation(operation.id, employeeId);
+      } catch (error) {
+        console.error(`Error assigning employee ${employeeId} to operation ${operation.id}:`, error);
+      }
+    }
+
+    console.log(`Created operation ${operationName} automatically with ${defaultEmployees.length} assigned employees`);
 
     await storage.createAutomationLog({
       ruleId: rule.id,
@@ -249,7 +259,11 @@ export class AutomationService {
       status: 'success',
       entityType: 'operation',
       entityId: operation.id,
-      details: { operationName, messageSubject: message.subject },
+      details: { 
+        operationName, 
+        messageSubject: message.subject,
+        assignedEmployees: defaultEmployees.length,
+      },
     });
   }
 }

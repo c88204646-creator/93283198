@@ -153,6 +153,13 @@ function ModuleConfigurationDialog({
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>(
     (config?.selectedGmailAccounts as string[]) || []
   );
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>(
+    (config?.defaultEmployees as string[]) || []
+  );
+
+  const { data: employees = [] } = useQuery<Employee[]>({
+    queryKey: ["/api/employees"],
+  });
 
   const createConfigMutation = useMutation({
     mutationFn: async () => {
@@ -161,6 +168,7 @@ function ModuleConfigurationDialog({
         moduleDescription: module.description,
         isEnabled: true,
         selectedGmailAccounts: selectedAccounts,
+        defaultEmployees: selectedEmployees,
       });
     },
     onSuccess: () => {
@@ -180,10 +188,11 @@ function ModuleConfigurationDialog({
   });
 
   const updateConfigMutation = useMutation({
-    mutationFn: async ({ isEnabled, accounts }: { isEnabled?: boolean; accounts?: string[] }) => {
+    mutationFn: async ({ isEnabled, accounts, employees }: { isEnabled?: boolean; accounts?: string[]; employees?: string[] }) => {
       return apiRequest("PATCH", `/api/automation/configs/${config!.id}`, {
         isEnabled,
         selectedGmailAccounts: accounts,
+        defaultEmployees: employees,
       });
     },
     onSuccess: () => {
@@ -215,9 +224,9 @@ function ModuleConfigurationDialog({
     }
   };
 
-  const handleSaveAccounts = () => {
+  const handleSaveSettings = () => {
     if (config) {
-      updateConfigMutation.mutate({ accounts: selectedAccounts });
+      updateConfigMutation.mutate({ accounts: selectedAccounts, employees: selectedEmployees });
     } else {
       createConfigMutation.mutate();
     }
@@ -286,9 +295,12 @@ function ModuleConfigurationDialog({
             <SettingsTab
               config={config}
               gmailAccounts={gmailAccounts}
+              employees={employees}
               selectedAccounts={selectedAccounts}
+              selectedEmployees={selectedEmployees}
               onAccountsChange={setSelectedAccounts}
-              onSave={handleSaveAccounts}
+              onEmployeesChange={setSelectedEmployees}
+              onSave={handleSaveSettings}
               onDelete={() => {
                 if (confirm("¿Desactivar este módulo completamente?")) {
                   deleteConfigMutation.mutate();
@@ -313,8 +325,11 @@ function ModuleConfigurationDialog({
 function SettingsTab({
   config,
   gmailAccounts,
+  employees,
   selectedAccounts,
+  selectedEmployees,
   onAccountsChange,
+  onEmployeesChange,
   onSave,
   onDelete,
   isSaving,
@@ -322,8 +337,11 @@ function SettingsTab({
 }: {
   config?: AutomationConfig;
   gmailAccounts: GmailAccount[];
+  employees: Employee[];
   selectedAccounts: string[];
+  selectedEmployees: string[];
   onAccountsChange: (accounts: string[]) => void;
+  onEmployeesChange: (employees: string[]) => void;
   onSave: () => void;
   onDelete: () => void;
   isSaving: boolean;
@@ -372,6 +390,50 @@ function SettingsTab({
                 {account.syncEnabled && (
                   <Badge variant="secondary" className="text-xs">Sincronizando</Badge>
                 )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <Label className="text-base font-semibold mb-3 block">Empleados Asignados por Defecto</Label>
+        <p className="text-sm text-muted-foreground mb-4">
+          Selecciona los empleados que se asignarán automáticamente a las operaciones creadas
+        </p>
+        {employees.length === 0 ? (
+          <Card className="bg-muted/50">
+            <CardContent className="py-6 text-center">
+              <Users className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">
+                No hay empleados disponibles. Crea empleados en la sección de Empleados.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2 border rounded-lg p-4">
+            {employees.map((employee) => (
+              <div key={employee.id} className="flex items-center gap-3 p-2 hover:bg-accent rounded-md">
+                <input
+                  type="checkbox"
+                  id={`employee-${employee.id}`}
+                  checked={selectedEmployees.includes(employee.id)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      onEmployeesChange([...selectedEmployees, employee.id]);
+                    } else {
+                      onEmployeesChange(selectedEmployees.filter((id) => id !== employee.id));
+                    }
+                  }}
+                  className="rounded border-input"
+                  data-testid={`checkbox-employee-${employee.id}`}
+                />
+                <Label htmlFor={`employee-${employee.id}`} className="text-sm cursor-pointer flex-1">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    {employee.name}
+                  </div>
+                </Label>
               </div>
             ))}
           </div>

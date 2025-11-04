@@ -1,6 +1,6 @@
 // Reference: javascript_database blueprint integration
 import { db } from "./db";
-import { eq, desc, and, inArray } from "drizzle-orm";
+import { eq, desc, and, inArray, gte, sql } from "drizzle-orm";
 import {
   users, clients, employees, operations, invoices, proposals, expenses, leads, 
   invoiceItems, proposalItems, payments, customFields, customFieldValues,
@@ -785,12 +785,19 @@ export class DatabaseStorage implements IStorage {
 
   // Helper functions for automation
   async getUnprocessedMessages(accountIds: string[], since: Date): Promise<GmailMessage[]> {
-    return await db.select().from(gmailMessages)
-      .where(and(
-        inArray(gmailMessages.gmailAccountId, accountIds),
-        desc(gmailMessages.receivedAt) > since
-      ))
-      .orderBy(gmailMessages.receivedAt);
+    if (accountIds.length === 0) {
+      return [];
+    }
+    
+    // Get all messages from selected accounts
+    const allMessages = await db.select()
+      .from(gmailMessages)
+      .where(inArray(gmailMessages.gmailAccountId, accountIds));
+    
+    // Filter messages received after 'since' date and sort
+    return allMessages
+      .filter(msg => msg.receivedAt && new Date(msg.receivedAt) > since)
+      .sort((a, b) => new Date(b.receivedAt!).getTime() - new Date(a.receivedAt!).getTime());
   }
 }
 

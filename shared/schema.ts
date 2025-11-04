@@ -297,6 +297,7 @@ export const automationConfigs = pgTable("automation_configs", {
   moduleName: text("module_name").notNull(), // 'operations', 'invoices', etc.
   isEnabled: boolean("is_enabled").notNull().default(false),
   selectedGmailAccounts: jsonb("selected_gmail_accounts"), // Array of gmail account IDs
+  defaultEmployees: jsonb("default_employees"), // Array of employee IDs for auto-created operations
   settings: jsonb("settings"), // Module-specific settings
   lastProcessedAt: timestamp("last_processed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

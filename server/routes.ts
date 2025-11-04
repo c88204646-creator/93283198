@@ -1390,7 +1390,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/automation/configs", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const { moduleName, moduleDescription, isEnabled, selectedGmailAccounts } = req.body;
+      const { moduleName, moduleDescription, isEnabled, selectedGmailAccounts, defaultEmployees } = req.body;
 
       // Check if config already exists for this module
       const existing = await storage.getAutomationConfigByModule(userId, moduleName);
@@ -1404,6 +1404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         moduleDescription,
         isEnabled: isEnabled || false,
         selectedGmailAccounts: selectedGmailAccounts || [],
+        defaultEmployees: defaultEmployees || [],
       });
 
       res.json(config);
@@ -1423,11 +1424,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Config not found" });
       }
 
-      const { moduleDescription, isEnabled, selectedGmailAccounts } = req.body;
+      const { moduleDescription, isEnabled, selectedGmailAccounts, defaultEmployees } = req.body;
       const updated = await storage.updateAutomationConfig(id, {
         moduleDescription,
         isEnabled,
         selectedGmailAccounts,
+        defaultEmployees,
       });
 
       res.json(updated);
