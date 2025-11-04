@@ -26,16 +26,16 @@ export default function OperationDetail() {
   const [activeTab, setActiveTab] = useState("info");
 
   const { data: operation, isLoading: operationLoading } = useQuery<Operation>({
-    queryKey: ['/api/operations', id],
+    queryKey: [`/api/operations/${id}`],
   });
 
   const { data: notes = [], isLoading: notesLoading } = useQuery<OperationNote[]>({
-    queryKey: ['/api/operations', id, 'notes'],
+    queryKey: [`/api/operations/${id}/notes`],
     enabled: !!id,
   });
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<OperationTask[]>({
-    queryKey: ['/api/operations', id, 'tasks'],
+    queryKey: [`/api/operations/${id}/tasks`],
     enabled: !!id,
   });
 
@@ -319,7 +319,7 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/operations', operationId, 'notes'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/notes`] });
       setNewNote("");
       toast({ title: "Nota creada exitosamente" });
     },
@@ -336,7 +336,7 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/operations', operationId, 'notes'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/notes`] });
       setEditingNote(null);
       toast({ title: "Nota actualizada exitosamente" });
     },
@@ -352,7 +352,7 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/operations', operationId, 'notes'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/notes`] });
       toast({ title: "Nota eliminada exitosamente" });
     },
     onError: () => {
@@ -520,7 +520,7 @@ function TasksTab({ operationId, tasks, employees, users }: {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/operations', operationId, 'tasks'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/tasks`] });
       setShowNewTask(false);
       setNewTask({
         title: "",
@@ -545,7 +545,7 @@ function TasksTab({ operationId, tasks, employees, users }: {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/operations', operationId, 'tasks'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/tasks`] });
       toast({ title: "Tarea actualizada exitosamente" });
     },
     onError: () => {
@@ -560,7 +560,7 @@ function TasksTab({ operationId, tasks, employees, users }: {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/operations', operationId, 'tasks'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/tasks`] });
       toast({ title: "Tarea eliminada exitosamente" });
     },
     onError: () => {
