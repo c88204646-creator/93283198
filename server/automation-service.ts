@@ -42,6 +42,7 @@ export class AutomationService {
     try {
       // Get all enabled automation configs
       const configs = await storage.getEnabledAutomationConfigs();
+      console.log(`[Automation] Found ${configs.length} enabled automation configs`);
       
       for (const config of configs) {
         await this.processConfigAutomation(config);
@@ -53,22 +54,29 @@ export class AutomationService {
 
   private async processConfigAutomation(config: AutomationConfig) {
     try {
+      console.log(`[Automation] Processing config: ${config.moduleId}, enabled: ${config.isEnabled}`);
+      
       // Get enabled rules for this config, sorted by priority
       const rules = await storage.getAutomationRulesByConfig(config.id);
       const enabledRules = rules.filter(r => r.isEnabled).sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      console.log(`[Automation] Found ${enabledRules.length} enabled rules for config ${config.moduleId}`);
 
       if (enabledRules.length === 0) {
+        console.log(`[Automation] No enabled rules for config ${config.moduleId}, skipping`);
         return;
       }
 
       // Get selected Gmail accounts
       const accountIds = (config.selectedGmailAccounts as string[]) || [];
+      console.log(`[Automation] Gmail accounts selected: ${accountIds.length}`);
       if (accountIds.length === 0) {
+        console.log(`[Automation] No Gmail accounts selected for config ${config.moduleId}, skipping`);
         return;
       }
 
       // Get unprocessed messages from selected accounts
       const messages = await storage.getUnprocessedMessages(accountIds, config.lastProcessedAt || new Date(0));
+      console.log(`[Automation] Found ${messages.length} unprocessed messages`);
 
       for (const message of messages) {
         await this.processMessage(message, enabledRules, config);
@@ -78,6 +86,7 @@ export class AutomationService {
       await storage.updateAutomationConfig(config.id, {
         lastProcessedAt: new Date(),
       });
+      console.log(`[Automation] Updated lastProcessedAt for config ${config.moduleId}`);
     } catch (error) {
       console.error(`Error processing automation config ${config.id}:`, error);
     }
