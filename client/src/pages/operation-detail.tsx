@@ -1046,6 +1046,8 @@ function FilesTab({ operationId }: { operationId: string }) {
   const { toast } = useToast();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
 
   const { data: folders = [], isLoading: loadingFolders } = useQuery<any[]>({
     queryKey: ["/api/operations", operationId, "folders"],
@@ -1078,6 +1080,30 @@ function FilesTab({ operationId }: { operationId: string }) {
     }
   };
 
+  const createFolderMutation = useMutation({
+    mutationFn: async (folderName: string) => {
+      return apiRequest(`/api/operations/${operationId}/folders`, "POST", {
+        name: folderName,
+        parentId: selectedFolder,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
+      toast({ title: "Carpeta creada exitosamente" });
+      setIsCreateFolderOpen(false);
+      setNewFolderName("");
+    },
+    onError: () => {
+      toast({ title: "Error al crear carpeta", variant: "destructive" });
+    },
+  });
+
+  const handleCreateFolder = () => {
+    if (newFolderName.trim()) {
+      createFolderMutation.mutate(newFolderName.trim());
+    }
+  };
+
   const getFileIcon = (mimeType: string) => {
     if (mimeType.startsWith("image/")) return "🖼️";
     if (mimeType.includes("pdf")) return "📄";
@@ -1107,10 +1133,16 @@ function FilesTab({ operationId }: { operationId: string }) {
             )}
           </p>
         </div>
-        <Button onClick={() => setIsUploadOpen(true)} data-testid="button-upload-file">
-          <Upload className="w-4 h-4 mr-2" />
-          Subir Archivo
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setIsCreateFolderOpen(true)} variant="outline" data-testid="button-create-folder">
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Nueva Carpeta
+          </Button>
+          <Button onClick={() => setIsUploadOpen(true)} data-testid="button-upload-file">
+            <Upload className="w-4 h-4 mr-2" />
+            Subir Archivo
+          </Button>
+        </div>
       </div>
 
       {folders.length > 0 && (
@@ -1195,6 +1227,48 @@ function FilesTab({ operationId }: { operationId: string }) {
         onClose={() => setIsUploadOpen(false)}
         onUploadComplete={handleUploadComplete}
       />
+
+      <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Crear Nueva Carpeta</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="folder-name">Nombre de la Carpeta</Label>
+              <Input
+                id="folder-name"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                placeholder="Ej: Pagos, Facturas, Fotos..."
+                data-testid="input-folder-name"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreateFolder();
+                }}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsCreateFolderOpen(false);
+                  setNewFolderName("");
+                }}
+                data-testid="button-cancel-folder"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleCreateFolder}
+                disabled={!newFolderName.trim() || createFolderMutation.isPending}
+                data-testid="button-confirm-folder"
+              >
+                {createFolderMutation.isPending ? "Creando..." : "Crear Carpeta"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
