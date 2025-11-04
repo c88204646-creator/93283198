@@ -12,6 +12,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import * as gmailSync from "./gmail-sync";
+import * as calendarSync from "./calendar-sync";
 
 const PgSession = ConnectPgSimple(session);
 
@@ -1151,6 +1152,208 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.send(buffer);
     } catch (error) {
       console.error("Download Gmail attachment error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Calendar Routes
+  // Get all calendar events for the authenticated user
+  app.get("/api/calendar/events", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const events = await storage.getAllCalendarEvents(userId);
+      res.json(events);
+    } catch (error) {
+      console.error("Get calendar events error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get calendar events by account
+  app.get("/api/calendar/accounts/:accountId/events", requireAuth, async (req, res) => {
+    try {
+      const { accountId } = req.params;
+      const userId = req.session.userId!;
+      
+      const account = await storage.getGmailAccount(accountId);
+      if (!account || account.userId !== userId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      const events = await storage.getCalendarEventsByAccount(accountId);
+      res.json(events);
+    } catch (error) {
+      console.error("Get account calendar events error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Create a new local calendar event
+  app.post("/api/calendar/events", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { title, description, location, startTime, endTime, isAllDay, attendees, reminders } = req.body;
+
+      const event = await storage.createCalendarEvent({
+        title,
+        description,
+        location,
+        startTime: new Date(startTime),
+        endTime: new Date(endTime),
+        isAllDay: isAllDay || false,
+        attendees,
+        reminders,
+        source: 'local',
+        syncStatus: 'synced',
+        createdBy: userId,
+      });
+
+      res.json(event);
+    } catch (error) {
+      console.error("Create calendar event error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Create a new Google Calendar event and sync
+  app.post("/api/calendar/google-events", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const { accountId, title, description, location, startTime, endTime, isAllDay, attendees, reminders } = req.body;
+
+      const account = await storage.getGmailAccount(accountId);
+      if (!account || account.userId !== userId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      const event = await calendarSync.createGoogleCalendarEvent(accountId, {
+        title,
+        description,
+        location,
+        startTime: new Date(startTime),
+        endTime: new Date(endTime),
+        isAllDay: isAllDay || false,
+        attendees,
+        reminders,
+      });
+
+      res.json(event);
+    } catch (error) {
+      console.error("Create Google calendar event error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Update a calendar event
+  app.patch("/api/calendar/events/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const event = await storage.getCalendarEvent(id);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Verificar permisos
+      if (event.source === 'local' && event.createdBy !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      if (event.source === 'google' && event.gmailAccountId) {
+        const account = await storage.getGmailAccount(event.gmailAccountId);
+        if (!account || account.userId !== userId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
+
+      const { title, description, location, startTime, endTime, isAllDay, attendees, reminders } = req.body;
+
+      // Si es un evento de Google, actualizar en Google Calendar también
+      if (event.source === 'google' && event.eventId) {
+        await calendarSync.updateGoogleCalendarEvent(id, {
+          title,
+          description,
+          location,
+          startTime: startTime ? new Date(startTime) : undefined,
+          endTime: endTime ? new Date(endTime) : undefined,
+          isAllDay,
+          attendees,
+          reminders,
+        });
+      } else {
+        // Evento local, solo actualizar en base de datos
+        await storage.updateCalendarEvent(id, {
+          title,
+          description,
+          location,
+          startTime: startTime ? new Date(startTime) : undefined,
+          endTime: endTime ? new Date(endTime) : undefined,
+          isAllDay,
+          attendees,
+          reminders,
+        });
+      }
+
+      const updatedEvent = await storage.getCalendarEvent(id);
+      res.json(updatedEvent);
+    } catch (error) {
+      console.error("Update calendar event error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Delete a calendar event
+  app.delete("/api/calendar/events/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+      
+      const event = await storage.getCalendarEvent(id);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Verificar permisos
+      if (event.source === 'local' && event.createdBy !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      if (event.source === 'google' && event.gmailAccountId) {
+        const account = await storage.getGmailAccount(event.gmailAccountId);
+        if (!account || account.userId !== userId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+
+        // Eliminar en Google Calendar también
+        await calendarSync.deleteGoogleCalendarEvent(id);
+      } else {
+        // Evento local, solo eliminar de base de datos
+        await storage.deleteCalendarEvent(id);
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete calendar event error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Trigger manual sync for an account's calendar
+  app.post("/api/calendar/accounts/:accountId/sync", requireAuth, async (req, res) => {
+    try {
+      const { accountId } = req.params;
+      const userId = req.session.userId!;
+      
+      const account = await storage.getGmailAccount(accountId);
+      if (!account || account.userId !== userId) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+
+      await calendarSync.syncCalendarEvents(accountId);
+      res.json({ message: "Sync completed successfully" });
+    } catch (error) {
+      console.error("Calendar sync error:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
