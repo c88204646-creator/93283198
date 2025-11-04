@@ -5,7 +5,7 @@ import {
   users, clients, employees, operations, invoices, proposals, expenses, leads, 
   invoiceItems, proposalItems, payments, customFields, customFieldValues,
   operationEmployees, gmailAccounts, gmailMessages, gmailAttachments, calendarEvents,
-  automationConfigs, automationRules, automationLogs,
+  automationConfigs, automationRules, automationLogs, operationNotes, operationTasks,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Employee, type InsertEmployee,
@@ -27,6 +27,8 @@ import {
   type AutomationConfig, type InsertAutomationConfig,
   type AutomationRule, type InsertAutomationRule,
   type AutomationLog, type InsertAutomationLog,
+  type OperationNote, type InsertOperationNote,
+  type OperationTask, type InsertOperationTask,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -187,6 +189,20 @@ export interface IStorage {
   
   // Helper functions for automation
   getUnprocessedMessages(accountIds: string[], since: Date): Promise<GmailMessage[]>;
+
+  // Operation Notes
+  getOperationNotes(operationId: string): Promise<OperationNote[]>;
+  getOperationNote(id: string): Promise<OperationNote | undefined>;
+  createOperationNote(note: InsertOperationNote): Promise<OperationNote>;
+  updateOperationNote(id: string, note: Partial<InsertOperationNote>): Promise<OperationNote | undefined>;
+  deleteOperationNote(id: string): Promise<void>;
+
+  // Operation Tasks
+  getOperationTasks(operationId: string): Promise<OperationTask[]>;
+  getOperationTask(id: string): Promise<OperationTask | undefined>;
+  createOperationTask(task: InsertOperationTask): Promise<OperationTask>;
+  updateOperationTask(id: string, task: Partial<InsertOperationTask>): Promise<OperationTask | undefined>;
+  deleteOperationTask(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -821,6 +837,64 @@ export class DatabaseStorage implements IStorage {
     return allMessages
       .filter(msg => msg.date && new Date(msg.date) > since)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  // Operation Notes
+  async getOperationNotes(operationId: string): Promise<OperationNote[]> {
+    return await db.select().from(operationNotes)
+      .where(eq(operationNotes.operationId, operationId))
+      .orderBy(desc(operationNotes.createdAt));
+  }
+
+  async getOperationNote(id: string): Promise<OperationNote | undefined> {
+    const [note] = await db.select().from(operationNotes).where(eq(operationNotes.id, id));
+    return note || undefined;
+  }
+
+  async createOperationNote(insertNote: InsertOperationNote): Promise<OperationNote> {
+    const [note] = await db.insert(operationNotes).values(insertNote).returning();
+    return note;
+  }
+
+  async updateOperationNote(id: string, updateData: Partial<InsertOperationNote>): Promise<OperationNote | undefined> {
+    const [note] = await db.update(operationNotes)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(operationNotes.id, id))
+      .returning();
+    return note || undefined;
+  }
+
+  async deleteOperationNote(id: string): Promise<void> {
+    await db.delete(operationNotes).where(eq(operationNotes.id, id));
+  }
+
+  // Operation Tasks
+  async getOperationTasks(operationId: string): Promise<OperationTask[]> {
+    return await db.select().from(operationTasks)
+      .where(eq(operationTasks.operationId, operationId))
+      .orderBy(desc(operationTasks.createdAt));
+  }
+
+  async getOperationTask(id: string): Promise<OperationTask | undefined> {
+    const [task] = await db.select().from(operationTasks).where(eq(operationTasks.id, id));
+    return task || undefined;
+  }
+
+  async createOperationTask(insertTask: InsertOperationTask): Promise<OperationTask> {
+    const [task] = await db.insert(operationTasks).values(insertTask).returning();
+    return task;
+  }
+
+  async updateOperationTask(id: string, updateData: Partial<InsertOperationTask>): Promise<OperationTask | undefined> {
+    const [task] = await db.update(operationTasks)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(operationTasks.id, id))
+      .returning();
+    return task || undefined;
+  }
+
+  async deleteOperationTask(id: string): Promise<void> {
+    await db.delete(operationTasks).where(eq(operationTasks.id, id));
   }
 }
 
