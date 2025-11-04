@@ -808,7 +808,7 @@ function EmailsTab({ operationId, operation, gmailMessages }: {
   const relatedEmails = gmailMessages.filter(msg => {
     const searchText = `${msg.subject} ${msg.from} ${msg.snippet}`.toLowerCase();
     const operationName = operation.name.toLowerCase();
-    const bookingNumber = operation.bookingTrackingNumber?.toLowerCase();
+    const bookingNumber = operation.bookingTracking?.toLowerCase();
     
     return searchText.includes(operationName) || 
            (bookingNumber && searchText.includes(bookingNumber));
