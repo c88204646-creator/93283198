@@ -46,9 +46,30 @@ export const operations = pgTable("operations", {
   status: text("status").notNull().default("planning"), // planning, in-progress, completed, cancelled
   clientId: varchar("client_id").references(() => clients.id, { onDelete: "set null" }),
   assignedEmployeeId: varchar("assigned_employee_id").references(() => employees.id, { onDelete: "set null" }),
-  startDate: timestamp("start_date"),
+  startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date"),
   priority: text("priority").notNull().default("medium"), // low, medium, high, urgent
+  
+  // Freight forwarding specific fields
+  projectCategory: text("project_category").notNull(), // import, export, domestic, warehousing, etc.
+  operationType: text("operation_type").notNull(), // FCL, LCL, Air, Road, Rail, etc.
+  shippingMode: text("shipping_mode").notNull(), // sea, air, land, multimodal
+  insurance: text("insurance").notNull(), // yes, no
+  projectCurrency: text("project_currency").notNull().default("USD"), // USD, EUR, etc.
+  
+  // Shipping information (optional)
+  courier: text("courier"),
+  pickUpAddress: text("pick_up_address"),
+  deliveryAddress: text("delivery_address"),
+  
+  // Tracking and dates (optional)
+  bookingTracking: text("booking_tracking"),
+  pickUpDate: timestamp("pick_up_date"),
+  etd: timestamp("etd"), // Estimated Time of Departure
+  eta: timestamp("eta"), // Estimated Time of Arrival
+  mblAwb: text("mbl_awb"), // Master Bill of Lading / Air Waybill
+  hblAwb: text("hbl_awb"), // House Bill of Lading / Air Waybill
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
