@@ -8,11 +8,13 @@ import bcrypt from "bcrypt";
 import { 
   insertUserSchema, insertClientSchema, insertEmployeeSchema, insertOperationSchema,
   insertInvoiceSchema, insertProposalSchema, insertExpenseSchema, insertLeadSchema,
-  insertCustomFieldSchema
+  insertCustomFieldSchema, insertOperationFolderSchema, insertOperationFileSchema
 } from "@shared/schema";
 import { z } from "zod";
 import * as gmailSync from "./gmail-sync";
 import * as calendarSync from "./calendar-sync";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { ObjectPermission } from "./objectAcl";
 
 const PgSession = ConnectPgSimple(session);
 
@@ -1881,6 +1883,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       console.error("Delete operation task error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Object Storage Routes (Referenced from javascript_object_storage integration)
+  app.get("/objects/:objectPath(*)", requireAuth, async (req, res) => {
+    const userId = req.session.userId;
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      const canAccess = await objectStorageService.canAccessObjectEntity({
+        objectFile,
+        userId: userId,
+        requestedPermission: ObjectPermission.READ,
+      });
+      if (!canAccess) {
+        return res.sendStatus(401);
+      }
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error checking object access:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  app.post("/api/objects/upload", requireAuth, async (req, res) => {
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error getting upload URL:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Operation Folders Routes
+  app.get("/api/operations/:operationId/folders", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const folders = await storage.getOperationFolders(operationId);
+      res.json(folders);
+    } catch (error) {
+      console.error("Get operation folders error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/operations/:operationId/folders", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const userId = req.session.userId!;
+      const data = insertOperationFolderSchema.parse({ ...req.body, operationId, createdBy: userId });
+      
+      const folder = await storage.createOperationFolder(data);
+      res.status(201).json(folder);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Create folder error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/operations/:operationId/folders/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description, category, color } = req.body;
+
+      const folder = await storage.updateOperationFolder(id, { name, description, category, color });
+      res.json(folder);
+    } catch (error) {
+      console.error("Update folder error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/operations/:operationId/folders/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteOperationFolder(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete folder error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Operation Files Routes
+  app.get("/api/operations/:operationId/files", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const { folderId } = req.query;
+      
+      const files = await storage.getOperationFiles(
+        operationId,
+        folderId === 'null' ? null : (folderId as string | undefined)
+      );
+      res.json(files);
+    } catch (error) {
+      console.error("Get operation files error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/operations/:operationId/files", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const userId = req.session.userId!;
+      const { fileURL, originalName, mimeType, size, folderId, category, description, tags } = req.body;
+
+      if (!fileURL || !originalName || !mimeType || !size) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        fileURL,
+        {
+          owner: userId,
+          visibility: "private",
+        }
+      );
+
+      const file = await storage.createOperationFile({
+        operationId,
+        folderId: folderId || null,
+        name: originalName,
+        originalName,
+        mimeType,
+        size,
+        objectPath,
+        category: category || null,
+        description: description || null,
+        tags: tags || null,
+        uploadedBy: userId,
+        uploadedVia: "manual",
+      });
+
+      res.status(201).json(file);
+    } catch (error) {
+      console.error("Create file error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/operations/:operationId/files/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { name, description, category, tags, folderId } = req.body;
+
+      const file = await storage.updateOperationFile(id, {
+        name,
+        description,
+        category,
+        tags,
+        folderId,
+      });
+      res.json(file);
+    } catch (error) {
+      console.error("Update file error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/operations/:operationId/files/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteOperationFile(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Delete file error:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

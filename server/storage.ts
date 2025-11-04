@@ -1,11 +1,12 @@
 // Reference: javascript_database blueprint integration
 import { db } from "./db";
-import { eq, desc, and, inArray, gte, sql } from "drizzle-orm";
+import { eq, desc, and, inArray, gte, sql, isNull } from "drizzle-orm";
 import {
   users, clients, employees, operations, invoices, proposals, expenses, leads, 
   invoiceItems, proposalItems, payments, customFields, customFieldValues,
   operationEmployees, gmailAccounts, gmailMessages, gmailAttachments, calendarEvents,
   automationConfigs, automationRules, automationLogs, operationNotes, operationTasks,
+  operationFolders, operationFiles,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Employee, type InsertEmployee,
@@ -29,6 +30,8 @@ import {
   type AutomationLog, type InsertAutomationLog,
   type OperationNote, type InsertOperationNote,
   type OperationTask, type InsertOperationTask,
+  type OperationFolder, type InsertOperationFolder,
+  type OperationFile, type InsertOperationFile,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -203,6 +206,20 @@ export interface IStorage {
   createOperationTask(task: InsertOperationTask): Promise<OperationTask>;
   updateOperationTask(id: string, task: Partial<InsertOperationTask>): Promise<OperationTask | undefined>;
   deleteOperationTask(id: string): Promise<void>;
+
+  // Operation Folders
+  getOperationFolders(operationId: string): Promise<OperationFolder[]>;
+  getOperationFolder(id: string): Promise<OperationFolder | undefined>;
+  createOperationFolder(folder: InsertOperationFolder): Promise<OperationFolder>;
+  updateOperationFolder(id: string, folder: Partial<InsertOperationFolder>): Promise<OperationFolder | undefined>;
+  deleteOperationFolder(id: string): Promise<void>;
+
+  // Operation Files
+  getOperationFiles(operationId: string, folderId?: string | null): Promise<OperationFile[]>;
+  getOperationFile(id: string): Promise<OperationFile | undefined>;
+  createOperationFile(file: InsertOperationFile): Promise<OperationFile>;
+  updateOperationFile(id: string, file: Partial<InsertOperationFile>): Promise<OperationFile | undefined>;
+  deleteOperationFile(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -895,6 +912,82 @@ export class DatabaseStorage implements IStorage {
 
   async deleteOperationTask(id: string): Promise<void> {
     await db.delete(operationTasks).where(eq(operationTasks.id, id));
+  }
+
+  // Operation Folders
+  async getOperationFolders(operationId: string): Promise<OperationFolder[]> {
+    return await db.select().from(operationFolders)
+      .where(eq(operationFolders.operationId, operationId))
+      .orderBy(desc(operationFolders.createdAt));
+  }
+
+  async getOperationFolder(id: string): Promise<OperationFolder | undefined> {
+    const [folder] = await db.select().from(operationFolders).where(eq(operationFolders.id, id));
+    return folder || undefined;
+  }
+
+  async createOperationFolder(insertFolder: InsertOperationFolder): Promise<OperationFolder> {
+    const [folder] = await db.insert(operationFolders).values(insertFolder).returning();
+    return folder;
+  }
+
+  async updateOperationFolder(id: string, updateData: Partial<InsertOperationFolder>): Promise<OperationFolder | undefined> {
+    const [folder] = await db.update(operationFolders)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(operationFolders.id, id))
+      .returning();
+    return folder || undefined;
+  }
+
+  async deleteOperationFolder(id: string): Promise<void> {
+    await db.delete(operationFolders).where(eq(operationFolders.id, id));
+  }
+
+  // Operation Files
+  async getOperationFiles(operationId: string, folderId?: string | null): Promise<OperationFile[]> {
+    if (folderId === undefined) {
+      return await db.select().from(operationFiles)
+        .where(eq(operationFiles.operationId, operationId))
+        .orderBy(desc(operationFiles.createdAt));
+    }
+    
+    if (folderId === null) {
+      return await db.select().from(operationFiles)
+        .where(and(
+          eq(operationFiles.operationId, operationId),
+          isNull(operationFiles.folderId)
+        ))
+        .orderBy(desc(operationFiles.createdAt));
+    }
+
+    return await db.select().from(operationFiles)
+      .where(and(
+        eq(operationFiles.operationId, operationId),
+        eq(operationFiles.folderId, folderId)
+      ))
+      .orderBy(desc(operationFiles.createdAt));
+  }
+
+  async getOperationFile(id: string): Promise<OperationFile | undefined> {
+    const [file] = await db.select().from(operationFiles).where(eq(operationFiles.id, id));
+    return file || undefined;
+  }
+
+  async createOperationFile(insertFile: InsertOperationFile): Promise<OperationFile> {
+    const [file] = await db.insert(operationFiles).values(insertFile).returning();
+    return file;
+  }
+
+  async updateOperationFile(id: string, updateData: Partial<InsertOperationFile>): Promise<OperationFile | undefined> {
+    const [file] = await db.update(operationFiles)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(operationFiles.id, id))
+      .returning();
+    return file || undefined;
+  }
+
+  async deleteOperationFile(id: string): Promise<void> {
+    await db.delete(operationFiles).where(eq(operationFiles.id, id));
   }
 }
 
