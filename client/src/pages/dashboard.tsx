@@ -20,13 +20,13 @@ import { useAuth } from "@/lib/auth-context";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface DashboardStats {
-  operations: { total: number; active: number };
-  clients: { total: number; active: number };
-  employees: { total: number; active: number };
-  invoices: { total: number; pending: number; paid: number };
-  proposals: { total: number; pending: number };
-  expenses: { total: number; pending: number };
-  leads: { total: number; new: number };
+  operations: number;
+  clients: number;
+  employees: number;
+  invoices: number;
+  proposals: number;
+  expenses: number;
+  leads: number;
 }
 
 const moduleCards = [

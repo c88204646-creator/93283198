@@ -112,7 +112,7 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="logisticore-theme">
+      <ThemeProvider defaultTheme="dark" storageKey="logisticore-theme">
         <AuthProvider>
           <TooltipProvider>
             <Router />
