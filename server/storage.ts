@@ -2,7 +2,8 @@
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
 import {
-  users, clients, employees, operations, invoices, proposals, expenses, leads, customFields, customFieldValues,
+  users, clients, employees, operations, invoices, proposals, expenses, leads, 
+  invoiceItems, proposalItems, payments, customFields, customFieldValues,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Employee, type InsertEmployee,
@@ -11,6 +12,9 @@ import {
   type Proposal, type InsertProposal,
   type Expense, type InsertExpense,
   type Lead, type InsertLead,
+  type InvoiceItem, type InsertInvoiceItem,
+  type ProposalItem, type InsertProposalItem,
+  type Payment, type InsertPayment,
   type CustomField, type InsertCustomField,
   type CustomFieldValue, type InsertCustomFieldValue,
 } from "@shared/schema";
@@ -59,6 +63,27 @@ export interface IStorage {
   createProposal(proposal: InsertProposal): Promise<Proposal>;
   updateProposal(id: string, proposal: Partial<InsertProposal>): Promise<Proposal | undefined>;
   deleteProposal(id: string): Promise<void>;
+
+  // Invoice Items
+  getInvoiceItems(invoiceId: string): Promise<InvoiceItem[]>;
+  getInvoiceItem(id: string): Promise<InvoiceItem | undefined>;
+  createInvoiceItem(item: InsertInvoiceItem): Promise<InvoiceItem>;
+  updateInvoiceItem(id: string, item: Partial<InsertInvoiceItem>): Promise<InvoiceItem | undefined>;
+  deleteInvoiceItem(id: string): Promise<void>;
+
+  // Proposal Items
+  getProposalItems(proposalId: string): Promise<ProposalItem[]>;
+  getProposalItem(id: string): Promise<ProposalItem | undefined>;
+  createProposalItem(item: InsertProposalItem): Promise<ProposalItem>;
+  updateProposalItem(id: string, item: Partial<InsertProposalItem>): Promise<ProposalItem | undefined>;
+  deleteProposalItem(id: string): Promise<void>;
+
+  // Payments
+  getPayments(invoiceId: string): Promise<Payment[]>;
+  getPayment(id: string): Promise<Payment | undefined>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  updatePayment(id: string, payment: Partial<InsertPayment>): Promise<Payment | undefined>;
+  deletePayment(id: string): Promise<void>;
 
   // Expenses
   getAllExpenses(): Promise<Expense[]>;
@@ -354,6 +379,78 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCustomFieldValue(id: string): Promise<void> {
     await db.delete(customFieldValues).where(eq(customFieldValues.id, id));
+  }
+
+  // Invoice Items
+  async getInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
+    return await db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, invoiceId));
+  }
+
+  async getInvoiceItem(id: string): Promise<InvoiceItem | undefined> {
+    const [item] = await db.select().from(invoiceItems).where(eq(invoiceItems.id, id));
+    return item || undefined;
+  }
+
+  async createInvoiceItem(insertItem: InsertInvoiceItem): Promise<InvoiceItem> {
+    const [item] = await db.insert(invoiceItems).values(insertItem).returning();
+    return item;
+  }
+
+  async updateInvoiceItem(id: string, updateData: Partial<InsertInvoiceItem>): Promise<InvoiceItem | undefined> {
+    const [item] = await db.update(invoiceItems).set(updateData).where(eq(invoiceItems.id, id)).returning();
+    return item || undefined;
+  }
+
+  async deleteInvoiceItem(id: string): Promise<void> {
+    await db.delete(invoiceItems).where(eq(invoiceItems.id, id));
+  }
+
+  // Proposal Items
+  async getProposalItems(proposalId: string): Promise<ProposalItem[]> {
+    return await db.select().from(proposalItems).where(eq(proposalItems.proposalId, proposalId));
+  }
+
+  async getProposalItem(id: string): Promise<ProposalItem | undefined> {
+    const [item] = await db.select().from(proposalItems).where(eq(proposalItems.id, id));
+    return item || undefined;
+  }
+
+  async createProposalItem(insertItem: InsertProposalItem): Promise<ProposalItem> {
+    const [item] = await db.insert(proposalItems).values(insertItem).returning();
+    return item;
+  }
+
+  async updateProposalItem(id: string, updateData: Partial<InsertProposalItem>): Promise<ProposalItem | undefined> {
+    const [item] = await db.update(proposalItems).set(updateData).where(eq(proposalItems.id, id)).returning();
+    return item || undefined;
+  }
+
+  async deleteProposalItem(id: string): Promise<void> {
+    await db.delete(proposalItems).where(eq(proposalItems.id, id));
+  }
+
+  // Payments
+  async getPayments(invoiceId: string): Promise<Payment[]> {
+    return await db.select().from(payments).where(eq(payments.invoiceId, invoiceId)).orderBy(desc(payments.paymentDate));
+  }
+
+  async getPayment(id: string): Promise<Payment | undefined> {
+    const [payment] = await db.select().from(payments).where(eq(payments.id, id));
+    return payment || undefined;
+  }
+
+  async createPayment(insertPayment: InsertPayment): Promise<Payment> {
+    const [payment] = await db.insert(payments).values(insertPayment).returning();
+    return payment;
+  }
+
+  async updatePayment(id: string, updateData: Partial<InsertPayment>): Promise<Payment | undefined> {
+    const [payment] = await db.update(payments).set(updateData).where(eq(payments.id, id)).returning();
+    return payment || undefined;
+  }
+
+  async deletePayment(id: string): Promise<void> {
+    await db.delete(payments).where(eq(payments.id, id));
   }
 }
 
