@@ -202,6 +202,32 @@ export const customFields = pgTable("custom_fields", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Operation Notes table
+export const operationNotes = pgTable("operation_notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operationId: varchar("operation_id").notNull().references(() => operations.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Operation Tasks table
+export const operationTasks = pgTable("operation_tasks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operationId: varchar("operation_id").notNull().references(() => operations.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").notNull().default("pending"), // pending, in-progress, completed, cancelled
+  priority: text("priority").notNull().default("medium"), // low, medium, high, urgent
+  assignedToId: varchar("assigned_to_id").references(() => employees.id, { onDelete: "set null" }),
+  dueDate: timestamp("due_date"),
+  completedAt: timestamp("completed_at"),
+  createdById: varchar("created_by_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Custom Field Values table
 export const customFieldValues = pgTable("custom_field_values", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -543,6 +569,8 @@ export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit
 export const insertAutomationConfigSchema = createInsertSchema(automationConfigs).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAutomationRuleSchema = createInsertSchema(automationRules).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAutomationLogSchema = createInsertSchema(automationLogs).omit({ id: true, createdAt: true });
+export const insertOperationNoteSchema = createInsertSchema(operationNotes).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertOperationTaskSchema = createInsertSchema(operationTasks).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -607,3 +635,9 @@ export type AutomationRule = typeof automationRules.$inferSelect;
 
 export type InsertAutomationLog = z.infer<typeof insertAutomationLogSchema>;
 export type AutomationLog = typeof automationLogs.$inferSelect;
+
+export type InsertOperationNote = z.infer<typeof insertOperationNoteSchema>;
+export type OperationNote = typeof operationNotes.$inferSelect;
+
+export type InsertOperationTask = z.infer<typeof insertOperationTaskSchema>;
+export type OperationTask = typeof operationTasks.$inferSelect;
