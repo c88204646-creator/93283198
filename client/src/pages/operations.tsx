@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Link2 } from "lucide-react";
+import { Plus, Edit, Trash2, Link2, Zap } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
@@ -182,7 +182,15 @@ export default function OperationsPage() {
       header: "Shipment",
       accessor: (row: Operation) => (
         <div>
-          <div className="font-medium">{row.name}</div>
+          <div className="flex items-center gap-2">
+            <div className="font-medium">{row.name}</div>
+            {(row as any).createdAutomatically && (
+              <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                <Zap className="w-3 h-3" />
+                Auto
+              </Badge>
+            )}
+          </div>
           {row.bookingTracking && (
             <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
               <Link2 className="w-3 h-3" />
