@@ -70,6 +70,11 @@ export const operations = pgTable("operations", {
   mblAwb: text("mbl_awb"), // Master Bill of Lading / Air Waybill
   hblAwb: text("hbl_awb"), // House Bill of Lading / Air Waybill
   
+  // Automation fields
+  createdAutomatically: boolean("created_automatically").notNull().default(false),
+  automationRuleId: varchar("automation_rule_id"),
+  requiresReview: boolean("requires_review").notNull().default(false),
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -285,6 +290,47 @@ export const calendarEvents = pgTable("calendar_events", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Automation Configuration table
+export const automationConfigs = pgTable("automation_configs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  moduleName: text("module_name").notNull(), // 'operations', 'invoices', etc.
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  selectedGmailAccounts: jsonb("selected_gmail_accounts"), // Array of gmail account IDs
+  settings: jsonb("settings"), // Module-specific settings
+  lastProcessedAt: timestamp("last_processed_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Automation Rules table
+export const automationRules = pgTable("automation_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  configId: varchar("config_id").notNull().references(() => automationConfigs.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  isEnabled: boolean("is_enabled").notNull().default(true),
+  priority: integer("priority").notNull().default(0), // Higher number = higher priority
+  conditions: jsonb("conditions").notNull(), // Rule conditions {field, operator, value}
+  actions: jsonb("actions").notNull(), // Actions to perform {type, params}
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Automation Logs table
+export const automationLogs = pgTable("automation_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ruleId: varchar("rule_id").references(() => automationRules.id, { onDelete: "set null" }),
+  emailMessageId: varchar("email_message_id").references(() => gmailMessages.id, { onDelete: "set null" }),
+  actionType: text("action_type").notNull(), // 'create_operation', 'update_operation', etc.
+  status: text("status").notNull(), // 'success', 'error', 'skipped'
+  entityType: text("entity_type"), // 'operation', 'invoice', etc.
+  entityId: varchar("entity_id"), // ID of created/modified entity
+  details: jsonb("details"), // Additional details about the action
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one }) => ({
   employee: one(employees, {
@@ -474,6 +520,9 @@ export const insertGmailAccountSchema = createInsertSchema(gmailAccounts).omit({
 export const insertGmailMessageSchema = createInsertSchema(gmailMessages).omit({ id: true, createdAt: true });
 export const insertGmailAttachmentSchema = createInsertSchema(gmailAttachments).omit({ id: true, createdAt: true });
 export const insertCalendarEventSchema = createInsertSchema(calendarEvents).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAutomationConfigSchema = createInsertSchema(automationConfigs).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAutomationRuleSchema = createInsertSchema(automationRules).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertAutomationLogSchema = createInsertSchema(automationLogs).omit({ id: true, createdAt: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -529,3 +578,12 @@ export type GmailAttachment = typeof gmailAttachments.$inferSelect;
 
 export type InsertCalendarEvent = z.infer<typeof insertCalendarEventSchema>;
 export type CalendarEvent = typeof calendarEvents.$inferSelect;
+
+export type InsertAutomationConfig = z.infer<typeof insertAutomationConfigSchema>;
+export type AutomationConfig = typeof automationConfigs.$inferSelect;
+
+export type InsertAutomationRule = z.infer<typeof insertAutomationRuleSchema>;
+export type AutomationRule = typeof automationRules.$inferSelect;
+
+export type InsertAutomationLog = z.infer<typeof insertAutomationLogSchema>;
+export type AutomationLog = typeof automationLogs.$inferSelect;
