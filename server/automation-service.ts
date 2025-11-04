@@ -283,6 +283,38 @@ export class AutomationService {
     });
   }
 
+  private async getOrCreateCategoryFolder(operationId: string, category: string | null): Promise<string | null> {
+    if (!category) return null;
+
+    const categoryNames: Record<string, string> = {
+      'payment': 'Pagos',
+      'expense': 'Gastos',
+      'image': 'Fotos',
+      'invoice': 'Facturas',
+      'contract': 'Contratos',
+      'document': 'Documentos',
+    };
+
+    const folderName = categoryNames[category] || 'Otros';
+
+    // Check if folder already exists
+    const existingFolders = await storage.getOperationFolders(operationId);
+    const existingFolder = existingFolders.find(f => f.name === folderName);
+
+    if (existingFolder) {
+      return existingFolder.id;
+    }
+
+    // Create folder if it doesn't exist
+    const newFolder = await storage.createOperationFolder({
+      operationId,
+      name: folderName,
+      parentId: null,
+    });
+
+    return newFolder.id;
+  }
+
   private async processEmailAttachments(message: GmailMessage, operationId: string, config: AutomationConfig) {
     try {
       // Get attachments for this message
@@ -348,10 +380,13 @@ export class AutomationService {
           // Categorize automatically
           const category = this.categorizeFile(attachment.filename, attachment.mimeType);
 
+          // Get or create folder for this category
+          const folderId = await this.getOrCreateCategoryFolder(operationId, category);
+
           // Create file record
           await storage.createOperationFile({
             operationId,
-            folderId: null,
+            folderId,
             name: attachment.filename,
             originalName: attachment.filename,
             mimeType: attachment.mimeType,
@@ -364,7 +399,7 @@ export class AutomationService {
             uploadedVia: 'automation',
           });
 
-          console.log(`[Automation] Processed attachment ${attachment.filename} for operation ${operationId}`);
+          console.log(`[Automation] Processed attachment ${attachment.filename} for operation ${operationId} in folder ${folderId}`);
         } catch (error) {
           console.error(`[Automation] Error processing attachment ${attachment.filename}:`, error);
         }
