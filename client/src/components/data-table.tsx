@@ -15,18 +15,27 @@ interface Column<T> {
   header: string;
   accessor: keyof T | ((row: T) => React.ReactNode);
   cell?: (value: any, row: T) => React.ReactNode;
+  className?: string;
 }
 
 interface DataTableProps<T> {
   data: T[];
   columns: Column<T>[];
   itemsPerPage?: number;
+  onRowClick?: (row: T) => void;
+  searchPlaceholder?: string;
+  isLoading?: boolean;
+  emptyMessage?: string;
 }
 
 export function DataTable<T extends { id: number | string }>({
   data,
   columns,
   itemsPerPage = 10,
+  onRowClick,
+  searchPlaceholder,
+  isLoading = false,
+  emptyMessage = "No data available",
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -60,20 +69,30 @@ export function DataTable<T extends { id: number | string }>({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentData.length === 0 ? (
+            {isLoading ? (
               <TableRow>
                 <TableCell
                   colSpan={columns.length}
                   className="h-32 text-center text-muted-foreground"
                 >
-                  No data available
+                  Cargando...
+                </TableCell>
+              </TableRow>
+            ) : currentData.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-32 text-center text-muted-foreground"
+                >
+                  {emptyMessage}
                 </TableCell>
               </TableRow>
             ) : (
               currentData.map((row, rowIndex) => (
                 <TableRow 
                   key={row.id} 
-                  className="hover:bg-muted/30 border-b border-border/50 transition-colors"
+                  className={`hover:bg-muted/30 border-b border-border/50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+                  onClick={() => onRowClick?.(row)}
                 >
                   {columns.map((column, colIndex) => {
                     const value =
@@ -82,7 +101,7 @@ export function DataTable<T extends { id: number | string }>({
                         : row[column.accessor];
 
                     return (
-                      <TableCell key={colIndex} className="px-6 py-4">
+                      <TableCell key={colIndex} className={`px-6 py-4 ${column.className || ''}`}>
                         {column.cell ? column.cell(value, row) : (value as React.ReactNode)}
                       </TableCell>
                     );

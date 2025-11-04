@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Link2, Zap } from "lucide-react";
+import { Plus, Edit, Trash2, Link2, Zap, Eye } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
@@ -183,13 +183,9 @@ export default function OperationsPage() {
       accessor: (row: Operation) => (
         <div>
           <div className="flex items-center gap-2">
-            <button
-              className="font-medium text-primary hover:underline text-left"
-              onClick={() => setLocation(`/operations/${row.id}`)}
-              data-testid={`link-operation-${row.id}`}
-            >
+            <div className="font-medium" data-testid={`text-operation-${row.id}`}>
               {row.name}
-            </button>
+            </div>
             {(row as any).createdAutomatically && (
               <Badge variant="secondary" className="flex items-center gap-1 text-xs">
                 <Zap className="w-3 h-3" />
@@ -271,11 +267,25 @@ export default function OperationsPage() {
     {
       header: "Actions",
       accessor: (row: Operation) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 justify-end">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => handleEdit(row)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setLocation(`/operations/${row.id}`);
+            }}
+            data-testid={`button-view-${row.id}`}
+          >
+            <Eye className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEdit(row);
+            }}
             data-testid={`button-edit-${row.id}`}
           >
             <Edit className="w-4 h-4" />
@@ -283,7 +293,10 @@ export default function OperationsPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => deleteMutation.mutate(row.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteMutation.mutate(row.id);
+            }}
             data-testid={`button-delete-${row.id}`}
           >
             <Trash2 className="w-4 h-4" />
@@ -725,6 +738,7 @@ export default function OperationsPage() {
         searchPlaceholder="Buscar operaciones..."
         isLoading={isLoading}
         emptyMessage="No se encontraron operaciones. Crea tu primera operación para comenzar."
+        onRowClick={(operation) => setLocation(`/operations/${operation.id}`)}
       />
     </div>
   );
