@@ -5,6 +5,7 @@ import {
   users, clients, employees, operations, invoices, proposals, expenses, leads, 
   invoiceItems, proposalItems, payments, customFields, customFieldValues,
   operationEmployees, gmailAccounts, gmailMessages, gmailAttachments, calendarEvents,
+  automationConfigs, automationRules, automationLogs,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Employee, type InsertEmployee,
@@ -23,6 +24,9 @@ import {
   type GmailMessage, type InsertGmailMessage,
   type GmailAttachment, type InsertGmailAttachment,
   type CalendarEvent, type InsertCalendarEvent,
+  type AutomationConfig, type InsertAutomationConfig,
+  type AutomationRule, type InsertAutomationRule,
+  type AutomationLog, type InsertAutomationLog,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -156,6 +160,29 @@ export interface IStorage {
   createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
   updateCalendarEvent(id: string, event: Partial<InsertCalendarEvent>): Promise<CalendarEvent | undefined>;
   deleteCalendarEvent(id: string): Promise<void>;
+
+  // Automation Configs
+  getAutomationConfigs(userId: string): Promise<AutomationConfig[]>;
+  getAutomationConfig(id: string): Promise<AutomationConfig | undefined>;
+  getAutomationConfigByModule(userId: string, moduleName: string): Promise<AutomationConfig | undefined>;
+  getEnabledAutomationConfigs(): Promise<AutomationConfig[]>;
+  createAutomationConfig(config: InsertAutomationConfig): Promise<AutomationConfig>;
+  updateAutomationConfig(id: string, config: Partial<InsertAutomationConfig>): Promise<AutomationConfig | undefined>;
+  deleteAutomationConfig(id: string): Promise<void>;
+
+  // Automation Rules
+  getAutomationRulesByConfig(configId: string): Promise<AutomationRule[]>;
+  getAutomationRule(id: string): Promise<AutomationRule | undefined>;
+  createAutomationRule(rule: InsertAutomationRule): Promise<AutomationRule>;
+  updateAutomationRule(id: string, rule: Partial<InsertAutomationRule>): Promise<AutomationRule | undefined>;
+  deleteAutomationRule(id: string): Promise<void>;
+
+  // Automation Logs
+  getAutomationLogs(configId?: string, limit?: number): Promise<AutomationLog[]>;
+  createAutomationLog(log: InsertAutomationLog): Promise<AutomationLog>;
+
+  // Helper functions for automation
+  getUnprocessedMessages(accountIds: string[], since: Date): Promise<GmailMessage[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -659,6 +686,111 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCalendarEvent(id: string): Promise<void> {
     await db.delete(calendarEvents).where(eq(calendarEvents.id, id));
+  }
+
+  // Automation Configs
+  async getAutomationConfigs(userId: string): Promise<AutomationConfig[]> {
+    return await db.select().from(automationConfigs).where(eq(automationConfigs.userId, userId));
+  }
+
+  async getAutomationConfig(id: string): Promise<AutomationConfig | undefined> {
+    const [config] = await db.select().from(automationConfigs).where(eq(automationConfigs.id, id));
+    return config || undefined;
+  }
+
+  async getAutomationConfigByModule(userId: string, moduleName: string): Promise<AutomationConfig | undefined> {
+    const [config] = await db.select().from(automationConfigs)
+      .where(and(
+        eq(automationConfigs.userId, userId),
+        eq(automationConfigs.moduleName, moduleName)
+      ));
+    return config || undefined;
+  }
+
+  async getEnabledAutomationConfigs(): Promise<AutomationConfig[]> {
+    return await db.select().from(automationConfigs).where(eq(automationConfigs.isEnabled, true));
+  }
+
+  async createAutomationConfig(insertConfig: InsertAutomationConfig): Promise<AutomationConfig> {
+    const [config] = await db.insert(automationConfigs).values(insertConfig).returning();
+    return config;
+  }
+
+  async updateAutomationConfig(id: string, updateData: Partial<InsertAutomationConfig>): Promise<AutomationConfig | undefined> {
+    const [config] = await db.update(automationConfigs)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(automationConfigs.id, id))
+      .returning();
+    return config || undefined;
+  }
+
+  async deleteAutomationConfig(id: string): Promise<void> {
+    await db.delete(automationConfigs).where(eq(automationConfigs.id, id));
+  }
+
+  // Automation Rules
+  async getAutomationRulesByConfig(configId: string): Promise<AutomationRule[]> {
+    return await db.select().from(automationRules)
+      .where(eq(automationRules.configId, configId))
+      .orderBy(desc(automationRules.priority));
+  }
+
+  async getAutomationRule(id: string): Promise<AutomationRule | undefined> {
+    const [rule] = await db.select().from(automationRules).where(eq(automationRules.id, id));
+    return rule || undefined;
+  }
+
+  async createAutomationRule(insertRule: InsertAutomationRule): Promise<AutomationRule> {
+    const [rule] = await db.insert(automationRules).values(insertRule).returning();
+    return rule;
+  }
+
+  async updateAutomationRule(id: string, updateData: Partial<InsertAutomationRule>): Promise<AutomationRule | undefined> {
+    const [rule] = await db.update(automationRules)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(automationRules.id, id))
+      .returning();
+    return rule || undefined;
+  }
+
+  async deleteAutomationRule(id: string): Promise<void> {
+    await db.delete(automationRules).where(eq(automationRules.id, id));
+  }
+
+  // Automation Logs
+  async getAutomationLogs(configId?: string, limit: number = 100): Promise<AutomationLog[]> {
+    if (configId) {
+      const rules = await this.getAutomationRulesByConfig(configId);
+      const ruleIds = rules.map(r => r.id);
+      
+      if (ruleIds.length === 0) {
+        return [];
+      }
+
+      return await db.select().from(automationLogs)
+        .where(inArray(automationLogs.ruleId, ruleIds))
+        .orderBy(desc(automationLogs.createdAt))
+        .limit(limit);
+    }
+
+    return await db.select().from(automationLogs)
+      .orderBy(desc(automationLogs.createdAt))
+      .limit(limit);
+  }
+
+  async createAutomationLog(insertLog: InsertAutomationLog): Promise<AutomationLog> {
+    const [log] = await db.insert(automationLogs).values(insertLog).returning();
+    return log;
+  }
+
+  // Helper functions for automation
+  async getUnprocessedMessages(accountIds: string[], since: Date): Promise<GmailMessage[]> {
+    return await db.select().from(gmailMessages)
+      .where(and(
+        inArray(gmailMessages.gmailAccountId, accountIds),
+        desc(gmailMessages.receivedAt) > since
+      ))
+      .orderBy(gmailMessages.receivedAt);
   }
 }
 
