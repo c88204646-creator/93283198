@@ -908,89 +908,134 @@ function EmailsTab({ operationId, operation, gmailMessages }: {
       )}
 
       <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle>{selectedMessage?.subject || "(Sin asunto)"}</DialogTitle>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="text-xl">{selectedMessage?.subject || "(Sin asunto)"}</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="h-full max-h-[60vh]">
-            {selectedMessage && (
+          
+          {selectedMessage && (
+            <div className="flex-1 overflow-y-auto pr-2">
               <div className="space-y-4">
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <UserIcon className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{selectedMessage.fromName || selectedMessage.fromEmail}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>{format(new Date(selectedMessage.date), "dd/MM/yyyy HH:mm")}</span>
-                  </div>
-                </div>
+                {/* Email Header Info */}
+                <Card>
+                  <CardContent className="pt-4">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-2 flex-1">
+                          <UserIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">
+                              {selectedMessage.fromName || selectedMessage.fromEmail}
+                            </p>
+                            {selectedMessage.fromName && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {selectedMessage.fromEmail}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground flex-shrink-0">
+                          <Calendar className="h-4 w-4" />
+                          <span>{format(new Date(selectedMessage.date), "dd/MM/yyyy HH:mm")}</span>
+                        </div>
+                      </div>
+                      
+                      <Separator />
+                      
+                      <div className="space-y-2 text-sm">
+                        <div>
+                          <span className="font-medium text-muted-foreground">Para: </span>
+                          <span className="break-words">{selectedMessage.toEmails.join(", ")}</span>
+                        </div>
+                        {selectedMessage.ccEmails && selectedMessage.ccEmails.length > 0 && (
+                          <div>
+                            <span className="font-medium text-muted-foreground">CC: </span>
+                            <span className="break-words">{selectedMessage.ccEmails.join(", ")}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                <Separator />
+                {/* Email Body */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Contenido del mensaje</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {selectedMessage.bodyHtml ? (
+                      <div
+                        className="prose prose-sm max-w-none dark:prose-invert"
+                        style={{
+                          wordBreak: 'break-word',
+                          overflowWrap: 'break-word'
+                        }}
+                        dangerouslySetInnerHTML={{ __html: selectedMessage.bodyHtml }}
+                      />
+                    ) : selectedMessage.bodyText ? (
+                      <div 
+                        className="text-sm whitespace-pre-wrap font-sans"
+                        style={{
+                          wordBreak: 'break-word',
+                          overflowWrap: 'break-word'
+                        }}
+                      >
+                        {selectedMessage.bodyText}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">Sin contenido</p>
+                    )}
+                  </CardContent>
+                </Card>
 
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Para:</strong> {selectedMessage.toEmails.join(", ")}
-                  </p>
-                  {selectedMessage.ccEmails && selectedMessage.ccEmails.length > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      <strong>CC:</strong> {selectedMessage.ccEmails.join(", ")}
-                    </p>
-                  )}
-                </div>
-
-                <Separator />
-
-                {selectedMessage.bodyHtml ? (
-                  <div
-                    className="prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: selectedMessage.bodyHtml }}
-                  />
-                ) : selectedMessage.bodyText ? (
-                  <pre className="whitespace-pre-wrap text-sm font-sans">{selectedMessage.bodyText}</pre>
-                ) : (
-                  <p className="text-muted-foreground">Sin contenido</p>
-                )}
-
+                {/* Attachments */}
                 {attachments.length > 0 && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <h3 className="font-semibold text-sm">Adjuntos ({attachments.length})</h3>
-                      <div className="grid grid-cols-2 gap-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Paperclip className="h-4 w-4" />
+                        Archivos Adjuntos ({attachments.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {attachments.map((attachment: any) => (
-                          <Card key={attachment.id} className="hover-elevate">
-                            <CardContent className="p-3">
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                  <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">{attachment.filename}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {(attachment.size / 1024).toFixed(1)} KB
-                                    </p>
-                                  </div>
+                          <Card key={attachment.id} className="hover:shadow-md transition-shadow">
+                            <CardContent className="p-4">
+                              <div className="flex items-center gap-3">
+                                <div className="flex-shrink-0 w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
+                                  <Paperclip className="h-5 w-5 text-primary" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate" title={attachment.filename}>
+                                    {attachment.filename}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {(attachment.size / 1024).toFixed(1)} KB
+                                  </p>
                                 </div>
                                 <Button
                                   size="sm"
                                   variant="outline"
+                                  className="flex-shrink-0"
                                   onClick={() => {
                                     window.open(`/api/gmail/attachments/${attachment.id}/download`, '_blank');
                                   }}
                                 >
-                                  <Download className="h-3 w-3" />
+                                  <Download className="h-4 w-4" />
                                 </Button>
                               </div>
                             </CardContent>
                           </Card>
                         ))}
                       </div>
-                    </div>
-                  </>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
-            )}
-          </ScrollArea>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
