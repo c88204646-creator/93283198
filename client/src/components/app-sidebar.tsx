@@ -11,7 +11,8 @@ import {
   LogOut,
   Truck,
   Mail,
-  MapPin
+  MapPin,
+  Calendar
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
@@ -88,6 +89,11 @@ const menuItems: MenuItem[] = [
     title: "Gmail",
     url: "/gmail",
     icon: Mail,
+  },
+  {
+    title: "Calendar",
+    url: "/calendar",
+    icon: Calendar,
   },
   {
     title: "Custom Fields",
