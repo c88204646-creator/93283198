@@ -36,6 +36,7 @@ export function getAuthUrl(userId: string): string {
     scope: [
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/calendar', // Acceso completo a Google Calendar
     ],
     state,
     prompt: 'consent',
