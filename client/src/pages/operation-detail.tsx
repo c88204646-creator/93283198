@@ -16,10 +16,17 @@ import { format } from "date-fns";
 import {
   ArrowLeft, Package, FileText, CheckSquare, Mail, Edit2, Trash2, Plus,
   Calendar, User as UserIcon, MapPin, Ship, Plane, Truck, DollarSign, FolderOpen,
-  Download, Paperclip
+  Download, Paperclip, Upload
 } from "lucide-react";
 import { useState } from "react";
 import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage } from "@shared/schema";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -137,28 +144,18 @@ export default function OperationDetail() {
             )}
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => navigate(`/operations/${id}/files`)}
-            data-testid="button-files"
-          >
-            <FolderOpen className="w-4 h-4 mr-2" />
-            Archivos
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => navigate(`/operations`)}
-            data-testid="button-edit"
-          >
-            <Edit2 className="w-4 h-4 mr-2" />
-            Editar
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          onClick={() => navigate(`/operations`)}
+          data-testid="button-edit"
+        >
+          <Edit2 className="w-4 h-4 mr-2" />
+          Editar
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="info" data-testid="tab-info">
             <Package className="w-4 h-4 mr-2" />
             Información
@@ -170,6 +167,10 @@ export default function OperationDetail() {
           <TabsTrigger value="tasks" data-testid="tab-tasks">
             <CheckSquare className="w-4 h-4 mr-2" />
             Tareas
+          </TabsTrigger>
+          <TabsTrigger value="files" data-testid="tab-files">
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Archivos
           </TabsTrigger>
           <TabsTrigger value="emails" data-testid="tab-emails">
             <Mail className="w-4 h-4 mr-2" />
@@ -187,6 +188,10 @@ export default function OperationDetail() {
 
         <TabsContent value="tasks" className="space-y-4">
           <TasksTab operationId={id!} tasks={tasks} employees={employees} users={users} />
+        </TabsContent>
+
+        <TabsContent value="files" className="space-y-4">
+          <FilesTab operationId={id!} />
         </TabsContent>
 
         <TabsContent value="emails" className="space-y-4">
@@ -988,6 +993,163 @@ function EmailsTab({ operationId, operation, gmailMessages }: {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function FilesTab({ operationId }: { operationId: string }) {
+  const { toast } = useToast();
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+
+  const { data: folders = [], isLoading: loadingFolders } = useQuery<any[]>({
+    queryKey: ["/api/operations", operationId, "folders"],
+  });
+
+  const { data: files = [], isLoading: loadingFiles } = useQuery<any[]>({
+    queryKey: ["/api/operations", operationId, "files", selectedFolder],
+    queryFn: async () => {
+      const response = await fetch(`/api/operations/${operationId}/files?folderId=${selectedFolder || 'null'}`);
+      if (!response.ok) throw new Error("Error al cargar archivos");
+      return response.json();
+    },
+  });
+
+  const handleUploadComplete = async (fileURL: string, file: any) => {
+    try {
+      await apiRequest(`/api/operations/${operationId}/files`, "POST", {
+        name: file.name,
+        originalName: file.name,
+        mimeType: file.type,
+        size: file.size,
+        objectPath: fileURL,
+        folderId: selectedFolder,
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
+      toast({ title: "Archivo subido exitosamente" });
+    } catch (error) {
+      toast({ title: "Error al guardar archivo", variant: "destructive" });
+    }
+  };
+
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith("image/")) return "🖼️";
+    if (mimeType.includes("pdf")) return "📄";
+    if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) return "📊";
+    return "📎";
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+  };
+
+  if (loadingFolders || loadingFiles) {
+    return <div className="text-center py-8 text-muted-foreground">Cargando archivos...</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold">Archivos de la Operación</h3>
+          <p className="text-sm text-muted-foreground">
+            {files.length} archivo{files.length !== 1 ? 's' : ''}
+            {selectedFolder && folders.find((f: any) => f.id === selectedFolder) && (
+              <> en {folders.find((f: any) => f.id === selectedFolder)?.name}</>
+            )}
+          </p>
+        </div>
+        <Button onClick={() => setIsUploadOpen(true)} data-testid="button-upload-file">
+          <Upload className="w-4 h-4 mr-2" />
+          Subir Archivo
+        </Button>
+      </div>
+
+      {folders.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant={selectedFolder === null ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedFolder(null)}
+            data-testid="button-folder-root"
+          >
+            📁 Todos los archivos
+          </Button>
+          {folders.map((folder: any) => (
+            <Button
+              key={folder.id}
+              variant={selectedFolder === folder.id ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedFolder(folder.id)}
+              data-testid={`button-folder-${folder.id}`}
+            >
+              📁 {folder.name}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        {files.length === 0 ? (
+          <div className="col-span-full text-center py-12 text-muted-foreground">
+            No hay archivos en esta carpeta
+          </div>
+        ) : (
+          files.map((file: any) => (
+            <Card key={file.id} className="hover-elevate" data-testid={`card-file-${file.id}`}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="text-2xl flex-shrink-0">
+                      {getFileIcon(file.mimeType)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate" data-testid={`text-filename-${file.id}`}>
+                        {file.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatFileSize(file.size)}
+                      </p>
+                      {file.category && (
+                        <Badge variant="secondary" className="text-xs mt-1">
+                          {file.category}
+                        </Badge>
+                      )}
+                      {file.uploadedVia === 'automation' && (
+                        <Badge variant="outline" className="text-xs mt-1 ml-1">
+                          Auto
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => window.open(file.objectPath, '_blank')}
+                    data-testid={`button-download-${file.id}`}
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+                </div>
+                {file.description && (
+                  <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                    {file.description}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      <ObjectUploader
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        onUploadComplete={handleUploadComplete}
+      />
     </div>
   );
 }
