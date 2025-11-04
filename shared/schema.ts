@@ -292,6 +292,7 @@ export const gmailAttachments = pgTable("gmail_attachments", {
   size: integer("size").notNull(), // Size in bytes
   data: text("data"), // Base64 encoded data (optional, can be fetched on demand)
   isInline: boolean("is_inline").notNull().default(false),
+  extractedText: text("extracted_text"), // Text extracted from PDF/images via OCR
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

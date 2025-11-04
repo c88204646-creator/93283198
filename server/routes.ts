@@ -1140,6 +1140,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Gmail Message Routes
+  app.get("/api/gmail/messages", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const limit = parseInt(req.query.limit as string || '500');
+      
+      const accounts = await storage.getAllGmailAccounts(userId);
+      if (!accounts || accounts.length === 0) {
+        return res.json([]);
+      }
+
+      const allMessages: any[] = [];
+      for (const account of accounts) {
+        const messages = await storage.getGmailMessages(account.id, limit, 0);
+        allMessages.push(...messages);
+      }
+
+      allMessages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      res.json(allMessages.slice(0, limit));
+    } catch (error) {
+      console.error("Get all Gmail messages error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.get("/api/gmail/accounts/:accountId/messages", requireAuth, async (req, res) => {
     try {
       const { accountId } = req.params;
@@ -1183,6 +1207,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Gmail Attachment Routes
+  app.get("/api/gmail/attachments/all", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      
+      const accounts = await storage.getAllGmailAccounts(userId);
+      if (!accounts || accounts.length === 0) {
+        return res.json([]);
+      }
+
+      const allMessages = [];
+      for (const account of accounts) {
+        const messages = await storage.getGmailMessages(account.id, 500, 0);
+        allMessages.push(...messages);
+      }
+
+      const allAttachments = [];
+      for (const message of allMessages) {
+        const attachments = await storage.getGmailAttachments(message.id);
+        allAttachments.push(...attachments);
+      }
+
+      res.json(allAttachments);
+    } catch (error) {
+      console.error("Get all Gmail attachments error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.get("/api/gmail/messages/:messageId/attachments", requireAuth, async (req, res) => {
     try {
       const { messageId } = req.params;

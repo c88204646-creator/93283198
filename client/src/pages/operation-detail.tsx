@@ -805,6 +805,11 @@ function EmailsTab({ operationId, operation, gmailMessages }: {
   operation: Operation;
   gmailMessages: GmailMessage[];
 }) {
+  const { data: allAttachments = [] } = useQuery({
+    queryKey: ['/api/gmail/attachments/all'],
+    enabled: gmailMessages.length > 0,
+  });
+
   const relatedEmails = gmailMessages.filter(msg => {
     const operationName = operation.name.toLowerCase();
     const bookingNumber = operation.bookingTracking?.toLowerCase();
@@ -815,8 +820,14 @@ function EmailsTab({ operationId, operation, gmailMessages }: {
     const snippet = (msg.snippet || '').toLowerCase();
     const bodyText = ((msg as any).bodyText || '').toLowerCase();
     
-    // Combinar todo el contenido disponible
-    const fullContent = `${subject} ${from} ${snippet} ${bodyText}`;
+    // Obtener attachments de este mensaje
+    const messageAttachments = allAttachments.filter((att: any) => att.gmailMessageId === msg.id);
+    const attachmentsText = messageAttachments
+      .map((att: any) => (att.extractedText || '').toLowerCase())
+      .join(' ');
+    
+    // Combinar todo el contenido disponible incluyendo attachments
+    const fullContent = `${subject} ${from} ${snippet} ${bodyText} ${attachmentsText}`;
     
     // Buscar el nombre de la operación o número de tracking
     const hasOperationName = fullContent.includes(operationName);

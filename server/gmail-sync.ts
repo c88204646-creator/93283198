@@ -2,6 +2,7 @@ import { google } from 'googleapis';
 import { storage } from './storage';
 import type { GmailAccount } from '@shared/schema';
 import * as calendarSync from './calendar-sync';
+import { AttachmentAnalyzer } from './attachment-analyzer';
 
 // Construir la URL de redirección automáticamente
 function getRedirectUri(): string {
@@ -233,15 +234,43 @@ export async function startSync(accountId: string) {
         if (hasAttachments && fullMessage.data.payload?.parts) {
           for (const part of fullMessage.data.payload.parts) {
             if (part.filename && part.body?.attachmentId) {
+              const mimeType = part.mimeType || 'application/octet-stream';
+              let extractedText: string | null = null;
+
+              const shouldAnalyze = 
+                mimeType === 'application/pdf' || 
+                mimeType.startsWith('image/');
+
+              if (shouldAnalyze && part.body.size && part.body.size < 10 * 1024 * 1024) {
+                try {
+                  const attachmentData = await getAttachmentData(
+                    account, 
+                    message.id, 
+                    part.body.attachmentId
+                  );
+                  
+                  if (attachmentData) {
+                    extractedText = await AttachmentAnalyzer.analyzeAttachment(
+                      mimeType, 
+                      attachmentData
+                    );
+                    console.log(`Extracted ${extractedText.length} characters from ${part.filename}`);
+                  }
+                } catch (error) {
+                  console.error(`Error analyzing attachment ${part.filename}:`, error);
+                }
+              }
+
               await storage.createGmailAttachment({
                 gmailMessageId: createdMessage.id,
                 attachmentId: part.body.attachmentId,
                 filename: part.filename,
-                mimeType: part.mimeType || 'application/octet-stream',
+                mimeType,
                 size: part.body.size || 0,
                 isInline: part.headers?.some((h: {name?: string; value?: string}) => 
                   h.name === 'Content-Disposition' && h.value?.includes('inline')
                 ) || false,
+                extractedText: extractedText || null,
               });
             }
           }
