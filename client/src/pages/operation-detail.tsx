@@ -25,18 +25,19 @@ export default function OperationDetail() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("info");
 
-  const { data: operation, isLoading: operationLoading } = useQuery<Operation>({
+  const { data: operation, isLoading: operationLoading, isError } = useQuery<Operation>({
     queryKey: [`/api/operations/${id}`],
+    enabled: !!id,
   });
 
   const { data: notes = [], isLoading: notesLoading } = useQuery<OperationNote[]>({
     queryKey: [`/api/operations/${id}/notes`],
-    enabled: !!id,
+    enabled: !!id && !!operation,
   });
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery<OperationTask[]>({
     queryKey: [`/api/operations/${id}/tasks`],
-    enabled: !!id,
+    enabled: !!id && !!operation,
   });
 
   const { data: employees = [] } = useQuery<Employee[]>({
@@ -63,7 +64,7 @@ export default function OperationDetail() {
     );
   }
 
-  if (!operation) {
+  if (isError || !operation) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-lg">Operación no encontrada</div>
