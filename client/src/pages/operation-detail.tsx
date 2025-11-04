@@ -509,7 +509,7 @@ function TasksTab({ operationId, tasks, employees, users }: {
     description: "",
     status: "pending",
     priority: "medium",
-    assignedToId: "",
+    assignedToId: undefined as string | undefined,
     dueDate: "",
   });
 
@@ -528,7 +528,7 @@ function TasksTab({ operationId, tasks, employees, users }: {
         description: "",
         status: "pending",
         priority: "medium",
-        assignedToId: "",
+        assignedToId: undefined,
         dueDate: "",
       });
       toast({ title: "Tarea creada exitosamente" });
@@ -623,14 +623,14 @@ function TasksTab({ operationId, tasks, employees, users }: {
               <div className="space-y-2">
                 <Label>Asignado a</Label>
                 <Select
-                  value={newTask.assignedToId}
-                  onValueChange={(value) => setNewTask({ ...newTask, assignedToId: value })}
+                  value={newTask.assignedToId || "unassigned"}
+                  onValueChange={(value) => setNewTask({ ...newTask, assignedToId: value === "unassigned" ? undefined : value })}
                 >
                   <SelectTrigger data-testid="select-task-assigned">
                     <SelectValue placeholder="Seleccionar empleado" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin asignar</SelectItem>
+                    <SelectItem value="unassigned">Sin asignar</SelectItem>
                     {employees.map((emp) => (
                       <SelectItem key={emp.id} value={emp.id}>
                         {emp.name}
