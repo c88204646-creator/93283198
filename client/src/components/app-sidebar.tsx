@@ -44,7 +44,7 @@ const menuItems: MenuItem[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "Shipments",
+    title: "Operaciones",
     url: "/operations",
     icon: Package,
   },

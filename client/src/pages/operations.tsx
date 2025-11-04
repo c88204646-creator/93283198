@@ -77,7 +77,6 @@ export default function OperationsPage() {
     resolver: zodResolver(insertOperationSchema.extend({
       endDate: insertOperationSchema.shape.endDate.nullable(),
       clientId: insertOperationSchema.shape.clientId.nullable(),
-      assignedEmployeeId: insertOperationSchema.shape.assignedEmployeeId.nullable(),
       pickUpDate: insertOperationSchema.shape.pickUpDate.nullable(),
       etd: insertOperationSchema.shape.etd.nullable(),
       eta: insertOperationSchema.shape.eta.nullable(),
@@ -88,7 +87,6 @@ export default function OperationsPage() {
       status: "planning",
       priority: "medium",
       clientId: null,
-      assignedEmployeeId: null,
       startDate: null,
       endDate: null,
       projectCategory: "",
@@ -173,7 +171,6 @@ export default function OperationsPage() {
       status: operation.status,
       priority: operation.priority,
       clientId: operation.clientId,
-      assignedEmployeeId: operation.assignedEmployeeId,
       startDate: operation.startDate ? new Date(operation.startDate).toISOString().split('T')[0] as any : null,
       endDate: operation.endDate ? new Date(operation.endDate).toISOString().split('T')[0] as any : null,
       projectCategory: operation.projectCategory,
@@ -300,8 +297,8 @@ export default function OperationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Shipments</h1>
-          <p className="text-muted-foreground mt-2">Manage freight operations and logistics</p>
+          <h1 className="text-3xl font-bold text-foreground">Operaciones</h1>
+          <p className="text-muted-foreground mt-2">Gestiona operaciones de carga y logística</p>
         </div>
         <Dialog open={isCreateOpen || !!editingOperation} onOpenChange={(open) => {
           if (!open) {
@@ -314,14 +311,14 @@ export default function OperationsPage() {
           <DialogTrigger asChild>
             <Button onClick={() => setIsCreateOpen(true)} data-testid="button-create-operation">
               <Plus className="w-4 h-4 mr-2" />
-              New Shipment
+              Nueva Operación
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>{editingOperation ? "Edit Shipment" : "Create Shipment"}</DialogTitle>
+              <DialogTitle>{editingOperation ? "Editar Operación" : "Crear Operación"}</DialogTitle>
               <DialogDescription>
-                {editingOperation ? "Update shipment details" : "Add a new shipment to track"}
+                {editingOperation ? "Actualiza los detalles de la operación" : "Agrega una nueva operación"}
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -727,9 +724,9 @@ export default function OperationsPage() {
       <DataTable
         data={operations}
         columns={columns}
-        searchPlaceholder="Search shipments..."
+        searchPlaceholder="Buscar operaciones..."
         isLoading={isLoading}
-        emptyMessage="No shipments found. Create your first shipment to get started."
+        emptyMessage="No se encontraron operaciones. Crea tu primera operación para comenzar."
       />
     </div>
   );
