@@ -806,12 +806,23 @@ function EmailsTab({ operationId, operation, gmailMessages }: {
   gmailMessages: GmailMessage[];
 }) {
   const relatedEmails = gmailMessages.filter(msg => {
-    const searchText = `${msg.subject} ${msg.from} ${msg.snippet}`.toLowerCase();
     const operationName = operation.name.toLowerCase();
     const bookingNumber = operation.bookingTracking?.toLowerCase();
     
-    return searchText.includes(operationName) || 
-           (bookingNumber && searchText.includes(bookingNumber));
+    // Buscar en múltiples campos del email
+    const subject = (msg.subject || '').toLowerCase();
+    const from = (msg.from || '').toLowerCase();
+    const snippet = (msg.snippet || '').toLowerCase();
+    const bodyText = ((msg as any).bodyText || '').toLowerCase();
+    
+    // Combinar todo el contenido disponible
+    const fullContent = `${subject} ${from} ${snippet} ${bodyText}`;
+    
+    // Buscar el nombre de la operación o número de tracking
+    const hasOperationName = fullContent.includes(operationName);
+    const hasBookingNumber = bookingNumber && fullContent.includes(bookingNumber);
+    
+    return hasOperationName || hasBookingNumber;
   });
 
   return (
