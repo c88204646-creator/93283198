@@ -59,10 +59,12 @@ export default function EmployeesPage() {
   const form = useForm<z.infer<typeof insertEmployeeSchema>>({
     resolver: zodResolver(insertEmployeeSchema),
     defaultValues: {
-      userId: "",
+      name: "",
+      email: "",
       position: "",
       department: "",
-      hireDate: new Date() as any,
+      birthdate: undefined as any,
+      hireDate: undefined as any,
       status: "active",
       phone: "",
     },
@@ -72,7 +74,8 @@ export default function EmployeesPage() {
     mutationFn: (data: EmployeeFormData) => {
       const formattedData = {
         ...data,
-        hireDate: new Date(data.hireDate),
+        hireDate: data.hireDate ? new Date(data.hireDate) : undefined,
+        birthdate: data.birthdate ? new Date(data.birthdate) : undefined,
       };
       return apiRequest("POST", "/api/employees", formattedData);
     },
@@ -89,7 +92,8 @@ export default function EmployeesPage() {
     mutationFn: ({ id, data }: { id: string; data: EmployeeFormData }) => {
       const formattedData = {
         ...data,
-        hireDate: new Date(data.hireDate),
+        hireDate: data.hireDate ? new Date(data.hireDate) : undefined,
+        birthdate: data.birthdate ? new Date(data.birthdate) : undefined,
       };
       return apiRequest("PATCH", `/api/employees/${id}`, formattedData);
     },
@@ -121,49 +125,49 @@ export default function EmployeesPage() {
 
   const handleEdit = (employee: Employee) => {
     setEditingEmployee(employee);
-    const formattedDate = new Date(employee.hireDate).toISOString().split('T')[0];
+    const formattedHireDate = employee.hireDate ? new Date(employee.hireDate).toISOString().split('T')[0] : undefined;
+    const formattedBirthdate = employee.birthdate ? new Date(employee.birthdate).toISOString().split('T')[0] : undefined;
     form.reset({
-      userId: employee.userId,
+      name: employee.name,
+      email: employee.email,
       position: employee.position,
-      department: employee.department,
+      department: employee.department || "",
       status: employee.status,
       phone: employee.phone || "",
-      hireDate: formattedDate as any,
+      hireDate: formattedHireDate as any,
+      birthdate: formattedBirthdate as any,
     });
   };
 
   const columns = [
     {
-      header: "Name",
-      accessor: (row: Employee) => {
-        const user = users.find((u) => u.id === row.userId);
-        return (
-          <div>
-            <div className="font-medium">{user?.fullName || "-"}</div>
-            <div className="text-sm text-muted-foreground">{user?.email || "-"}</div>
-          </div>
-        );
-      },
+      header: "Nombre",
+      accessor: (row: Employee) => (
+        <div>
+          <div className="font-medium">{row.name}</div>
+          <div className="text-sm text-muted-foreground">{row.email}</div>
+        </div>
+      ),
     },
     {
-      header: "Position",
+      header: "Puesto",
       accessor: "position" as keyof Employee,
     },
     {
-      header: "Department",
+      header: "Departamento",
       accessor: "department" as keyof Employee,
     },
     {
-      header: "Status",
+      header: "Cumpleaños",
+      accessor: (row: Employee) => row.birthdate ? new Date(row.birthdate).toLocaleDateString("es-MX", { month: "long", day: "numeric" }) : "-",
+    },
+    {
+      header: "Estado",
       accessor: (row: Employee) => (
         <Badge className={statusColors[row.status as keyof typeof statusColors]} data-testid={`status-${row.id}`}>
           {row.status}
         </Badge>
       ),
-    },
-    {
-      header: "Hire Date",
-      accessor: (row: Employee) => new Date(row.hireDate).toLocaleDateString(),
     },
     {
       header: "Actions",
@@ -224,39 +228,43 @@ export default function EmployeesPage() {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="userId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>User Account</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre Completo</FormLabel>
                         <FormControl>
-                          <SelectTrigger data-testid="select-user">
-                            <SelectValue placeholder="Select user" />
-                          </SelectTrigger>
+                          <Input {...field} data-testid="input-name" placeholder="Juan Pérez" />
                         </FormControl>
-                        <SelectContent>
-                          {availableUsers.map((user) => (
-                            <SelectItem key={user.id} value={user.id}>
-                              {user.fullName} ({user.username})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Correo Electrónico</FormLabel>
+                        <FormControl>
+                          <Input type="email" {...field} data-testid="input-email" placeholder="juan@ejemplo.com" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="position"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Position</FormLabel>
+                        <FormLabel>Puesto</FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-position" />
+                          <Input {...field} data-testid="input-position" placeholder="Gerente de Operaciones" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -267,9 +275,9 @@ export default function EmployeesPage() {
                     name="department"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Department</FormLabel>
+                        <FormLabel>Departamento</FormLabel>
                         <FormControl>
-                          <Input {...field} data-testid="input-department" />
+                          <Input {...field} value={field.value || ""} data-testid="input-department" placeholder="Logística" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -279,12 +287,12 @@ export default function EmployeesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="hireDate"
+                    name="birthdate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Hire Date</FormLabel>
+                        <FormLabel>Fecha de Cumpleaños</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} value={field.value as any} data-testid="input-hire-date" />
+                          <Input type="date" {...field} value={field.value as any} data-testid="input-birthdate" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -292,10 +300,25 @@ export default function EmployeesPage() {
                   />
                   <FormField
                     control={form.control}
+                    name="hireDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Fecha de Contratación</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} value={field.value as any} data-testid="input-hire-date" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
                     name="status"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Status</FormLabel>
+                        <FormLabel>Estado</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-status">
@@ -303,29 +326,29 @@ export default function EmployeesPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="on-leave">On Leave</SelectItem>
-                            <SelectItem value="terminated">Terminated</SelectItem>
+                            <SelectItem value="active">Activo</SelectItem>
+                            <SelectItem value="on-leave">En Licencia</SelectItem>
+                            <SelectItem value="terminated">Terminado</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Teléfono</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} data-testid="input-phone" placeholder="+52 123 456 7890" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value || ""} data-testid="input-phone" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <div className="flex justify-end gap-2">
                   <Button
                     type="button"

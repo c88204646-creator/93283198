@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Zap, Settings, Activity, Trash2, Mail, Filter, CheckCircle, XCircle, AlertCircle, Package, FileText, Receipt } from "lucide-react";
-import type { AutomationConfig, AutomationRule, AutomationLog, GmailAccount } from "@shared/schema";
+import { Zap, Settings, Activity, Trash2, Mail, Filter, CheckCircle, XCircle, AlertCircle, Package, FileText, Receipt, Users } from "lucide-react";
+import type { AutomationConfig, AutomationRule, AutomationLog, GmailAccount, Employee } from "@shared/schema";
 
 // Módulos de automatización disponibles
 const AVAILABLE_MODULES = [

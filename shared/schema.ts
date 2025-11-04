@@ -27,15 +27,19 @@ export const clients = pgTable("clients", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Employees table (extends user data)
+// Employees table
 export const employees = pgTable("employees", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: "set null" }), // Optional link to user account
+  name: text("name").notNull(),
+  email: text("email").notNull(),
   position: text("position").notNull(),
-  department: text("department").notNull(),
-  hireDate: timestamp("hire_date").notNull(),
+  department: text("department"),
+  birthdate: timestamp("birthdate"), // Date of birth for birthday events
+  hireDate: timestamp("hire_date"),
   status: text("status").notNull().default("active"), // active, on-leave, terminated
   phone: text("phone"),
+  birthdayEventId: varchar("birthday_event_id").references(() => calendarEvents.id, { onDelete: "set null" }), // Link to birthday event
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -505,7 +509,7 @@ export const calendarEventsRelations = relations(calendarEvents, ({ one }) => ({
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true });
-export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: true, createdAt: true });
+export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: true, createdAt: true, birthdayEventId: true, userId: true });
 export const insertOperationSchema = createInsertSchema(operations).omit({ id: true, createdAt: true });
 export const insertOperationEmployeeSchema = createInsertSchema(operationEmployees).omit({ id: true, createdAt: true });
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
