@@ -12,7 +12,8 @@ import {
   Truck,
   Mail,
   MapPin,
-  Calendar
+  Calendar,
+  Zap
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
@@ -94,6 +95,11 @@ const menuItems: MenuItem[] = [
     title: "Calendar",
     url: "/calendar",
     icon: Calendar,
+  },
+  {
+    title: "Automation",
+    url: "/automation",
+    icon: Zap,
   },
   {
     title: "Custom Fields",
