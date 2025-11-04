@@ -81,7 +81,7 @@ function AddressAutocomplete({
       setIsLoading(true);
       try {
         const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}&limit=5`
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}&limit=5&addressdetails=1&extratags=1`
         );
         const data = await response.json();
         setSuggestions(data);
@@ -91,7 +91,7 @@ function AddressAutocomplete({
       } finally {
         setIsLoading(false);
       }
-    }, 500);
+    }, 300);
 
     return () => {
       if (debounceRef.current) {
@@ -606,13 +606,13 @@ export default function OperationsCreatePage() {
                     <div className="h-[250px] rounded-lg overflow-hidden border border-border">
                       <MapContainer
                         center={pickupLocation}
-                        zoom={13}
+                        zoom={15}
                         style={{ height: "100%", width: "100%" }}
                         className="z-0"
                       >
                         <TileLayer
                           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                         />
                         <Marker position={pickupLocation} />
                       </MapContainer>
@@ -642,13 +642,13 @@ export default function OperationsCreatePage() {
                     <div className="h-[250px] rounded-lg overflow-hidden border border-border">
                       <MapContainer
                         center={deliveryLocation}
-                        zoom={13}
+                        zoom={15}
                         style={{ height: "100%", width: "100%" }}
                         className="z-0"
                       >
                         <TileLayer
                           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
                         />
                         <Marker position={deliveryLocation} />
                       </MapContainer>
