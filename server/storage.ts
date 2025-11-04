@@ -4,7 +4,7 @@ import { eq, desc, and } from "drizzle-orm";
 import {
   users, clients, employees, operations, invoices, proposals, expenses, leads, 
   invoiceItems, proposalItems, payments, customFields, customFieldValues,
-  operationEmployees, gmailAccounts, gmailMessages, gmailAttachments,
+  operationEmployees, gmailAccounts, gmailMessages, gmailAttachments, calendarEvents,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Employee, type InsertEmployee,
@@ -22,6 +22,7 @@ import {
   type GmailAccount, type InsertGmailAccount,
   type GmailMessage, type InsertGmailMessage,
   type GmailAttachment, type InsertGmailAttachment,
+  type CalendarEvent, type InsertCalendarEvent,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -126,7 +127,7 @@ export interface IStorage {
   removeOperationEmployee(operationId: string, employeeId: string): Promise<void>;
 
   // Gmail Accounts
-  getAllGmailAccounts(userId: string): Promise<GmailAccount[]>;
+  getAllGmailAccounts(userId?: string): Promise<GmailAccount[]>;
   getGmailAccount(id: string): Promise<GmailAccount | undefined>;
   getGmailAccountByEmail(email: string): Promise<GmailAccount | undefined>;
   createGmailAccount(account: InsertGmailAccount): Promise<GmailAccount>;
@@ -146,6 +147,15 @@ export interface IStorage {
   getGmailAttachment(id: string): Promise<GmailAttachment | undefined>;
   createGmailAttachment(attachment: InsertGmailAttachment): Promise<GmailAttachment>;
   deleteGmailAttachment(id: string): Promise<void>;
+
+  // Calendar Events
+  getAllCalendarEvents(userId: string): Promise<CalendarEvent[]>;
+  getCalendarEventsByAccount(accountId: string): Promise<CalendarEvent[]>;
+  getCalendarEvent(id: string): Promise<CalendarEvent | undefined>;
+  getCalendarEventsByGoogleId(eventId: string): Promise<CalendarEvent[]>;
+  createCalendarEvent(event: InsertCalendarEvent): Promise<CalendarEvent>;
+  updateCalendarEvent(id: string, event: Partial<InsertCalendarEvent>): Promise<CalendarEvent | undefined>;
+  deleteCalendarEvent(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -516,8 +526,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Gmail Accounts
-  async getAllGmailAccounts(userId: string): Promise<GmailAccount[]> {
-    return await db.select().from(gmailAccounts).where(eq(gmailAccounts.userId, userId)).orderBy(desc(gmailAccounts.createdAt));
+  async getAllGmailAccounts(userId?: string): Promise<GmailAccount[]> {
+    if (userId) {
+      return await db.select().from(gmailAccounts).where(eq(gmailAccounts.userId, userId)).orderBy(desc(gmailAccounts.createdAt));
+    }
+    return await db.select().from(gmailAccounts).orderBy(desc(gmailAccounts.createdAt));
   }
 
   async getGmailAccount(id: string): Promise<GmailAccount | undefined> {
@@ -594,6 +607,58 @@ export class DatabaseStorage implements IStorage {
 
   async deleteGmailAttachment(id: string): Promise<void> {
     await db.delete(gmailAttachments).where(eq(gmailAttachments.id, id));
+  }
+
+  // Calendar Events
+  async getAllCalendarEvents(userId: string): Promise<CalendarEvent[]> {
+    const accounts = await this.getAllGmailAccounts(userId);
+    const accountIds = accounts.map(a => a.id);
+    
+    // Obtener eventos de Google Calendar
+    const googleEvents = accountIds.length > 0 
+      ? await db.select().from(calendarEvents)
+          .where(eq(calendarEvents.gmailAccountId, accountIds[0]))
+          .orderBy(desc(calendarEvents.startTime))
+      : [];
+    
+    // Obtener eventos locales del usuario
+    const localEvents = await db.select().from(calendarEvents)
+      .where(and(
+        eq(calendarEvents.source, 'local'),
+        eq(calendarEvents.createdBy, userId)
+      ))
+      .orderBy(desc(calendarEvents.startTime));
+    
+    return [...googleEvents, ...localEvents];
+  }
+
+  async getCalendarEventsByAccount(accountId: string): Promise<CalendarEvent[]> {
+    return await db.select().from(calendarEvents)
+      .where(eq(calendarEvents.gmailAccountId, accountId))
+      .orderBy(desc(calendarEvents.startTime));
+  }
+
+  async getCalendarEvent(id: string): Promise<CalendarEvent | undefined> {
+    const [event] = await db.select().from(calendarEvents).where(eq(calendarEvents.id, id));
+    return event || undefined;
+  }
+
+  async getCalendarEventsByGoogleId(eventId: string): Promise<CalendarEvent[]> {
+    return await db.select().from(calendarEvents).where(eq(calendarEvents.eventId, eventId));
+  }
+
+  async createCalendarEvent(insertEvent: InsertCalendarEvent): Promise<CalendarEvent> {
+    const [event] = await db.insert(calendarEvents).values(insertEvent).returning();
+    return event;
+  }
+
+  async updateCalendarEvent(id: string, updateData: Partial<InsertCalendarEvent>): Promise<CalendarEvent | undefined> {
+    const [event] = await db.update(calendarEvents).set(updateData).where(eq(calendarEvents.id, id)).returning();
+    return event || undefined;
+  }
+
+  async deleteCalendarEvent(id: string): Promise<void> {
+    await db.delete(calendarEvents).where(eq(calendarEvents.id, id));
   }
 }
 
