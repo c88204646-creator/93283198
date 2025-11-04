@@ -130,13 +130,13 @@ export default function DashboardPage() {
                         {moduleStats?.total || 0}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {card.statsKey === "operations" && `${moduleStats?.active || 0} active`}
-                        {card.statsKey === "clients" && `${moduleStats?.active || 0} active`}
-                        {card.statsKey === "employees" && `${moduleStats?.active || 0} active`}
-                        {card.statsKey === "invoices" && `${moduleStats?.paid || 0} paid, ${moduleStats?.pending || 0} pending`}
-                        {card.statsKey === "proposals" && `${moduleStats?.pending || 0} pending`}
-                        {card.statsKey === "expenses" && `${moduleStats?.pending || 0} pending approval`}
-                        {card.statsKey === "leads" && `${moduleStats?.new || 0} new this month`}
+                        {card.statsKey === "operations" && `${moduleStats && 'active' in moduleStats ? moduleStats.active : 0} active`}
+                        {card.statsKey === "clients" && `${moduleStats && 'active' in moduleStats ? moduleStats.active : 0} active`}
+                        {card.statsKey === "employees" && `${moduleStats && 'active' in moduleStats ? moduleStats.active : 0} active`}
+                        {card.statsKey === "invoices" && `${moduleStats && 'paid' in moduleStats ? moduleStats.paid : 0} paid, ${moduleStats && 'pending' in moduleStats ? moduleStats.pending : 0} pending`}
+                        {card.statsKey === "proposals" && `${moduleStats && 'pending' in moduleStats ? moduleStats.pending : 0} pending`}
+                        {card.statsKey === "expenses" && `${moduleStats && 'pending' in moduleStats ? moduleStats.pending : 0} pending approval`}
+                        {card.statsKey === "leads" && `${moduleStats && 'new' in moduleStats ? moduleStats.new : 0} new this month`}
                       </p>
                     </>
                   )}

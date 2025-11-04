@@ -56,11 +56,11 @@ export function DataTable<T extends { id: string }>({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedData = filteredData.slice(startIndex, startIndex + itemsPerPage);
 
-  const getCellValue = (row: T, column: Column<T>) => {
+  const getCellValue = (row: T, column: Column<T>): React.ReactNode => {
     if (typeof column.accessor === "function") {
       return column.accessor(row);
     }
-    return row[column.accessor];
+    return row[column.accessor] as React.ReactNode;
   };
 
   return (

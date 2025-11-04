@@ -265,7 +265,7 @@ export default function OperationsPage() {
                     <FormItem>
                       <FormLabel>Description</FormLabel>
                       <FormControl>
-                        <Textarea {...field} data-testid="input-description" />
+                        <Textarea {...field} value={field.value || ""} data-testid="input-description" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -377,7 +377,7 @@ export default function OperationsPage() {
                       <FormItem>
                         <FormLabel>Start Date</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} value={field.value || ""} data-testid="input-start-date" />
+                          <Input type="date" {...field} value={(field.value as unknown as string) || ""} data-testid="input-start-date" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -390,7 +390,7 @@ export default function OperationsPage() {
                       <FormItem>
                         <FormLabel>End Date</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} value={field.value || ""} data-testid="input-end-date" />
+                          <Input type="date" {...field} value={(field.value as unknown as string) || ""} data-testid="input-end-date" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

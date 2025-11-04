@@ -385,7 +385,7 @@ export default function InvoicesPage() {
                       <FormItem>
                         <FormLabel>Paid Date (Optional)</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} value={field.value || ""} data-testid="input-paid-date" />
+                          <Input type="date" {...field} value={(field.value as unknown as string) || ""} data-testid="input-paid-date" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
