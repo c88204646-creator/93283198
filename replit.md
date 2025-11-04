@@ -77,6 +77,9 @@ Design preference: Logistics-focused iconography and terminology.
 - **leads**: Sales pipeline management with conversion tracking
 - **customFields**: Dynamic field definitions for entity customization
 - **customFieldValues**: Values for custom fields across entities
+- **gmailAccounts**: Gmail/GSuite account management for OAuth integration
+- **gmailMessages**: Gmail messages synced from Google API
+- **calendarEvents**: Google Calendar events synced from Calendar API, plus local events
 
 **Schema Patterns**
 - UUID primary keys generated via PostgreSQL `gen_random_uuid()`
@@ -131,8 +134,59 @@ Design preference: Logistics-focused iconography and terminology.
 - bcrypt for password hashing
 - CORS handling via Express middleware
 
+**Google API Integration**
+- googleapis package for Gmail and Calendar API access
+- Custom OAuth 2.0 flow with automatic redirect URI detection using REPLIT_DOMAINS
+- OAuth scopes: gmail.readonly, calendar.readonly
+- Automatic token refresh handling
+- Background sync services with 5-minute intervals
+
 **Deployment Considerations**
 - Environment variable for DATABASE_URL
 - Separate build commands for client (Vite) and server (ESBuild)
 - Production mode uses compiled JavaScript from dist directory
 - Static file serving in production via Express
+
+## Recent Features
+
+### Gmail Integration Module (November 2025)
+Complete Gmail/GSuite synchronization system with OAuth authentication:
+
+**OAuth Implementation**
+- Custom OAuth flow using Google APIs
+- Automatic redirect URI detection via REPLIT_DOMAINS environment variable
+- Scopes: gmail.readonly, calendar.readonly
+- Token management with automatic refresh
+- Support for multiple Gmail accounts per user
+
+**Background Synchronization**
+- Automatic Gmail message sync (5-minute intervals)
+- Automatic Google Calendar sync (5-minute intervals)
+- Last sync timestamp tracking
+- Error handling and retry logic
+- Configurable sync date ranges
+
+**Gmail Features**
+- Message list with subject, sender, snippet
+- Inbox/Sent/Starred folder support
+- Message body viewing (HTML and plain text)
+- Search and filtering capabilities
+- Account management UI
+
+**Calendar Features**
+- Monthly calendar view with event display
+- Event creation (local or synced to Google Calendar)
+- All-day event support
+- Event details: title, description, location, attendees
+- Automatic background synchronization
+- Multi-account support (view events from all linked Google accounts)
+- Visual differentiation between Google and local events
+
+**Technical Components**
+- `server/gmail-sync.ts`: Gmail OAuth and message synchronization service
+- `server/calendar-sync.ts`: Google Calendar synchronization service
+- `client/src/pages/gmail.tsx`: Gmail inbox interface
+- `client/src/pages/calendar.tsx`: Calendar view and event management
+- Database tables: gmailAccounts, gmailMessages, calendarEvents
+- API routes: `/api/gmail/*`, `/api/calendar/*`
+- Background sync initialized in `server/index.ts`
