@@ -11,9 +11,9 @@ function getRedirectUri(): string {
     return redirectPath;
   }
   
-  // Caso contrario, construir la URL completa
-  const baseUrl = process.env.REPL_SLUG 
-    ? `https://${process.env.REPL_SLUG}.${process.env.REPLIT_DEV_DOMAIN}`
+  // Caso contrario, construir la URL completa usando REPLIT_DOMAINS
+  const baseUrl = process.env.REPLIT_DOMAINS 
+    ? `https://${process.env.REPLIT_DOMAINS}`
     : 'http://localhost:5000';
   
   // Asegurar que el path empiece con /
