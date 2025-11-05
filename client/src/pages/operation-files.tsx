@@ -43,6 +43,9 @@ import {
   FileArchive,
   FileSpreadsheet,
   Eye,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import type { OperationFile, OperationFolder } from "@shared/schema";
 
@@ -89,6 +92,8 @@ export default function OperationFilesPage() {
   const [editingFolder, setEditingFolder] = useState<OperationFolder | null>(null);
   const [editingFile, setEditingFile] = useState<OperationFile | null>(null);
   const [pendingUpload, setPendingUpload] = useState<{ fileURL: string; file: any } | null>(null);
+  const [previewFile, setPreviewFile] = useState<OperationFile | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number>(0);
 
   const { data: folders = [] } = useQuery<OperationFolder[]>({
     queryKey: ["/api/operations", operationId, "folders"],
@@ -272,6 +277,26 @@ export default function OperationFilesPage() {
     }
   };
 
+  const handlePreview = (file: OperationFile) => {
+    const index = files.findIndex(f => f.id === file.id);
+    setPreviewIndex(index);
+    setPreviewFile(file);
+  };
+
+  const handlePrevFile = () => {
+    if (previewIndex > 0) {
+      setPreviewIndex(previewIndex - 1);
+      setPreviewFile(files[previewIndex - 1]);
+    }
+  };
+
+  const handleNextFile = () => {
+    if (previewIndex < files.length - 1) {
+      setPreviewIndex(previewIndex + 1);
+      setPreviewFile(files[previewIndex + 1]);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -386,79 +411,146 @@ export default function OperationFilesPage() {
                   {files.map((file) => {
                     const FileIcon = getFileIcon(file.mimeType, file.category);
                     const category = FILE_CATEGORIES.find(c => c.value === file.category);
+                    const isImage = file.mimeType.startsWith("image/") || file.category === "image";
 
                     return (
-                      <Card key={file.id} className="hover-elevate">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <FileIcon className="w-8 h-8 text-primary" />
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" data-testid={`file-menu-${file.id}`}>
-                                  <MoreVertical className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent>
-                                <DropdownMenuItem
-                                  data-testid={`file-view-${file.id}`}
-                                  onClick={() => window.open(file.objectPath, "_blank")}
-                                >
-                                  <Eye className="w-4 h-4 mr-2" />
-                                  Ver
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  data-testid={`file-download-${file.id}`}
-                                  onClick={() => {
-                                    const a = document.createElement("a");
-                                    a.href = file.objectPath;
-                                    a.download = file.originalName;
-                                    a.click();
-                                  }}
-                                >
-                                  <Download className="w-4 h-4 mr-2" />
-                                  Descargar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  data-testid={`file-edit-${file.id}`}
-                                  onClick={() => {
-                                    setEditingFile(file);
-                                    setIsFileDialogOpen(true);
-                                  }}
-                                >
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  data-testid={`file-delete-${file.id}`}
-                                  onClick={() => {
-                                    if (confirm("¿Eliminar este archivo?")) {
-                                      deleteFileMutation.mutate(file.id);
-                                    }
-                                  }}
-                                  className="text-destructive"
-                                >
-                                  <Trash className="w-4 h-4 mr-2" />
-                                  Eliminar
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                          <h3 className="font-medium truncate mb-1" data-testid={`file-name-${file.id}`}>
-                            {file.name}
-                          </h3>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            {formatFileSize(file.size)}
-                          </p>
-                          {category && (
-                            <Badge variant="secondary" className="text-xs">
-                              {category.icon} {category.label}
-                            </Badge>
+                      <Card 
+                        key={file.id} 
+                        className="hover-elevate cursor-pointer overflow-hidden"
+                        onClick={() => handlePreview(file)}
+                        data-testid={`file-card-${file.id}`}
+                      >
+                        <CardContent className="p-0">
+                          {isImage ? (
+                            <div className="relative w-full h-48 bg-muted overflow-hidden">
+                              <img 
+                                src={file.objectPath} 
+                                alt={file.name}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                              <div className="absolute top-2 right-2">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                    <Button variant="secondary" size="icon" data-testid={`file-menu-${file.id}`}>
+                                      <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                    <DropdownMenuItem
+                                      data-testid={`file-download-${file.id}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const a = document.createElement("a");
+                                        a.href = file.objectPath;
+                                        a.download = file.originalName;
+                                        a.click();
+                                      }}
+                                    >
+                                      <Download className="w-4 h-4 mr-2" />
+                                      Descargar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      data-testid={`file-edit-${file.id}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingFile(file);
+                                        setIsFileDialogOpen(true);
+                                      }}
+                                    >
+                                      <Edit className="w-4 h-4 mr-2" />
+                                      Editar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      data-testid={`file-delete-${file.id}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm("¿Eliminar este archivo?")) {
+                                          deleteFileMutation.mutate(file.id);
+                                        }
+                                      }}
+                                      className="text-destructive"
+                                    >
+                                      <Trash className="w-4 h-4 mr-2" />
+                                      Eliminar
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center h-32 bg-muted">
+                              <FileIcon className="w-16 h-16 text-primary opacity-50" />
+                            </div>
                           )}
-                          {file.description && (
-                            <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                              {file.description}
+                          <div className="p-4">
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="font-medium truncate flex-1" data-testid={`file-name-${file.id}`}>
+                                {file.name}
+                              </h3>
+                              {!isImage && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                    <Button variant="ghost" size="icon" data-testid={`file-menu-${file.id}`}>
+                                      <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent>
+                                    <DropdownMenuItem
+                                      data-testid={`file-download-${file.id}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const a = document.createElement("a");
+                                        a.href = file.objectPath;
+                                        a.download = file.originalName;
+                                        a.click();
+                                      }}
+                                    >
+                                      <Download className="w-4 h-4 mr-2" />
+                                      Descargar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      data-testid={`file-edit-${file.id}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingFile(file);
+                                        setIsFileDialogOpen(true);
+                                      }}
+                                    >
+                                      <Edit className="w-4 h-4 mr-2" />
+                                      Editar
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      data-testid={`file-delete-${file.id}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm("¿Eliminar este archivo?")) {
+                                          deleteFileMutation.mutate(file.id);
+                                        }
+                                      }}
+                                      className="text-destructive"
+                                    >
+                                      <Trash className="w-4 h-4 mr-2" />
+                                      Eliminar
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              {formatFileSize(file.size)}
                             </p>
-                          )}
+                            {category && (
+                              <Badge variant="secondary" className="text-xs mb-2">
+                                {category.icon} {category.label}
+                              </Badge>
+                            )}
+                            {file.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2">
+                                {file.description}
+                              </p>
+                            )}
+                          </div>
                         </CardContent>
                       </Card>
                     );
@@ -639,6 +731,102 @@ export default function OperationFilesPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
+        <DialogContent className="max-w-5xl h-[90vh] p-0" data-testid="dialog-preview">
+          {previewFile && (
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between p-4 border-b">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold truncate" data-testid="preview-file-name">{previewFile.name}</h3>
+                  <p className="text-sm text-muted-foreground">{formatFileSize(previewFile.size)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handlePrevFile}
+                    disabled={previewIndex === 0}
+                    data-testid="button-prev-file"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm text-muted-foreground px-2">
+                    {previewIndex + 1} / {files.length}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleNextFile}
+                    disabled={previewIndex === files.length - 1}
+                    data-testid="button-next-file"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      const a = document.createElement("a");
+                      a.href = previewFile.objectPath;
+                      a.download = previewFile.originalName;
+                      a.click();
+                    }}
+                    data-testid="button-download-preview"
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setPreviewFile(null)}
+                    data-testid="button-close-preview"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-auto bg-muted/30 flex items-center justify-center p-4">
+                {previewFile.mimeType.startsWith("image/") || previewFile.category === "image" ? (
+                  <img 
+                    src={previewFile.objectPath} 
+                    alt={previewFile.name}
+                    className="max-w-full max-h-full object-contain"
+                    data-testid="preview-image"
+                  />
+                ) : previewFile.mimeType === "application/pdf" ? (
+                  <iframe
+                    src={previewFile.objectPath}
+                    className="w-full h-full border-0"
+                    title={previewFile.name}
+                    data-testid="preview-pdf"
+                  />
+                ) : (
+                  <div className="text-center">
+                    <FileText className="w-24 h-24 mx-auto mb-4 text-muted-foreground opacity-50" />
+                    <p className="text-muted-foreground mb-4">
+                      No se puede previsualizar este tipo de archivo
+                    </p>
+                    <Button
+                      onClick={() => window.open(previewFile.objectPath, "_blank")}
+                      data-testid="button-open-new-tab"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Abrir en nueva pestaña
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {previewFile.description && (
+                <div className="p-4 border-t bg-background">
+                  <h4 className="font-medium mb-1">Descripción</h4>
+                  <p className="text-sm text-muted-foreground">{previewFile.description}</p>
+                </div>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
