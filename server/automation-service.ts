@@ -404,13 +404,10 @@ export class AutomationService {
             objectPath,
             category,
             description: `Adjunto de correo: ${message.subject}`,
-            tags: ['automatico', 'gmail'],
             uploadedBy: config.userId,
             uploadedVia: 'gmail_automation',
             sourceGmailMessageId: message.id,
             sourceGmailAttachmentId: attachment.id,
-            metadata: null,
-            extractedText: null,
           });
 
           console.log(`[Automation] Processed attachment ${attachment.filename} for operation ${operationId} in folder ${folderId}`);
