@@ -1567,12 +1567,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Config not found" });
       }
 
-      const { moduleDescription, isEnabled, selectedGmailAccounts, defaultEmployees } = req.body;
+      const { moduleDescription, isEnabled, selectedGmailAccounts, defaultEmployees, processAttachments } = req.body;
       const updated = await storage.updateAutomationConfig(id, {
         moduleDescription,
         isEnabled,
         selectedGmailAccounts,
         defaultEmployees,
+        processAttachments,
       });
 
       res.json(updated);
