@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startAutoCalendarSync } from "./calendar-sync";
 import { startAutomationService } from "./automation-service";
+import { storage } from "./storage";
 
 const app = express();
 
@@ -56,6 +57,16 @@ app.use((req, res, next) => {
 
   // Iniciar servicio de automatización en segundo plano
   startAutomationService();
+
+  // Vincular mensajes existentes a operaciones automáticamente (se ejecuta una vez al inicio)
+  setTimeout(async () => {
+    try {
+      console.log('[Startup] Linking existing messages to operations...');
+      await storage.linkMessagesToOperations();
+    } catch (error) {
+      console.error('[Startup] Error linking messages:', error);
+    }
+  }, 5000); // Esperar 5 segundos para que el servidor esté completamente iniciado
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
