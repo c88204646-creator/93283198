@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LiveChat } from "@/components/LiveChat";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
@@ -123,6 +124,7 @@ function AppLayout() {
                 <Route component={NotFound} />
               </Switch>
             </div>
+            <LiveChat />
           </main>
         </div>
       </div>

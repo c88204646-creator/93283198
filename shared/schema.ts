@@ -414,6 +414,27 @@ export const operationFiles = pgTable("operation_files", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// LiveChat Conversations table
+export const chatConversations = pgTable("chat_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title"),
+  status: text("status").notNull().default("active"), // active, archived
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  lastMessageAt: timestamp("last_message_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// LiveChat Messages table
+export const chatMessages = pgTable("chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().references(() => chatConversations.id, { onDelete: "cascade" }),
+  role: text("role").notNull(), // user, assistant
+  content: text("content").notNull(),
+  metadata: jsonb("metadata"), // Para guardar info de tool calls, etc.
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one }) => ({
   employee: one(employees, {
@@ -631,6 +652,21 @@ export const operationFilesRelations = relations(operationFiles, ({ one }) => ({
   }),
 }));
 
+export const chatConversationsRelations = relations(chatConversations, ({ one, many }) => ({
+  user: one(users, {
+    fields: [chatConversations.userId],
+    references: [users.id],
+  }),
+  messages: many(chatMessages),
+}));
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  conversation: one(chatConversations, {
+    fields: [chatMessages.conversationId],
+    references: [chatConversations.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true, createdAt: true });
@@ -670,6 +706,8 @@ export const insertOperationNoteSchema = createInsertSchema(operationNotes).omit
 export const insertOperationTaskSchema = createInsertSchema(operationTasks).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertOperationFolderSchema = createInsertSchema(operationFolders).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertOperationFileSchema = createInsertSchema(operationFiles).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertChatConversationSchema = createInsertSchema(chatConversations).omit({ id: true, createdAt: true });
+export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -746,3 +784,9 @@ export type OperationFolder = typeof operationFolders.$inferSelect;
 
 export type InsertOperationFile = z.infer<typeof insertOperationFileSchema>;
 export type OperationFile = typeof operationFiles.$inferSelect;
+
+export type InsertChatConversation = z.infer<typeof insertChatConversationSchema>;
+export type ChatConversation = typeof chatConversations.$inferSelect;
+
+export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
+export type ChatMessage = typeof chatMessages.$inferSelect;

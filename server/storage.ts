@@ -1,12 +1,12 @@
 // Reference: javascript_database blueprint integration
 import { db } from "./db";
-import { eq, desc, and, inArray, gte, sql, isNull } from "drizzle-orm";
+import { eq, desc, and, inArray, gte, sql, isNull, asc } from "drizzle-orm";
 import {
   users, clients, employees, operations, invoices, proposals, expenses, leads, 
   invoiceItems, proposalItems, payments, customFields, customFieldValues,
   operationEmployees, gmailAccounts, gmailMessages, gmailAttachments, calendarEvents,
   automationConfigs, automationRules, automationLogs, operationNotes, operationTasks,
-  operationFolders, operationFiles,
+  operationFolders, operationFiles, chatConversations, chatMessages,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Employee, type InsertEmployee,
@@ -32,6 +32,8 @@ import {
   type OperationTask, type InsertOperationTask,
   type OperationFolder, type InsertOperationFolder,
   type OperationFile, type InsertOperationFile,
+  type ChatConversation, type InsertChatConversation,
+  type ChatMessage, type InsertChatMessage,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -189,7 +191,7 @@ export interface IStorage {
   // Operation Employees
   assignEmployeeToOperation(operationId: string, employeeId: string): Promise<void>;
   getOperationEmployees(operationId: string): Promise<Employee[]>;
-  
+
   // Helper functions for automation
   getUnprocessedMessages(accountIds: string[], since: Date): Promise<GmailMessage[]>;
   linkMessageToOperation(messageId: string, operationId: string | null): Promise<void>;
@@ -223,6 +225,14 @@ export interface IStorage {
   createOperationFile(file: InsertOperationFile): Promise<OperationFile>;
   updateOperationFile(id: string, file: Partial<InsertOperationFile>): Promise<OperationFile | undefined>;
   deleteOperationFile(id: string): Promise<void>;
+
+  // LiveChat methods
+  createChatConversation(userId: string): Promise<ChatConversation>;
+  getChatConversation(conversationId: string): Promise<ChatConversation | undefined>;
+  getUserConversations(userId: string): Promise<ChatConversation[]>;
+  createChatMessage(conversationId: string, role: 'user' | 'assistant', content: string, metadata?: any): Promise<ChatMessage>;
+  getChatMessages(conversationId: string, limit?: number): Promise<ChatMessage[]>;
+  archiveChatConversation(conversationId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -348,7 +358,7 @@ export class DatabaseStorage implements IStorage {
       .from(operationEmployees)
       .innerJoin(employees, eq(operationEmployees.employeeId, employees.id))
       .where(eq(operationEmployees.operationId, operationId));
-    
+
     return result.map(r => r.employee);
   }
 
@@ -699,14 +709,14 @@ export class DatabaseStorage implements IStorage {
   async getAllCalendarEvents(userId: string): Promise<CalendarEvent[]> {
     const accounts = await this.getAllGmailAccounts(userId);
     const accountIds = accounts.map(a => a.id);
-    
+
     // Obtener eventos de Google Calendar de todas las cuentas vinculadas
     const googleEvents = accountIds.length > 0 
       ? await db.select().from(calendarEvents)
           .where(inArray(calendarEvents.gmailAccountId, accountIds))
           .orderBy(desc(calendarEvents.startTime))
       : [];
-    
+
     // Obtener eventos locales del usuario
     const localEvents = await db.select().from(calendarEvents)
       .where(and(
@@ -714,7 +724,7 @@ export class DatabaseStorage implements IStorage {
         eq(calendarEvents.createdBy, userId)
       ))
       .orderBy(desc(calendarEvents.startTime));
-    
+
     return [...googleEvents, ...localEvents];
   }
 
@@ -821,7 +831,7 @@ export class DatabaseStorage implements IStorage {
     if (configId) {
       const rules = await this.getAutomationRulesByConfig(configId);
       const ruleIds = rules.map(r => r.id);
-      
+
       if (ruleIds.length === 0) {
         return [];
       }
@@ -847,12 +857,12 @@ export class DatabaseStorage implements IStorage {
     if (accountIds.length === 0) {
       return [];
     }
-    
+
     // Get all messages from selected accounts
     const allMessages = await db.select()
       .from(gmailMessages)
       .where(inArray(gmailMessages.gmailAccountId, accountIds));
-    
+
     // Filter messages received after 'since' date and sort
     return allMessages
       .filter(msg => msg.date && new Date(msg.date) > since)
@@ -875,41 +885,41 @@ export class DatabaseStorage implements IStorage {
   async linkMessagesToOperations(): Promise<void> {
     // Get all operations
     const allOperations = await db.select().from(operations);
-    
+
     // Get all messages without operation link
     const unlinkedMessages = await db.select()
       .from(gmailMessages)
       .where(sql`${gmailMessages.operationId} IS NULL`);
-    
+
     // Get all attachments for text extraction
     const allAttachments = await db.select().from(gmailAttachments);
-    
+
     let linkedCount = 0;
-    
+
     for (const message of unlinkedMessages) {
       for (const operation of allOperations) {
         const operationName = operation.name.toLowerCase();
         const bookingNumber = operation.bookingTracking?.toLowerCase();
-        
+
         // Build searchable content
         const subject = (message.subject || '').toLowerCase();
         const from = (message.fromEmail || '').toLowerCase();
         const snippet = (message.snippet || '').toLowerCase();
         const bodyText = (message.bodyText || '').toLowerCase();
-        
+
         // Get attachments text for this message
         const messageAttachments = allAttachments.filter(att => att.gmailMessageId === message.id);
         const attachmentsText = messageAttachments
           .map(att => (att.extractedText || '').toLowerCase())
           .join(' ');
-        
+
         // Combine all searchable content
         const fullContent = `${subject} ${from} ${snippet} ${bodyText} ${attachmentsText}`;
-        
+
         // Check if operation name or booking number exists
         const hasOperationName = fullContent.includes(operationName);
         const hasBookingNumber = bookingNumber && fullContent.includes(bookingNumber);
-        
+
         if (hasOperationName || hasBookingNumber) {
           await this.linkMessageToOperation(message.id, operation.id);
           linkedCount++;
@@ -917,7 +927,7 @@ export class DatabaseStorage implements IStorage {
         }
       }
     }
-    
+
     console.log(`[Email Linking] Linked ${linkedCount} messages to operations`);
   }
 
@@ -1015,7 +1025,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(operationFiles.operationId, operationId))
         .orderBy(desc(operationFiles.createdAt));
     }
-    
+
     if (folderId === null) {
       return await db.select().from(operationFiles)
         .where(and(
@@ -1053,6 +1063,59 @@ export class DatabaseStorage implements IStorage {
 
   async deleteOperationFile(id: string): Promise<void> {
     await db.delete(operationFiles).where(eq(operationFiles.id, id));
+  }
+
+  // LiveChat methods
+  async createChatConversation(userId: string): Promise<ChatConversation> {
+    const [conversation] = await db.insert(chatConversations).values({
+      userId,
+      status: 'active'
+    }).returning();
+    return conversation;
+  }
+
+  async getChatConversation(conversationId: string): Promise<ChatConversation | undefined> {
+    const [conversation] = await db.select()
+      .from(chatConversations)
+      .where(eq(chatConversations.id, conversationId));
+    return conversation;
+  }
+
+  async getUserConversations(userId: string): Promise<ChatConversation[]> {
+    return db.select()
+      .from(chatConversations)
+      .where(eq(chatConversations.userId, userId))
+      .orderBy(desc(chatConversations.lastMessageAt));
+  }
+
+  async createChatMessage(conversationId: string, role: 'user' | 'assistant', content: string, metadata?: any): Promise<ChatMessage> {
+    const [message] = await db.insert(chatMessages).values({
+      conversationId,
+      role,
+      content,
+      metadata
+    }).returning();
+
+    // Update conversation lastMessageAt
+    await db.update(chatConversations)
+      .set({ lastMessageAt: new Date() })
+      .where(eq(chatConversations.id, conversationId));
+
+    return message;
+  }
+
+  async getChatMessages(conversationId: string, limit: number = 50): Promise<ChatMessage[]> {
+    return db.select()
+      .from(chatMessages)
+      .where(eq(chatMessages.conversationId, conversationId))
+      .orderBy(asc(chatMessages.createdAt))
+      .limit(limit);
+  }
+
+  async archiveChatConversation(conversationId: string): Promise<void> {
+    await db.update(chatConversations)
+      .set({ status: 'archived' })
+      .where(eq(chatConversations.id, conversationId));
   }
 }
 

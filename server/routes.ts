@@ -5,7 +5,7 @@ import session from "express-session";
 import ConnectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import bcrypt from "bcrypt";
-import { 
+import {
   insertUserSchema, insertClientSchema, insertEmployeeSchema, insertOperationSchema,
   insertInvoiceSchema, insertProposalSchema, insertExpenseSchema, insertLeadSchema,
   insertCustomFieldSchema, insertOperationFolderSchema, insertOperationFileSchema
@@ -39,12 +39,12 @@ async function requireAdminOrManager(req: Request, res: Response, next: NextFunc
   if (!req.session.userId) {
     return res.status(401).json({ message: "Unauthorized" });
   }
-  
+
   const user = await storage.getUser(req.session.userId);
   if (!user || (user.role !== "admin" && user.role !== "manager")) {
     return res.status(403).json({ message: "Forbidden: Admin or Manager access required" });
   }
-  
+
   next();
 }
 
@@ -53,12 +53,12 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.session.userId) {
     return res.status(401).json({ message: "Unauthorized" });
   }
-  
+
   const user = await storage.getUser(req.session.userId);
   if (!user || user.role !== "admin") {
     return res.status(403).json({ message: "Forbidden: Admin access required" });
   }
-  
+
   next();
 }
 
@@ -86,7 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/register", async (req, res) => {
     try {
       const data = insertUserSchema.parse(req.body);
-      
+
       // Check if user already exists
       const existingUser = await storage.getUserByUsername(data.username);
       if (existingUser) {
@@ -100,7 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Hash password
       const hashedPassword = await bcrypt.hash(data.password, 10);
-      
+
       // Create user
       const user = await storage.createUser({
         ...data,
@@ -109,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Remove password from response
       const { password, ...userWithoutPassword } = user;
-      
+
       res.json(userWithoutPassword);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -139,7 +139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       req.session.userId = user.id;
-      
+
       const { password: _, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
@@ -148,7 +148,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", requireAuth, (req, res) => {
     req.session.destroy((err) => {
       if (err) {
         return res.status(500).json({ message: "Logout failed" });
@@ -163,7 +163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       const { password, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
@@ -227,12 +227,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const cacheKey = 'clients:all';
       let allClients = queryCache.get<any[]>(cacheKey);
-      
+
       if (!allClients) {
         allClients = await storage.getAllClients();
         queryCache.set(cacheKey, allClients, 5 * 60 * 1000); // 5 min cache
       }
-      
+
       res.json(allClients);
     } catch (error) {
       console.error("Get clients error:", error);
@@ -244,10 +244,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = insertClientSchema.parse(req.body);
       const client = await storage.createClient(data);
-      
+
       // Invalidate cache
       queryCache.invalidate('clients:all');
-      
+
       res.json(client);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -263,14 +263,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const data = insertClientSchema.partial().parse(req.body);
       const client = await storage.updateClient(id, data);
-      
+
       if (!client) {
         return res.status(404).json({ message: "Client not found" });
       }
-      
+
       // Invalidate cache
       queryCache.invalidate('clients:all');
-      
+
       res.json(client);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -285,10 +285,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.deleteClient(id);
-      
+
       // Invalidate cache
       queryCache.invalidate('clients:all');
-      
+
       res.json({ message: "Client deleted successfully" });
     } catch (error) {
       console.error("Delete client error:", error);
@@ -297,7 +297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Helper function to create or update birthday event
-  async function handleBirthdayEvent(employeeId: string, employeeName: string, birthdate: Date | null, currentBirthdayEventId?: string | null) {
+  async function handleBirthdayEvent(employeeId: string, employeeName: Date | null, birthdate: Date | null, currentBirthdayEventId?: string | null) {
     if (!birthdate) {
       // If no birthdate, delete existing birthday event if any
       if (currentBirthdayEventId) {
@@ -354,12 +354,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const cacheKey = 'employees:all';
       let allEmployees = queryCache.get<any[]>(cacheKey);
-      
+
       if (!allEmployees) {
         allEmployees = await storage.getAllEmployees();
         queryCache.set(cacheKey, allEmployees, 5 * 60 * 1000); // 5 min cache
       }
-      
+
       res.json(allEmployees);
     } catch (error) {
       console.error("Get employees error:", error);
@@ -371,13 +371,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = insertEmployeeSchema.parse(req.body);
       const employee = await storage.createEmployee(data);
-      
+
       // Handle birthday event creation
       await handleBirthdayEvent(employee.id, employee.name, employee.birthdate, null);
-      
+
       // Invalidate cache
       queryCache.invalidate('employees:all');
-      
+
       res.json(employee);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -392,30 +392,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const data = insertEmployeeSchema.partial().parse(req.body);
-      
+
       // Get current employee to check existing birthday event
       const currentEmployee = await storage.getEmployee(id);
       if (!currentEmployee) {
         return res.status(404).json({ message: "Employee not found" });
       }
-      
+
       const employee = await storage.updateEmployee(id, data);
-      
+
       if (!employee) {
         return res.status(404).json({ message: "Employee not found" });
       }
-      
+
       // Handle birthday event update
       await handleBirthdayEvent(
-        employee.id, 
-        employee.name, 
-        employee.birthdate, 
+        employee.id,
+        employee.name,
+        employee.birthdate,
         employee.birthdayEventId
       );
-      
+
       // Invalidate cache
       queryCache.invalidate('employees:all');
-      
+
       res.json(employee);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -430,10 +430,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.deleteEmployee(id);
-      
+
       // Invalidate cache
       queryCache.invalidate('employees:all');
-      
+
       res.json({ message: "Employee deleted successfully" });
     } catch (error) {
       console.error("Delete employee error:", error);
@@ -446,7 +446,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const cacheKey = 'operations:all';
       let operationsWithEmployees = queryCache.get<any[]>(cacheKey);
-      
+
       if (!operationsWithEmployees) {
         const allOperations = await storage.getAllOperations();
         operationsWithEmployees = await Promise.all(
@@ -457,7 +457,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         queryCache.set(cacheKey, operationsWithEmployees, 3 * 60 * 1000); // 3 min cache
       }
-      
+
       res.json(operationsWithEmployees);
     } catch (error) {
       console.error("Get operations error:", error);
@@ -469,11 +469,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const operation = await storage.getOperation(id);
-      
+
       if (!operation) {
         return res.status(404).json({ message: "Operation not found" });
       }
-      
+
       const employeeIds = await storage.getOperationEmployees(id);
       res.json({ ...operation, employeeIds });
     } catch (error) {
@@ -487,14 +487,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { employeeIds, ...operationData } = req.body;
       const data = insertOperationSchema.parse(operationData);
       const operation = await storage.createOperation(data);
-      
+
       if (employeeIds && Array.isArray(employeeIds) && employeeIds.length > 0) {
         await storage.setOperationEmployees(operation.id, employeeIds);
       }
-      
+
       // Invalidate cache
       queryCache.invalidate('operations:all');
-      
+
       res.json(operation);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -511,18 +511,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { employeeIds, ...operationData } = req.body;
       const data = insertOperationSchema.partial().parse(operationData);
       const operation = await storage.updateOperation(id, data);
-      
+
       if (!operation) {
         return res.status(404).json({ message: "Operation not found" });
       }
-      
+
       if (employeeIds !== undefined && Array.isArray(employeeIds)) {
         await storage.setOperationEmployees(id, employeeIds);
       }
-      
+
       // Invalidate cache
       queryCache.invalidate('operations:all');
-      
+
       res.json(operation);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -537,10 +537,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.deleteOperation(id);
-      
+
       // Invalidate cache
       queryCache.invalidate('operations:all');
-      
+
       res.json({ message: "Operation deleted successfully" });
     } catch (error) {
       console.error("Delete operation error:", error);
@@ -578,11 +578,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const data = insertInvoiceSchema.partial().parse(req.body);
       const invoice = await storage.updateInvoice(id, data);
-      
+
       if (!invoice) {
         return res.status(404).json({ message: "Invoice not found" });
       }
-      
+
       res.json(invoice);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -634,11 +634,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const data = insertProposalSchema.partial().parse(req.body);
       const proposal = await storage.updateProposal(id, data);
-      
+
       if (!proposal) {
         return res.status(404).json({ message: "Proposal not found" });
       }
-      
+
       res.json(proposal);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -665,7 +665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const proposal = await storage.getProposal(id);
-      
+
       if (!proposal) {
         return res.status(404).json({ message: "Proposal not found" });
       }
@@ -751,11 +751,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { insertInvoiceItemSchema } = await import("@shared/schema");
       const data = insertInvoiceItemSchema.partial().parse(req.body);
       const item = await storage.updateInvoiceItem(id, data);
-      
+
       if (!item) {
         return res.status(404).json({ message: "Invoice item not found" });
       }
-      
+
       res.json(item);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -811,11 +811,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { insertProposalItemSchema } = await import("@shared/schema");
       const data = insertProposalItemSchema.partial().parse(req.body);
       const item = await storage.updateProposalItem(id, data);
-      
+
       if (!item) {
         return res.status(404).json({ message: "Proposal item not found" });
       }
-      
+
       res.json(item);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -871,11 +871,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { insertPaymentSchema } = await import("@shared/schema");
       const data = insertPaymentSchema.partial().parse(req.body);
       const payment = await storage.updatePayment(id, data);
-      
+
       if (!payment) {
         return res.status(404).json({ message: "Payment not found" });
       }
-      
+
       res.json(payment);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -927,11 +927,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const data = insertExpenseSchema.partial().parse(req.body);
       const expense = await storage.updateExpense(id, data);
-      
+
       if (!expense) {
         return res.status(404).json({ message: "Expense not found" });
       }
-      
+
       res.json(expense);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -983,11 +983,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const data = insertLeadSchema.partial().parse(req.body);
       const lead = await storage.updateLead(id, data);
-      
+
       if (!lead) {
         return res.status(404).json({ message: "Lead not found" });
       }
-      
+
       res.json(lead);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1039,11 +1039,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const data = insertCustomFieldSchema.partial().parse(req.body);
       const customField = await storage.updateCustomField(id, data);
-      
+
       if (!customField) {
         return res.status(404).json({ message: "Custom field not found" });
       }
-      
+
       res.json(customField);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -1080,7 +1080,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/gmail/oauth/callback", async (req, res) => {
     try {
       const { code, state } = req.query;
-      
+
       if (!code || typeof code !== 'string') {
         return res.status(400).send('Missing authorization code');
       }
@@ -1090,7 +1090,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { userId } = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
-      
+
       const syncRangeMonths = parseInt(req.query.syncRange as string || '1');
       const syncFromDate = new Date();
       syncFromDate.setMonth(syncFromDate.getMonth() - syncRangeMonths);
@@ -1121,7 +1121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const accounts = await storage.getAllGmailAccounts(userId);
-      
+
       const accountsWithoutTokens = accounts.map(({ accessToken, refreshToken, ...account }) => account);
       res.json(accountsWithoutTokens);
     } catch (error) {
@@ -1134,7 +1134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.session.userId!;
-      
+
       const account = await storage.getGmailAccount(id);
       if (!account || account.userId !== userId) {
         return res.status(404).json({ message: "Account not found" });
@@ -1152,7 +1152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.session.userId!;
-      
+
       const account = await storage.getGmailAccount(id);
       if (!account || account.userId !== userId) {
         return res.status(404).json({ message: "Account not found" });
@@ -1177,7 +1177,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.session.userId!;
-      
+
       const account = await storage.getGmailAccount(id);
       if (!account || account.userId !== userId) {
         return res.status(404).json({ message: "Account not found" });
@@ -1200,7 +1200,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.session.userId!;
       const limit = parseInt(req.query.limit as string || '500');
-      
+
       const accounts = await storage.getAllGmailAccounts(userId);
       if (!accounts || accounts.length === 0) {
         return res.json([]);
@@ -1226,7 +1226,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.session.userId!;
       const limit = parseInt(req.query.limit as string || '100');
       const offset = parseInt(req.query.offset as string || '0');
-      
+
       const account = await storage.getGmailAccount(accountId);
       if (!account || account.userId !== userId) {
         return res.status(404).json({ message: "Account not found" });
@@ -1244,7 +1244,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.session.userId!;
-      
+
       const message = await storage.getGmailMessage(id);
       if (!message) {
         return res.status(404).json({ message: "Message not found" });
@@ -1267,7 +1267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id, type } = req.params;
       const userId = req.session.userId!;
-      
+
       if (type !== 'text' && type !== 'html') {
         return res.status(400).json({ message: "Invalid body type. Use 'text' or 'html'." });
       }
@@ -1284,13 +1284,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const b2Key = type === 'text' ? message.bodyTextB2Key : message.bodyHtmlB2Key;
       const legacyBody = type === 'text' ? message.bodyText : message.bodyHtml;
-      
+
       // Try Backblaze first, fall back to legacy storage
       if (b2Key && backblazeStorage.isAvailable()) {
         try {
           const bodyContent = await backblazeStorage.downloadFile(b2Key);
           const contentType = type === 'text' ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8';
-          
+
           res.setHeader('Content-Type', contentType);
           res.send(bodyContent);
           return;
@@ -1318,7 +1318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/gmail/attachments/all", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      
+
       const accounts = await storage.getAllGmailAccounts(userId);
       if (!accounts || accounts.length === 0) {
         return res.json([]);
@@ -1347,7 +1347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { messageId } = req.params;
       const userId = req.session.userId!;
-      
+
       const message = await storage.getGmailMessage(messageId);
       if (!message) {
         return res.status(404).json({ message: "Message not found" });
@@ -1370,7 +1370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.session.userId!;
-      
+
       const attachment = await storage.getGmailAttachment(id);
       if (!attachment) {
         return res.status(404).json({ message: "Attachment not found" });
@@ -1412,11 +1412,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         buffer = Buffer.from(attachmentData, 'base64');
       }
-      
+
       res.setHeader('Content-Type', attachment.mimeType);
       res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
       res.setHeader('Content-Length', buffer.length);
-      
+
       res.send(buffer);
     } catch (error) {
       console.error("Download Gmail attachment error:", error);
@@ -1442,7 +1442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { accountId } = req.params;
       const userId = req.session.userId!;
-      
+
       const account = await storage.getGmailAccount(accountId);
       if (!account || account.userId !== userId) {
         return res.status(404).json({ message: "Account not found" });
@@ -1517,7 +1517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.session.userId!;
-      
+
       const event = await storage.getCalendarEvent(id);
       if (!event) {
         return res.status(404).json({ message: "Event not found" });
@@ -1576,7 +1576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.session.userId!;
-      
+
       const event = await storage.getCalendarEvent(id);
       if (!event) {
         return res.status(404).json({ message: "Event not found" });
@@ -1612,7 +1612,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { accountId } = req.params;
       const userId = req.session.userId!;
-      
+
       const account = await storage.getGmailAccount(accountId);
       if (!account || account.userId !== userId) {
         return res.status(404).json({ message: "Account not found" });
@@ -1642,7 +1642,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.session.userId!;
-      
+
       const config = await storage.getAutomationConfig(id);
       if (!config || config.userId !== userId) {
         return res.status(404).json({ message: "Config not found" });
@@ -1686,7 +1686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.session.userId!;
-      
+
       const config = await storage.getAutomationConfig(id);
       if (!config || config.userId !== userId) {
         return res.status(404).json({ message: "Config not found" });
@@ -1712,7 +1712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.session.userId!;
-      
+
       const config = await storage.getAutomationConfig(id);
       if (!config || config.userId !== userId) {
         return res.status(404).json({ message: "Config not found" });
@@ -1731,7 +1731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { configId } = req.params;
       const userId = req.session.userId!;
-      
+
       const config = await storage.getAutomationConfig(configId);
       if (!config || config.userId !== userId) {
         return res.status(404).json({ message: "Config not found" });
@@ -1749,14 +1749,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { configId } = req.params;
       const userId = req.session.userId!;
-      
+
       const config = await storage.getAutomationConfig(configId);
       if (!config || config.userId !== userId) {
         return res.status(404).json({ message: "Config not found" });
       }
 
       const { name, description, isEnabled, priority, conditions, actions } = req.body;
-      
+
       const rule = await storage.createAutomationRule({
         configId,
         name,
@@ -1778,7 +1778,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.session.userId!;
-      
+
       const rule = await storage.getAutomationRule(id);
       if (!rule) {
         return res.status(404).json({ message: "Rule not found" });
@@ -1810,7 +1810,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const userId = req.session.userId!;
-      
+
       const rule = await storage.getAutomationRule(id);
       if (!rule) {
         return res.status(404).json({ message: "Rule not found" });
@@ -1835,7 +1835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { configId } = req.params;
       const userId = req.session.userId!;
       const limit = parseInt(req.query.limit as string || '100');
-      
+
       const config = await storage.getAutomationConfig(configId);
       if (!config || config.userId !== userId) {
         return res.status(404).json({ message: "Config not found" });
@@ -2065,7 +2065,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { operationId } = req.params;
       const userId = req.session.userId!;
       const data = insertOperationFolderSchema.parse({ ...req.body, operationId, createdBy: userId });
-      
+
       const folder = await storage.createOperationFolder(data);
       res.status(201).json(folder);
     } catch (error) {
@@ -2106,7 +2106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { operationId } = req.params;
       const { folderId } = req.query;
-      
+
       const files = await storage.getOperationFiles(
         operationId,
         folderId === 'null' ? null : (folderId as string | undefined)
@@ -2275,7 +2275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Content-Type', file.mimeType);
       res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
       res.setHeader('Content-Length', buffer.length);
-      
+
       res.send(buffer);
     } catch (error) {
       console.error("Download operation file error:", error);
@@ -2313,6 +2313,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ message: "Email linking completed" });
     } catch (error) {
       console.error("Link messages error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // LiveChat routes
+  app.post("/api/chat/conversations", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const conversation = await storage.createChatConversation(userId);
+      res.json(conversation);
+    } catch (error) {
+      console.error("Create conversation error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/chat/conversations", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session.userId!;
+      const conversations = await storage.getUserConversations(userId);
+      res.json(conversations);
+    } catch (error) {
+      console.error("Get conversations error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/chat/conversations/:id/messages", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+
+      const conversation = await storage.getChatConversation(id);
+      if (!conversation || conversation.userId !== userId) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      const messages = await storage.getChatMessages(id);
+      res.json(messages);
+    } catch (error) {
+      console.error("Get messages error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/chat/conversations/:id/messages", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { content } = req.body;
+      const userId = req.session.userId!;
+
+      const conversation = await storage.getChatConversation(id);
+      if (!conversation || conversation.userId !== userId) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      // Save user message
+      const userMessage = await storage.createChatMessage(id, 'user', content);
+
+      // Get conversation history
+      const messages = await storage.getChatMessages(id);
+      const history = messages.map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        timestamp: m.createdAt
+      }));
+
+      // Get response from Gemini
+      const { geminiService } = await import('./gemini-service');
+      const assistantResponse = await geminiService.chat(history, userId);
+
+      // Save assistant message
+      const assistantMessage = await storage.createChatMessage(id, 'assistant', assistantResponse);
+
+      res.json({
+        userMessage,
+        assistantMessage
+      });
+    } catch (error) {
+      console.error("Send message error:", error);
+      res.status(500).json({ message: "Error al procesar el mensaje" });
+    }
+  });
+
+  app.delete("/api/chat/conversations/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+
+      const conversation = await storage.getChatConversation(id);
+      if (!conversation || conversation.userId !== userId) {
+        return res.status(404).json({ message: "Conversation not found" });
+      }
+
+      await storage.archiveChatConversation(id);
+      res.json({ message: "Conversation archived" });
+    } catch (error) {
+      console.error("Archive conversation error:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
