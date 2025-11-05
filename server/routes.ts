@@ -16,6 +16,7 @@ import * as calendarSync from "./calendar-sync";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { queryCache } from "./cache";
+import { backblazeStorage } from "./backblazeStorage";
 
 const PgSession = ConnectPgSimple(session);
 
@@ -1261,6 +1262,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Download email body from Backblaze
+  app.get("/api/gmail/messages/:id/body/:type", requireAuth, async (req, res) => {
+    try {
+      const { id, type } = req.params;
+      const userId = req.session.userId!;
+      
+      if (type !== 'text' && type !== 'html') {
+        return res.status(400).json({ message: "Invalid body type. Use 'text' or 'html'." });
+      }
+
+      const message = await storage.getGmailMessage(id);
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      const account = await storage.getGmailAccount(message.gmailAccountId);
+      if (!account || account.userId !== userId) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      const b2Key = type === 'text' ? message.bodyTextB2Key : message.bodyHtmlB2Key;
+      const legacyBody = type === 'text' ? message.bodyText : message.bodyHtml;
+      
+      // Try Backblaze first, fall back to legacy storage
+      if (b2Key && backblazeStorage.isAvailable()) {
+        try {
+          const bodyContent = await backblazeStorage.downloadFile(b2Key);
+          const contentType = type === 'text' ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8';
+          
+          res.setHeader('Content-Type', contentType);
+          res.send(bodyContent);
+          return;
+        } catch (error) {
+          console.error(`Error downloading from Backblaze, falling back to legacy:`, error);
+          // Fall through to legacy storage
+        }
+      }
+
+      // Fallback to legacy storage (bodyText/bodyHtml in database)
+      if (legacyBody) {
+        const contentType = type === 'text' ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8';
+        res.setHeader('Content-Type', contentType);
+        res.send(legacyBody);
+      } else {
+        return res.status(404).json({ message: "Email body not found" });
+      }
+    } catch (error) {
+      console.error("Download email body error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Gmail Attachment Routes
   app.get("/api/gmail/attachments/all", requireAuth, async (req, res) => {
     try {
@@ -1333,13 +1386,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Attachment not found" });
       }
 
-      const attachmentData = await gmailSync.getAttachmentData(
-        account,
-        message.messageId,
-        attachment.attachmentId
-      );
+      let buffer: Buffer;
 
-      const buffer = Buffer.from(attachmentData, 'base64');
+      // Try to download from Backblaze first if b2Key exists
+      if (attachment.b2Key) {
+        try {
+          buffer = await backblazeStorage.downloadFile(attachment.b2Key);
+          console.log(`Downloaded attachment from Backblaze: ${attachment.filename}`);
+        } catch (error) {
+          console.error(`Error downloading from Backblaze, falling back to Gmail API:`, error);
+          // Fallback to Gmail API if Backblaze fails
+          const attachmentData = await gmailSync.getAttachmentData(
+            account,
+            message.messageId,
+            attachment.attachmentId
+          );
+          buffer = Buffer.from(attachmentData, 'base64');
+        }
+      } else {
+        // Fallback to Gmail API if no b2Key
+        const attachmentData = await gmailSync.getAttachmentData(
+          account,
+          message.messageId,
+          attachment.attachmentId
+        );
+        buffer = Buffer.from(attachmentData, 'base64');
+      }
       
       res.setHeader('Content-Type', attachment.mimeType);
       res.setHeader('Content-Disposition', `attachment; filename="${attachment.filename}"`);
@@ -2046,24 +2118,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/b2/upload", requireAuth, async (req, res) => {
+    try {
+      const { buffer: base64Buffer, filename, mimeType, operationId, category } = req.body;
+      const userId = req.session.userId!;
+
+      if (!base64Buffer || !filename || !mimeType || !operationId) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const buffer = Buffer.from(base64Buffer, 'base64');
+
+      // Upload to Backblaze with deduplication
+      const uploadResult = await backblazeStorage.uploadOperationFile(
+        buffer,
+        filename,
+        mimeType,
+        operationId,
+        userId,
+        category
+      );
+
+      res.json({
+        b2Key: uploadResult.fileKey,
+        fileHash: uploadResult.fileHash,
+        size: uploadResult.size,
+        isDuplicate: uploadResult.isDuplicate,
+      });
+    } catch (error) {
+      console.error("Backblaze upload error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.post("/api/operations/:operationId/files", requireAuth, async (req, res) => {
     try {
       const { operationId } = req.params;
       const userId = req.session.userId!;
-      const { fileURL, originalName, mimeType, size, folderId, category, description, tags } = req.body;
+      const { fileURL, b2Key, fileHash, originalName, mimeType, size, folderId, category, description, tags } = req.body;
 
-      if (!fileURL || !originalName || !mimeType || !size) {
+      if (!originalName || !mimeType || !size) {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
-      const objectStorageService = new ObjectStorageService();
-      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
-        fileURL,
-        {
-          owner: userId,
-          visibility: "private",
-        }
-      );
+      let objectPath: string | null = null;
+
+      // Support both Backblaze and Replit Object Storage for backwards compatibility
+      if (fileURL && !b2Key) {
+        // Legacy: Using Replit Object Storage
+        const objectStorageService = new ObjectStorageService();
+        objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+          fileURL,
+          {
+            owner: userId,
+            visibility: "private",
+          }
+        );
+      }
 
       const finalTags = (tags && Array.isArray(tags) && tags.length > 0) ? tags : null;
 
@@ -2074,7 +2185,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         originalName,
         mimeType,
         size,
-        objectPath,
+        objectPath: objectPath || null,
+        b2Key: b2Key || null,
+        fileHash: fileHash || null,
         category: category || null,
         description: description || null,
         tags: finalTags,
@@ -2087,8 +2200,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Create file error:", {
         error: error instanceof Error ? error.message : error,
         stack: error instanceof Error ? error.stack : undefined,
-        operationId,
-        userId,
+        operationId: req.params.operationId,
+        userId: req.session.userId,
         body: req.body
       });
       res.status(500).json({ message: "Internal server error" });
@@ -2110,6 +2223,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(file);
     } catch (error) {
       console.error("Update file error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/operations/:operationId/files/:id/download", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+
+      const file = await storage.getOperationFile(id);
+      if (!file) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      // Verify user has access to the operation
+      const operation = await storage.getOperation(file.operationId);
+      if (!operation) {
+        return res.status(404).json({ message: "Operation not found" });
+      }
+
+      let buffer: Buffer;
+
+      // Try to download from Backblaze first if b2Key exists
+      if (file.b2Key) {
+        try {
+          buffer = await backblazeStorage.downloadFile(file.b2Key);
+          console.log(`Downloaded file from Backblaze: ${file.originalName}`);
+        } catch (error) {
+          console.error(`Error downloading from Backblaze for file ${file.id}:`, error);
+          // If Backblaze fails and we have objectPath, try Replit Object Storage
+          if (file.objectPath) {
+            const objectStorageService = new ObjectStorageService();
+            const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+            const bufferData = await objectFile.download();
+            buffer = bufferData[0];
+          } else {
+            return res.status(500).json({ message: "File not available for download" });
+          }
+        }
+      } else if (file.objectPath) {
+        // Legacy: Download from Replit Object Storage
+        const objectStorageService = new ObjectStorageService();
+        const objectFile = await objectStorageService.getObjectEntityFile(file.objectPath);
+        const bufferData = await objectFile.download();
+        buffer = bufferData[0];
+      } else {
+        return res.status(404).json({ message: "File not available for download" });
+      }
+
+      res.setHeader('Content-Type', file.mimeType);
+      res.setHeader('Content-Disposition', `attachment; filename="${file.originalName}"`);
+      res.setHeader('Content-Length', buffer.length);
+      
+      res.send(buffer);
+    } catch (error) {
+      console.error("Download operation file error:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });

@@ -3,6 +3,7 @@ import { storage } from './storage';
 import type { GmailAccount } from '@shared/schema';
 import * as calendarSync from './calendar-sync';
 import { AttachmentAnalyzer } from './attachment-analyzer';
+import { backblazeStorage } from './backblazeStorage';
 
 // Construir la URL de redirección automáticamente
 function getRedirectUri(): string {
@@ -209,6 +210,26 @@ export async function startSync(accountId: string) {
         const isStarred = labels.includes('STARRED');
         const isImportant = labels.includes('IMPORTANT');
 
+        // Store email body in Backblaze B2 (if configured)
+        let bodyTextB2Key: string | undefined;
+        let bodyHtmlB2Key: string | undefined;
+
+        if (backblazeStorage.isAvailable()) {
+          try {
+            const b2Keys = await backblazeStorage.uploadEmailBody(
+              message.id,
+              bodyText || null,
+              bodyHtml || null
+            );
+            bodyTextB2Key = b2Keys.textKey;
+            bodyHtmlB2Key = b2Keys.htmlKey;
+            console.log(`Stored email body in Backblaze: ${message.id}`);
+          } catch (error) {
+            console.error(`Error storing email body in Backblaze for ${message.id}:`, error);
+            // Continue without Backblaze if there's an error
+          }
+        }
+
         const createdMessage = await storage.createGmailMessage({
           gmailAccountId: accountId,
           messageId: message.id,
@@ -221,8 +242,10 @@ export async function startSync(accountId: string) {
           bccEmails: bccEmails.length > 0 ? bccEmails : null,
           date,
           snippet: fullMessage.data.snippet || null,
-          bodyText: bodyText || null,
-          bodyHtml: bodyHtml || null,
+          bodyText: bodyTextB2Key ? null : (bodyText || null), // Fall back to DB if B2 not configured
+          bodyHtml: bodyHtmlB2Key ? null : (bodyHtml || null), // Fall back to DB if B2 not configured
+          bodyTextB2Key: bodyTextB2Key || null,
+          bodyHtmlB2Key: bodyHtmlB2Key || null,
           labels: labels.length > 0 ? labels : null,
           hasAttachments,
           isRead,
@@ -236,29 +259,69 @@ export async function startSync(accountId: string) {
             if (part.filename && part.body?.attachmentId) {
               const mimeType = part.mimeType || 'application/octet-stream';
               let extractedText: string | null = null;
+              let b2Key: string | undefined;
+              let fileHash: string | undefined;
 
-              const shouldAnalyze = 
-                mimeType === 'application/pdf' || 
-                mimeType.startsWith('image/');
-
-              if (shouldAnalyze && part.body.size && part.body.size < 10 * 1024 * 1024) {
-                try {
-                  const attachmentData = await getAttachmentData(
-                    account, 
-                    message.id, 
-                    part.body.attachmentId
-                  );
+              // Download and store attachment (in Backblaze if configured)
+              let attachmentDataBase64: string | null = null;
+              
+              try {
+                const attachmentData = await getAttachmentData(
+                  account, 
+                  message.id, 
+                  part.body.attachmentId
+                );
+                
+                if (attachmentData) {
+                  attachmentDataBase64 = attachmentData; // Keep for fallback storage
+                  const buffer = Buffer.from(attachmentData, 'base64');
                   
-                  if (attachmentData) {
-                    extractedText = await AttachmentAnalyzer.analyzeAttachment(
-                      mimeType, 
-                      attachmentData
-                    );
-                    console.log(`Extracted ${extractedText.length} characters from ${part.filename}`);
+                  // Analyze for text extraction if applicable
+                  const shouldAnalyze = 
+                    mimeType === 'application/pdf' || 
+                    mimeType.startsWith('image/');
+
+                  if (shouldAnalyze && part.body.size && part.body.size < 10 * 1024 * 1024) {
+                    try {
+                      extractedText = await AttachmentAnalyzer.analyzeAttachment(
+                        mimeType, 
+                        attachmentData
+                      );
+                      console.log(`Extracted ${extractedText.length} characters from ${part.filename}`);
+                    } catch (error) {
+                      console.error(`Error analyzing attachment ${part.filename}:`, error);
+                    }
                   }
-                } catch (error) {
-                  console.error(`Error analyzing attachment ${part.filename}:`, error);
+
+                  // Upload to Backblaze B2 with deduplication (if configured)
+                  if (backblazeStorage.isAvailable()) {
+                    try {
+                      const uploadResult = await backblazeStorage.uploadAttachment(
+                        buffer,
+                        part.filename,
+                        mimeType,
+                        createdMessage.id,
+                        part.body.attachmentId,
+                        extractedText || undefined
+                      );
+
+                      b2Key = uploadResult.fileKey;
+                      fileHash = uploadResult.fileHash;
+
+                      if (uploadResult.isDuplicate) {
+                        console.log(`Attachment ${part.filename} already exists in Backblaze (deduplicated)`);
+                      } else {
+                        console.log(`Stored new attachment ${part.filename} in Backblaze`);
+                      }
+                    } catch (error) {
+                      console.error(`Error storing attachment ${part.filename} in Backblaze:`, error);
+                      // Continue without Backblaze if there's an error
+                    }
+                  }
                 }
+              } catch (error) {
+                console.error(`Error downloading attachment ${part.filename}:`, error);
+                // Continue without attachment data if there's an error
               }
 
               await storage.createGmailAttachment({
@@ -267,10 +330,14 @@ export async function startSync(accountId: string) {
                 filename: part.filename,
                 mimeType,
                 size: part.body.size || 0,
-                isInline: part.headers?.some((h: {name?: string; value?: string}) => 
+                data: b2Key ? null : attachmentDataBase64, // Fall back to DB if B2 not configured
+                b2Key: b2Key || null,
+                fileHash: fileHash || null,
+                isInline: part.headers?.some((h: {name?: string | null; value?: string | null}) => 
                   h.name === 'Content-Disposition' && h.value?.includes('inline')
                 ) || false,
-                extractedText: extractedText || null,
+                extractedText: extractedText && !b2Key ? extractedText : null, // Fall back to DB if B2 not configured
+                extractedTextB2Key: extractedText && b2Key ? `emails/attachments/extracted-text/${fileHash}` : null,
               });
             }
           }

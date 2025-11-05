@@ -272,8 +272,10 @@ export const gmailMessages = pgTable("gmail_messages", {
   bccEmails: text("bcc_emails").array(), // Array of BCC emails
   date: timestamp("date").notNull(),
   snippet: text("snippet"), // Preview text
-  bodyText: text("body_text"), // Plain text body
-  bodyHtml: text("body_html"), // HTML body
+  bodyText: text("body_text"), // Plain text body (legacy, for backwards compatibility)
+  bodyHtml: text("body_html"), // HTML body (legacy, for backwards compatibility)
+  bodyTextB2Key: text("body_text_b2_key"), // Backblaze B2 key for plain text body
+  bodyHtmlB2Key: text("body_html_b2_key"), // Backblaze B2 key for HTML body
   labels: text("labels").array(), // Gmail labels
   hasAttachments: boolean("has_attachments").notNull().default(false),
   isRead: boolean("is_read").notNull().default(false),
@@ -291,9 +293,12 @@ export const gmailAttachments = pgTable("gmail_attachments", {
   filename: text("filename").notNull(),
   mimeType: text("mime_type").notNull(),
   size: integer("size").notNull(), // Size in bytes
-  data: text("data"), // Base64 encoded data (optional, can be fetched on demand)
+  data: text("data"), // Base64 encoded data (legacy, for backwards compatibility)
+  b2Key: text("b2_key"), // Backblaze B2 key for the attachment file
+  fileHash: text("file_hash"), // SHA-256 hash for deduplication
   isInline: boolean("is_inline").notNull().default(false),
-  extractedText: text("extracted_text"), // Text extracted from PDF/images via OCR
+  extractedText: text("extracted_text"), // Text extracted from PDF/images via OCR (legacy)
+  extractedTextB2Key: text("extracted_text_b2_key"), // Backblaze B2 key for extracted text
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -392,7 +397,9 @@ export const operationFiles = pgTable("operation_files", {
   originalName: text("original_name").notNull(), // Original filename from upload
   mimeType: text("mime_type").notNull(),
   size: integer("size").notNull(), // Size in bytes
-  objectPath: text("object_path").notNull(), // Path in object storage (e.g., /objects/uploads/uuid)
+  objectPath: text("object_path"), // Path in Replit object storage (legacy, for backwards compatibility)
+  b2Key: text("b2_key"), // Backblaze B2 key for the file
+  fileHash: text("file_hash"), // SHA-256 hash for deduplication
   category: text("category"), // Auto-categorized: 'payment', 'expense', 'image', 'document', 'invoice', 'contract', 'other'
   description: text("description"),
   tags: text("tags").array(), // Tags for search and filtering
@@ -400,7 +407,8 @@ export const operationFiles = pgTable("operation_files", {
   uploadedVia: text("uploaded_via").notNull().default("manual"), // 'manual', 'gmail_automation', 'api'
   sourceGmailMessageId: varchar("source_gmail_message_id").references(() => gmailMessages.id, { onDelete: "set null" }), // Link to Gmail message if auto-uploaded
   sourceGmailAttachmentId: varchar("source_gmail_attachment_id").references(() => gmailAttachments.id, { onDelete: "set null" }), // Link to Gmail attachment if auto-uploaded
-  extractedText: text("extracted_text"), // Text extracted from PDF/images via OCR
+  extractedText: text("extracted_text"), // Text extracted from PDF/images via OCR (legacy)
+  extractedTextB2Key: text("extracted_text_b2_key"), // Backblaze B2 key for extracted text
   metadata: jsonb("metadata"), // Additional file metadata
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
