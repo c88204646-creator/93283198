@@ -15,6 +15,7 @@ import * as gmailSync from "./gmail-sync";
 import * as calendarSync from "./calendar-sync";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
+import { queryCache } from "./cache";
 
 const PgSession = ConnectPgSimple(session);
 
@@ -223,7 +224,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Client Routes
   app.get("/api/clients", requireAuth, async (req, res) => {
     try {
-      const allClients = await storage.getAllClients();
+      const cacheKey = 'clients:all';
+      let allClients = queryCache.get<any[]>(cacheKey);
+      
+      if (!allClients) {
+        allClients = await storage.getAllClients();
+        queryCache.set(cacheKey, allClients, 5 * 60 * 1000); // 5 min cache
+      }
+      
       res.json(allClients);
     } catch (error) {
       console.error("Get clients error:", error);
@@ -235,6 +243,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = insertClientSchema.parse(req.body);
       const client = await storage.createClient(data);
+      
+      // Invalidate cache
+      queryCache.invalidate('clients:all');
+      
       res.json(client);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -255,6 +267,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Client not found" });
       }
       
+      // Invalidate cache
+      queryCache.invalidate('clients:all');
+      
       res.json(client);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -269,6 +284,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.deleteClient(id);
+      
+      // Invalidate cache
+      queryCache.invalidate('clients:all');
+      
       res.json({ message: "Client deleted successfully" });
     } catch (error) {
       console.error("Delete client error:", error);
@@ -332,7 +351,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Employee Routes (Admin/Manager only for viewing all, create, delete)
   app.get("/api/employees", requireAuth, async (req, res) => {
     try {
-      const allEmployees = await storage.getAllEmployees();
+      const cacheKey = 'employees:all';
+      let allEmployees = queryCache.get<any[]>(cacheKey);
+      
+      if (!allEmployees) {
+        allEmployees = await storage.getAllEmployees();
+        queryCache.set(cacheKey, allEmployees, 5 * 60 * 1000); // 5 min cache
+      }
+      
       res.json(allEmployees);
     } catch (error) {
       console.error("Get employees error:", error);
@@ -347,6 +373,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Handle birthday event creation
       await handleBirthdayEvent(employee.id, employee.name, employee.birthdate, null);
+      
+      // Invalidate cache
+      queryCache.invalidate('employees:all');
       
       res.json(employee);
     } catch (error) {
@@ -383,6 +412,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         employee.birthdayEventId
       );
       
+      // Invalidate cache
+      queryCache.invalidate('employees:all');
+      
       res.json(employee);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -397,6 +429,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.deleteEmployee(id);
+      
+      // Invalidate cache
+      queryCache.invalidate('employees:all');
+      
       res.json({ message: "Employee deleted successfully" });
     } catch (error) {
       console.error("Delete employee error:", error);
@@ -407,13 +443,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Operation Routes
   app.get("/api/operations", requireAuth, async (req, res) => {
     try {
-      const allOperations = await storage.getAllOperations();
-      const operationsWithEmployees = await Promise.all(
-        allOperations.map(async (op) => ({
-          ...op,
-          employeeIds: await storage.getOperationEmployees(op.id),
-        }))
-      );
+      const cacheKey = 'operations:all';
+      let operationsWithEmployees = queryCache.get<any[]>(cacheKey);
+      
+      if (!operationsWithEmployees) {
+        const allOperations = await storage.getAllOperations();
+        operationsWithEmployees = await Promise.all(
+          allOperations.map(async (op) => ({
+            ...op,
+            employeeIds: await storage.getOperationEmployees(op.id),
+          }))
+        );
+        queryCache.set(cacheKey, operationsWithEmployees, 3 * 60 * 1000); // 3 min cache
+      }
+      
       res.json(operationsWithEmployees);
     } catch (error) {
       console.error("Get operations error:", error);
@@ -448,6 +491,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.setOperationEmployees(operation.id, employeeIds);
       }
       
+      // Invalidate cache
+      queryCache.invalidate('operations:all');
+      
       res.json(operation);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -473,6 +519,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         await storage.setOperationEmployees(id, employeeIds);
       }
       
+      // Invalidate cache
+      queryCache.invalidate('operations:all');
+      
       res.json(operation);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -487,6 +536,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       await storage.deleteOperation(id);
+      
+      // Invalidate cache
+      queryCache.invalidate('operations:all');
+      
       res.json({ message: "Operation deleted successfully" });
     } catch (error) {
       console.error("Delete operation error:", error);
