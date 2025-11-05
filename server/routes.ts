@@ -2064,6 +2064,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get messages linked to an operation (optimized endpoint)
+  app.get("/api/operations/:operationId/messages", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const messages = await storage.getOperationMessages(operationId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Get operation messages error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Manually trigger email-operation linking
+  app.post("/api/gmail/link-messages", requireAuth, async (req, res) => {
+    try {
+      await storage.linkMessagesToOperations();
+      res.json({ message: "Email linking completed" });
+    } catch (error) {
+      console.error("Link messages error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

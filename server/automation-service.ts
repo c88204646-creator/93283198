@@ -251,6 +251,10 @@ export class AutomationService {
       requiresReview: true,
     });
 
+    // Link the message to the newly created operation
+    await storage.linkMessageToOperation(message.id, operation.id);
+    console.log(`Linked message ${message.id} to operation ${operation.id}`);
+
     // Assign default employees to the operation
     const defaultEmployees = (config.defaultEmployees as string[]) || [];
     for (const employeeId of defaultEmployees) {

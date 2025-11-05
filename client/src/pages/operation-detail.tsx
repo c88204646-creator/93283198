@@ -91,10 +91,6 @@ export default function OperationDetail() {
     queryKey: ['/api/users'],
   });
 
-  const { data: gmailMessages = [] } = useQuery<GmailMessage[]>({
-    queryKey: ['/api/gmail/messages'],
-  });
-
   if (operationLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -195,7 +191,7 @@ export default function OperationDetail() {
         </TabsContent>
 
         <TabsContent value="emails" className="space-y-4">
-          <EmailsTab operationId={id!} operation={operation} gmailMessages={gmailMessages} />
+          <EmailsTab operationId={id!} operation={operation} />
         </TabsContent>
       </Tabs>
     </div>
@@ -817,47 +813,20 @@ function TasksTab({ operationId, tasks, employees, users }: {
   );
 }
 
-function EmailsTab({ operationId, operation, gmailMessages }: { 
+function EmailsTab({ operationId, operation }: { 
   operationId: string; 
   operation: Operation;
-  gmailMessages: GmailMessage[];
 }) {
   const [selectedMessage, setSelectedMessage] = useState<GmailMessage | null>(null);
   
-  const { data: allAttachments = [] } = useQuery({
-    queryKey: ['/api/gmail/attachments/all'],
-    enabled: gmailMessages.length > 0,
+  // Use optimized endpoint to get messages directly linked to this operation
+  const { data: relatedEmails = [], isLoading: isLoadingMessages } = useQuery<GmailMessage[]>({
+    queryKey: ['/api/operations', operationId, 'messages'],
   });
 
   const { data: attachments = [] } = useQuery({
     queryKey: ['/api/gmail/messages', selectedMessage?.id, 'attachments'],
     enabled: !!selectedMessage?.id,
-  });
-
-  const relatedEmails = gmailMessages.filter(msg => {
-    const operationName = operation.name.toLowerCase();
-    const bookingNumber = operation.bookingTracking?.toLowerCase();
-    
-    // Buscar en múltiples campos del email
-    const subject = (msg.subject || '').toLowerCase();
-    const from = (msg.from || '').toLowerCase();
-    const snippet = (msg.snippet || '').toLowerCase();
-    const bodyText = ((msg as any).bodyText || '').toLowerCase();
-    
-    // Obtener attachments de este mensaje
-    const messageAttachments = allAttachments.filter((att: any) => att.gmailMessageId === msg.id);
-    const attachmentsText = messageAttachments
-      .map((att: any) => (att.extractedText || '').toLowerCase())
-      .join(' ');
-    
-    // Combinar todo el contenido disponible incluyendo attachments
-    const fullContent = `${subject} ${from} ${snippet} ${bodyText} ${attachmentsText}`;
-    
-    // Buscar el nombre de la operación o número de tracking
-    const hasOperationName = fullContent.includes(operationName);
-    const hasBookingNumber = bookingNumber && fullContent.includes(bookingNumber);
-    
-    return hasOperationName || hasBookingNumber;
   });
 
   return (

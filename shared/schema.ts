@@ -261,6 +261,7 @@ export const gmailAccounts = pgTable("gmail_accounts", {
 export const gmailMessages = pgTable("gmail_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   gmailAccountId: varchar("gmail_account_id").notNull().references(() => gmailAccounts.id, { onDelete: "cascade" }),
+  operationId: varchar("operation_id").references(() => operations.id, { onDelete: "set null" }), // Link to operation if matched
   messageId: text("message_id").notNull().unique(), // Gmail message ID
   threadId: text("thread_id").notNull(),
   subject: text("subject"),
@@ -553,6 +554,10 @@ export const gmailMessagesRelations = relations(gmailMessages, ({ one, many }) =
   account: one(gmailAccounts, {
     fields: [gmailMessages.gmailAccountId],
     references: [gmailAccounts.id],
+  }),
+  operation: one(operations, {
+    fields: [gmailMessages.operationId],
+    references: [operations.id],
   }),
   attachments: many(gmailAttachments),
 }));

@@ -192,6 +192,9 @@ export interface IStorage {
   
   // Helper functions for automation
   getUnprocessedMessages(accountIds: string[], since: Date): Promise<GmailMessage[]>;
+  linkMessageToOperation(messageId: string, operationId: string | null): Promise<void>;
+  getOperationMessages(operationId: string): Promise<GmailMessage[]>;
+  linkMessagesToOperations(): Promise<void>;
 
   // Operation Notes
   getOperationNotes(operationId: string): Promise<OperationNote[]>;
@@ -854,6 +857,68 @@ export class DatabaseStorage implements IStorage {
     return allMessages
       .filter(msg => msg.date && new Date(msg.date) > since)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  async linkMessageToOperation(messageId: string, operationId: string | null): Promise<void> {
+    await db.update(gmailMessages)
+      .set({ operationId })
+      .where(eq(gmailMessages.id, messageId));
+  }
+
+  async getOperationMessages(operationId: string): Promise<GmailMessage[]> {
+    return await db.select()
+      .from(gmailMessages)
+      .where(eq(gmailMessages.operationId, operationId))
+      .orderBy(desc(gmailMessages.date));
+  }
+
+  async linkMessagesToOperations(): Promise<void> {
+    // Get all operations
+    const allOperations = await db.select().from(operations);
+    
+    // Get all messages without operation link
+    const unlinkedMessages = await db.select()
+      .from(gmailMessages)
+      .where(sql`${gmailMessages.operationId} IS NULL`);
+    
+    // Get all attachments for text extraction
+    const allAttachments = await db.select().from(gmailAttachments);
+    
+    let linkedCount = 0;
+    
+    for (const message of unlinkedMessages) {
+      for (const operation of allOperations) {
+        const operationName = operation.name.toLowerCase();
+        const bookingNumber = operation.bookingTracking?.toLowerCase();
+        
+        // Build searchable content
+        const subject = (message.subject || '').toLowerCase();
+        const from = (message.fromEmail || '').toLowerCase();
+        const snippet = (message.snippet || '').toLowerCase();
+        const bodyText = (message.bodyText || '').toLowerCase();
+        
+        // Get attachments text for this message
+        const messageAttachments = allAttachments.filter(att => att.gmailMessageId === message.id);
+        const attachmentsText = messageAttachments
+          .map(att => (att.extractedText || '').toLowerCase())
+          .join(' ');
+        
+        // Combine all searchable content
+        const fullContent = `${subject} ${from} ${snippet} ${bodyText} ${attachmentsText}`;
+        
+        // Check if operation name or booking number exists
+        const hasOperationName = fullContent.includes(operationName);
+        const hasBookingNumber = bookingNumber && fullContent.includes(bookingNumber);
+        
+        if (hasOperationName || hasBookingNumber) {
+          await this.linkMessageToOperation(message.id, operation.id);
+          linkedCount++;
+          break; // Only link to first matching operation
+        }
+      }
+    }
+    
+    console.log(`[Email Linking] Linked ${linkedCount} messages to operations`);
   }
 
   // Operation Notes
