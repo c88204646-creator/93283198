@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Link2, Zap, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, Link2, Zap, Eye, Search } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
@@ -59,6 +59,7 @@ export default function OperationsPage() {
   const [, setLocation] = useLocation();
   const [editingOperation, setEditingOperation] = useState<Operation | null>(null);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const { toast } = useToast();
 
   const { data: operations = [], isLoading } = useQuery<Operation[]>({
@@ -72,6 +73,29 @@ export default function OperationsPage() {
   const { data: employees = [] } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
   });
+
+  const filteredAndSortedOperations = useMemo(() => {
+    let filtered = [...operations];
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((op) => {
+        const client = clients.find((c) => c.id === op.clientId);
+        return (
+          op.name?.toLowerCase().includes(query) ||
+          op.bookingTracking?.toLowerCase().includes(query) ||
+          op.operationType?.toLowerCase().includes(query) ||
+          op.mblAwb?.toLowerCase().includes(query) ||
+          op.hblAwb?.toLowerCase().includes(query) ||
+          client?.name?.toLowerCase().includes(query)
+        );
+      });
+    }
+
+    return filtered.sort((a, b) => 
+      (a.name || "").localeCompare(b.name || "")
+    );
+  }, [operations, searchQuery, clients]);
 
   const form = useForm<OperationFormData>({
     resolver: zodResolver(insertOperationSchema.extend({
@@ -318,7 +342,35 @@ export default function OperationsPage() {
           <Plus className="w-4 h-4 mr-2" />
           Nueva Operación
         </Button>
-        <Dialog open={!!editingOperation} onOpenChange={(open) => {
+      </div>
+
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Buscar operaciones por nombre, cliente, booking..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+            data-testid="input-search-operations"
+          />
+        </div>
+        {searchQuery && (
+          <div className="text-sm text-muted-foreground">
+            {filteredAndSortedOperations.length} de {operations.length} operaciones
+          </div>
+        )}
+      </div>
+
+      <DataTable
+        data={filteredAndSortedOperations}
+        columns={columns}
+        onRowClick={(row) => setLocation(`/operations/${row.id}`)}
+        isLoading={isLoading}
+      />
+
+      <Dialog open={!!editingOperation} onOpenChange={(open) => {
           if (!open) {
             setEditingOperation(null);
             setSelectedEmployeeIds([]);
@@ -730,16 +782,6 @@ export default function OperationsPage() {
             </Form>
           </DialogContent>
         </Dialog>
-      </div>
-
-      <DataTable
-        data={operations}
-        columns={columns}
-        searchPlaceholder="Buscar operaciones..."
-        isLoading={isLoading}
-        emptyMessage="No se encontraron operaciones. Crea tu primera operación para comenzar."
-        onRowClick={(operation) => setLocation(`/operations/${operation.id}`)}
-      />
     </div>
   );
 }
