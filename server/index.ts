@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startAutoCalendarSync } from "./calendar-sync";
 import { startAutomationService } from "./automation-service";
+import { startAutoGmailSync } from "./auto-gmail-sync";
 import { storage } from "./storage";
 
 const app = express();
@@ -57,6 +58,9 @@ app.use((req, res, next) => {
 
   // Iniciar servicio de automatización en segundo plano
   startAutomationService();
+
+  // Iniciar sincronización automática de Gmail (cada 10 minutos)
+  startAutoGmailSync(10);
 
   // Vincular mensajes existentes a operaciones automáticamente (se ejecuta una vez al inicio)
   setTimeout(async () => {
