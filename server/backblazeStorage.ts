@@ -32,7 +32,7 @@ export class BackblazeStorage {
   }
 
   private initializeIfPossible(): void {
-    const endpoint = process.env.B2_ENDPOINT;
+    let endpoint = process.env.B2_ENDPOINT;
     const keyId = process.env.B2_APPLICATION_KEY_ID;
     const appKey = process.env.B2_APPLICATION_KEY;
     const bucketId = process.env.B2_BUCKET_ID;
@@ -41,6 +41,12 @@ export class BackblazeStorage {
       console.warn('Backblaze B2 credentials not configured. File operations will fall back to legacy storage.');
       this.isConfigured = false;
       return;
+    }
+
+    // Asegurarse de que el endpoint tenga el protocolo https://
+    if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+      endpoint = `https://${endpoint}`;
+      console.log(`B2_ENDPOINT corregido a: ${endpoint}`);
     }
 
     this.endpoint = endpoint;
@@ -58,6 +64,8 @@ export class BackblazeStorage {
       },
       forcePathStyle: true,
     });
+    
+    console.log(`Backblaze B2 configurado: Region=${region}, Bucket=${bucketId}`);
   }
 
   private ensureConfigured(): void {
