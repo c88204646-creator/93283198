@@ -1105,7 +1105,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             <p>Your Gmail account has been successfully connected and is now syncing in the background.</p>
             <p>You can close this window and return to the application.</p>
             <script>
-              setTimeout(() => { window.close(); }, 3000);
+              if (window.opener) {
+                window.opener.postMessage({ type: 'gmail-connected' }, '*');
+              }
+              setTimeout(() => { window.close(); }, 2000);
             </script>
           </body>
         </html>

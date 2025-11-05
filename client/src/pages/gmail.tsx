@@ -1,7 +1,7 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,21 @@ export default function GmailPage() {
   const { data: accounts = [], isLoading: accountsLoading } = useQuery<Omit<GmailAccount, 'accessToken' | 'refreshToken'>[]>({
     queryKey: ["/api/gmail/accounts"],
   });
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'gmail-connected') {
+        queryClient.invalidateQueries({ queryKey: ["/api/gmail/accounts"] });
+        toast({
+          title: "Cuenta conectada",
+          description: "Tu cuenta de Gmail se ha conectado exitosamente.",
+        });
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [toast]);
 
   const { data: messages = [], isLoading: messagesLoading, refetch: refetchMessages } = useQuery<GmailMessage[]>({
     queryKey: ["/api/gmail/accounts", selectedAccount, "messages"],
@@ -43,9 +58,6 @@ export default function GmailPage() {
         title: "Conectando cuenta de Gmail",
         description: "Por favor completa la autorización en la ventana emergente.",
       });
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ["/api/gmail/accounts"] });
-      }, 3000);
     },
   });
 
