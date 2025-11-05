@@ -217,8 +217,8 @@ export class BackblazeStorage {
       const textHash = this.calculateHash(textBuffer);
       const textKey = `emails/attachments/extracted-text/${textHash}`;
       
-      await this.client.send(new PutObjectCommand({
-        Bucket: this.bucketName,
+      await this.client!.send(new PutObjectCommand({
+        Bucket: this.bucketName!,
         Key: textKey,
         Body: textBuffer,
         ContentType: 'text/plain; charset=utf-8',
@@ -255,8 +255,8 @@ export class BackblazeStorage {
       const textHash = this.calculateHash(textBuffer);
       const textKey = `operations/files/extracted-text/${textHash}`;
       
-      await this.client.send(new PutObjectCommand({
-        Bucket: this.bucketName,
+      await this.client!.send(new PutObjectCommand({
+        Bucket: this.bucketName!,
         Key: textKey,
         Body: textBuffer,
         ContentType: 'text/plain; charset=utf-8',
