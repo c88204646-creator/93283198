@@ -208,6 +208,11 @@ export const operationNotes = pgTable("operation_notes", {
   operationId: varchar("operation_id").notNull().references(() => operations.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
+  createdAutomatically: boolean("created_automatically").notNull().default(false), // Auto-created by AI
+  sourceGmailMessageId: varchar("source_gmail_message_id").references(() => gmailMessages.id, { onDelete: "set null" }), // Link to source email
+  sourceEmailThreadId: text("source_email_thread_id"), // Gmail thread ID for tracking conversations
+  aiConfidence: decimal("ai_confidence", { precision: 5, scale: 2 }), // AI confidence score (0-100)
+  aiModel: text("ai_model"), // AI model used (e.g., "gemini-2.0-flash-exp")
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -225,6 +230,12 @@ export const operationTasks = pgTable("operation_tasks", {
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),
   createdById: varchar("created_by_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAutomatically: boolean("created_automatically").notNull().default(false), // Auto-created by AI
+  sourceGmailMessageId: varchar("source_gmail_message_id").references(() => gmailMessages.id, { onDelete: "set null" }), // Link to source email
+  sourceEmailThreadId: text("source_email_thread_id"), // Gmail thread ID for tracking conversations
+  aiConfidence: decimal("ai_confidence", { precision: 5, scale: 2 }), // AI confidence score (0-100)
+  aiModel: text("ai_model"), // AI model used (e.g., "gemini-2.0-flash-exp")
+  aiSuggestion: text("ai_suggestion"), // Original AI suggestion/reasoning
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -340,6 +351,9 @@ export const automationConfigs = pgTable("automation_configs", {
   selectedGmailAccounts: jsonb("selected_gmail_accounts"), // Array of gmail account IDs
   defaultEmployees: jsonb("default_employees"), // Array of employee IDs for auto-created operations
   processAttachments: boolean("process_attachments").notNull().default(false), // Automatically process email attachments
+  autoCreateTasks: text("auto_create_tasks").default("disabled"), // disabled, basic, smart_ai
+  autoCreateNotes: text("auto_create_notes").default("disabled"), // disabled, basic, smart_ai
+  aiOptimizationLevel: text("ai_optimization_level").default("high"), // high (80% reduction), medium (50%), low (20%)
   settings: jsonb("settings"), // Module-specific settings
   lastProcessedAt: timestamp("last_processed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
