@@ -108,7 +108,16 @@ export default function OperationFilesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
       setIsFolderDialogOpen(false);
+      setEditingFolder(null);
       toast({ title: "Carpeta creada exitosamente" });
+    },
+    onError: (error: any) => {
+      console.error("Error creating folder:", error);
+      toast({ 
+        title: "Error al crear carpeta", 
+        description: error.message || "Ocurrió un error inesperado",
+        variant: "destructive" 
+      });
     },
   });
 
@@ -118,8 +127,17 @@ export default function OperationFilesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
+      setIsFolderDialogOpen(false);
       setEditingFolder(null);
       toast({ title: "Carpeta actualizada" });
+    },
+    onError: (error: any) => {
+      console.error("Error updating folder:", error);
+      toast({ 
+        title: "Error al actualizar carpeta", 
+        description: error.message || "Ocurrió un error inesperado",
+        variant: "destructive" 
+      });
     },
   });
 
@@ -131,6 +149,14 @@ export default function OperationFilesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
       toast({ title: "Carpeta eliminada" });
     },
+    onError: (error: any) => {
+      console.error("Error deleting folder:", error);
+      toast({ 
+        title: "Error al eliminar carpeta", 
+        description: error.message || "Ocurrió un error inesperado",
+        variant: "destructive" 
+      });
+    },
   });
 
   const createFileMutation = useMutation({
@@ -141,7 +167,16 @@ export default function OperationFilesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
       setPendingUpload(null);
       setIsFileDialogOpen(false);
+      setIsUploadOpen(false);
       toast({ title: "Archivo subido exitosamente" });
+    },
+    onError: (error: any) => {
+      console.error("Error creating file:", error);
+      toast({ 
+        title: "Error al subir archivo", 
+        description: error.message || "Ocurrió un error inesperado",
+        variant: "destructive" 
+      });
     },
   });
 
@@ -151,8 +186,17 @@ export default function OperationFilesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
+      setIsFileDialogOpen(false);
       setEditingFile(null);
       toast({ title: "Archivo actualizado" });
+    },
+    onError: (error: any) => {
+      console.error("Error updating file:", error);
+      toast({ 
+        title: "Error al actualizar archivo", 
+        description: error.message || "Ocurrió un error inesperado",
+        variant: "destructive" 
+      });
     },
   });
 
@@ -163,6 +207,14 @@ export default function OperationFilesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
       toast({ title: "Archivo eliminado" });
+    },
+    onError: (error: any) => {
+      console.error("Error deleting file:", error);
+      toast({ 
+        title: "Error al eliminar archivo", 
+        description: error.message || "Ocurrió un error inesperado",
+        variant: "destructive" 
+      });
     },
   });
 
@@ -175,14 +227,18 @@ export default function OperationFilesPage() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
+    const tagsValue = formData.get("tags")?.toString().trim();
+    const tags = tagsValue ? tagsValue.split(",").map(t => t.trim()).filter(Boolean) : null;
+    const finalTags = tags && tags.length > 0 ? tags : null;
+
     if (editingFile) {
       updateFileMutation.mutate({
         id: editingFile.id,
-        name: formData.get("name"),
-        description: formData.get("description"),
-        category: formData.get("category"),
-        tags: formData.get("tags")?.toString().split(",").map(t => t.trim()).filter(Boolean) || null,
-        folderId: formData.get("folderId") || null,
+        name: formData.get("name") as string,
+        description: formData.get("description") as string || null,
+        category: formData.get("category") as string || null,
+        tags: finalTags,
+        folderId: formData.get("folderId") as string || null,
       });
     } else if (pendingUpload) {
       createFileMutation.mutate({
@@ -190,10 +246,10 @@ export default function OperationFilesPage() {
         originalName: pendingUpload.file.name,
         mimeType: pendingUpload.file.type || "application/octet-stream",
         size: pendingUpload.file.size,
-        folderId: formData.get("folderId") || null,
-        category: formData.get("category") || null,
-        description: formData.get("description") || null,
-        tags: formData.get("tags")?.toString().split(",").map(t => t.trim()).filter(Boolean) || null,
+        folderId: formData.get("folderId") as string || null,
+        category: formData.get("category") as string || null,
+        description: formData.get("description") as string || null,
+        tags: finalTags,
       });
     }
   };
@@ -202,21 +258,17 @@ export default function OperationFilesPage() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
+    const data = {
+      name: formData.get("name") as string,
+      description: formData.get("description") as string || null,
+      category: formData.get("category") as string || null,
+      color: formData.get("color") as string || null,
+    };
+
     if (editingFolder) {
-      updateFolderMutation.mutate({
-        id: editingFolder.id,
-        name: formData.get("name") as string,
-        description: formData.get("description") as string,
-        category: formData.get("category") as string,
-        color: formData.get("color") as string,
-      });
+      updateFolderMutation.mutate({ id: editingFolder.id, ...data });
     } else {
-      createFolderMutation.mutate({
-        name: formData.get("name") as string,
-        description: formData.get("description") as string,
-        category: formData.get("category") as string,
-        color: formData.get("color") as string,
-      });
+      createFolderMutation.mutate(data);
     }
   };
 

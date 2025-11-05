@@ -2012,6 +2012,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       );
 
+      const finalTags = (tags && Array.isArray(tags) && tags.length > 0) ? tags : null;
+
       const file = await storage.createOperationFile({
         operationId,
         folderId: folderId || null,
@@ -2022,14 +2024,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         objectPath,
         category: category || null,
         description: description || null,
-        tags: tags || null,
+        tags: finalTags,
         uploadedBy: userId,
         uploadedVia: "manual",
       });
 
       res.status(201).json(file);
     } catch (error) {
-      console.error("Create file error:", error);
+      console.error("Create file error:", {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        operationId,
+        userId,
+        body: req.body
+      });
       res.status(500).json({ message: "Internal server error" });
     }
   });
