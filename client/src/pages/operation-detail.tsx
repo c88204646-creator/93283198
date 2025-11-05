@@ -94,7 +94,10 @@ export default function OperationDetail() {
   if (operationLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Cargando operación...</div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="text-lg font-medium text-muted-foreground">Cargando operación...</div>
+        </div>
       </div>
     );
   }
@@ -102,7 +105,14 @@ export default function OperationDetail() {
   if (isError || !operation) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Operación no encontrada</div>
+        <div className="text-center">
+          <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <div className="text-xl font-semibold mb-2">Operación no encontrada</div>
+          <Button variant="outline" onClick={() => navigate('/operations')} className="mt-4">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver a Operaciones
+          </Button>
+        </div>
       </div>
     );
   }
@@ -110,208 +120,323 @@ export default function OperationDetail() {
   const client = clients.find(c => c.id === operation.clientId);
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/operations')}
-            data-testid="button-back"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold" data-testid="text-operation-name">{operation.name}</h1>
-              <Badge className={getStatusColor(operation.status)} data-testid="badge-status">
-                {operation.status}
-              </Badge>
-              {operation.priority && (
-                <Badge className={getPriorityColor(operation.priority)} data-testid="badge-priority">
-                  {operation.priority}
-                </Badge>
-              )}
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="container mx-auto p-6 space-y-6 max-w-7xl">
+        {/* Header mejorado con gradiente */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-8 shadow-xl backdrop-blur-sm">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -ml-24 -mb-24" />
+          
+          <div className="relative flex items-start justify-between">
+            <div className="flex items-start gap-6 flex-1">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => navigate('/operations')}
+                data-testid="button-back"
+                className="shrink-0 bg-background/50 backdrop-blur-sm hover:bg-background/80 transition-all"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              
+              <div className="flex-1 space-y-4">
+                <div className="flex items-start gap-4 flex-wrap">
+                  <div className="flex items-center gap-2 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                    {getOperationTypeIcon(operation.operationType)}
+                    <span className="text-sm font-medium">{operation.operationType}</span>
+                  </div>
+                  <Badge className={`${getStatusColor(operation.status)} text-sm px-3 py-1`} data-testid="badge-status">
+                    {operation.status === 'planning' ? 'Planificación' : 
+                     operation.status === 'in-progress' ? 'En Progreso' : 
+                     operation.status === 'completed' ? 'Completado' : 
+                     'Cancelado'}
+                  </Badge>
+                  {operation.priority && (
+                    <Badge className={`${getPriorityColor(operation.priority)} text-sm px-3 py-1`} data-testid="badge-priority">
+                      Prioridad: {operation.priority === 'low' ? 'Baja' : 
+                                  operation.priority === 'medium' ? 'Media' : 
+                                  operation.priority === 'high' ? 'Alta' : 
+                                  'Urgente'}
+                    </Badge>
+                  )}
+                </div>
+                
+                <div>
+                  <h1 className="text-4xl font-bold tracking-tight mb-2" data-testid="text-operation-name">
+                    {operation.name}
+                  </h1>
+                  {operation.description && (
+                    <p className="text-muted-foreground text-lg max-w-3xl" data-testid="text-description">
+                      {operation.description}
+                    </p>
+                  )}
+                </div>
+                
+                {client && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <UserIcon className="w-4 h-4" />
+                    <span className="font-medium">Cliente:</span>
+                    <span>{client.name}</span>
+                  </div>
+                )}
+              </div>
             </div>
-            {operation.description && (
-              <p className="text-muted-foreground mt-1" data-testid="text-description">
-                {operation.description}
-              </p>
-            )}
+            
+            <Button
+              onClick={() => navigate(`/operations`)}
+              data-testid="button-edit"
+              className="shrink-0 bg-primary/90 hover:bg-primary shadow-lg"
+            >
+              <Edit2 className="w-4 h-4 mr-2" />
+              Editar Operación
+            </Button>
           </div>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => navigate(`/operations`)}
-          data-testid="button-edit"
-        >
-          <Edit2 className="w-4 h-4 mr-2" />
-          Editar
-        </Button>
+
+        {/* Tabs mejorados */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-5 h-auto p-1 bg-muted/50 backdrop-blur-sm rounded-xl">
+            <TabsTrigger 
+              value="info" 
+              data-testid="tab-info"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
+            >
+              <Package className="w-4 h-4 mr-2" />
+              <span className="font-medium">Información</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="notes" 
+              data-testid="tab-notes"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              <span className="font-medium">Notas</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="tasks" 
+              data-testid="tab-tasks"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
+            >
+              <CheckSquare className="w-4 h-4 mr-2" />
+              <span className="font-medium">Tareas</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="files" 
+              data-testid="tab-files"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
+            >
+              <FolderOpen className="w-4 h-4 mr-2" />
+              <span className="font-medium">Archivos</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="emails" 
+              data-testid="tab-emails"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              <span className="font-medium">Emails</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="info" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
+            <InformationTab operation={operation} client={client} employees={employees} />
+          </TabsContent>
+
+          <TabsContent value="notes" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
+            <NotesTab operationId={id!} notes={notes} users={users} />
+          </TabsContent>
+
+          <TabsContent value="tasks" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
+            <TasksTab operationId={id!} tasks={tasks} employees={employees} users={users} />
+          </TabsContent>
+
+          <TabsContent value="files" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
+            <FilesTab operationId={id!} />
+          </TabsContent>
+
+          <TabsContent value="emails" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
+            <EmailsTab operationId={id!} operation={operation} />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="info" data-testid="tab-info">
-            <Package className="w-4 h-4 mr-2" />
-            Información
-          </TabsTrigger>
-          <TabsTrigger value="notes" data-testid="tab-notes">
-            <FileText className="w-4 h-4 mr-2" />
-            Notas
-          </TabsTrigger>
-          <TabsTrigger value="tasks" data-testid="tab-tasks">
-            <CheckSquare className="w-4 h-4 mr-2" />
-            Tareas
-          </TabsTrigger>
-          <TabsTrigger value="files" data-testid="tab-files">
-            <FolderOpen className="w-4 h-4 mr-2" />
-            Archivos
-          </TabsTrigger>
-          <TabsTrigger value="emails" data-testid="tab-emails">
-            <Mail className="w-4 h-4 mr-2" />
-            Emails
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="info" className="space-y-4">
-          <InformationTab operation={operation} client={client} employees={employees} />
-        </TabsContent>
-
-        <TabsContent value="notes" className="space-y-4">
-          <NotesTab operationId={id!} notes={notes} users={users} />
-        </TabsContent>
-
-        <TabsContent value="tasks" className="space-y-4">
-          <TasksTab operationId={id!} tasks={tasks} employees={employees} users={users} />
-        </TabsContent>
-
-        <TabsContent value="files" className="space-y-4">
-          <FilesTab operationId={id!} />
-        </TabsContent>
-
-        <TabsContent value="emails" className="space-y-4">
-          <EmailsTab operationId={id!} operation={operation} />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }
 
 function InformationTab({ operation, client, employees }: { operation: Operation; client?: Client; employees: Employee[] }) {
   return (
-    <div className="grid gap-6 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Información General</CardTitle>
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+      <Card className="overflow-hidden border-primary/20 hover:border-primary/40 transition-all hover:shadow-lg bg-gradient-to-br from-card to-card/50">
+        <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent pb-4">
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <Package className="w-5 h-5 text-primary" />
+            Información General
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="text-muted-foreground">Cliente</Label>
-            <p className="font-medium" data-testid="text-client">{client?.name || 'N/A'}</p>
+        <CardContent className="space-y-5 pt-6">
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+            <UserIcon className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Cliente</Label>
+              <p className="font-semibold text-base mt-1" data-testid="text-client">{client?.name || 'N/A'}</p>
+            </div>
           </div>
-          <div>
-            <Label className="text-muted-foreground">Categoría del Proyecto</Label>
-            <p className="font-medium" data-testid="text-category">{operation.projectCategory || 'N/A'}</p>
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+            <FolderOpen className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Categoría del Proyecto</Label>
+              <p className="font-semibold text-base mt-1 capitalize" data-testid="text-category">
+                {operation.projectCategory === 'import' ? 'Importación' :
+                 operation.projectCategory === 'export' ? 'Exportación' :
+                 operation.projectCategory === 'domestic' ? 'Nacional' :
+                 operation.projectCategory === 'warehousing' ? 'Almacenamiento' :
+                 operation.projectCategory === 'customs-clearance' ? 'Despacho Aduanal' :
+                 operation.projectCategory || 'N/A'}
+              </p>
+            </div>
           </div>
-          <div>
-            <Label className="text-muted-foreground">Tipo de Operación</Label>
-            <p className="font-medium flex items-center gap-2" data-testid="text-operation-type">
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+            <div className="shrink-0 mt-0.5">
               {operation.operationType && getOperationTypeIcon(operation.operationType)}
-              {operation.operationType || 'N/A'}
-            </p>
+            </div>
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Operación</Label>
+              <p className="font-semibold text-base mt-1" data-testid="text-operation-type">
+                {operation.operationType || 'N/A'}
+              </p>
+            </div>
           </div>
-          <div>
-            <Label className="text-muted-foreground">Modo de Envío</Label>
-            <p className="font-medium" data-testid="text-shipping-mode">{operation.shippingMode || 'N/A'}</p>
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+            <Ship className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Modo de Envío</Label>
+              <p className="font-semibold text-base mt-1 capitalize" data-testid="text-shipping-mode">
+                {operation.shippingMode === 'sea' ? 'Marítimo' :
+                 operation.shippingMode === 'air' ? 'Aéreo' :
+                 operation.shippingMode === 'land' ? 'Terrestre' :
+                 operation.shippingMode === 'multimodal' ? 'Multimodal' :
+                 operation.shippingMode || 'N/A'}
+              </p>
+            </div>
           </div>
-          <div>
-            <Label className="text-muted-foreground">Moneda</Label>
-            <p className="font-medium flex items-center gap-2" data-testid="text-currency">
-              <DollarSign className="w-4 h-4" />
-              {operation.currency || 'N/A'}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Detalles de Envío</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="text-muted-foreground">Courier</Label>
-            <p className="font-medium" data-testid="text-courier">{operation.courier || 'N/A'}</p>
-          </div>
-          <div>
-            <Label className="text-muted-foreground">Número de Reserva/Tracking</Label>
-            <p className="font-medium" data-testid="text-tracking">{operation.bookingTrackingNumber || 'N/A'}</p>
-          </div>
-          <div>
-            <Label className="text-muted-foreground">MBL/AWB</Label>
-            <p className="font-medium" data-testid="text-mbl">{operation.mblAwb || 'N/A'}</p>
-          </div>
-          <div>
-            <Label className="text-muted-foreground">HBL/AWB</Label>
-            <p className="font-medium" data-testid="text-hbl">{operation.hblAwb || 'N/A'}</p>
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+            <DollarSign className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Moneda</Label>
+              <p className="font-semibold text-base mt-1" data-testid="text-currency">
+                {operation.projectCurrency || 'N/A'}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Direcciones</CardTitle>
+      <Card className="overflow-hidden border-primary/20 hover:border-primary/40 transition-all hover:shadow-lg bg-gradient-to-br from-card to-card/50">
+        <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent pb-4">
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <Truck className="w-5 h-5 text-primary" />
+            Detalles de Envío
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="text-muted-foreground flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
-              Dirección de Recogida
-            </Label>
-            <p className="font-medium" data-testid="text-pickup">{operation.pickUpAddress || 'N/A'}</p>
+        <CardContent className="space-y-5 pt-6">
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+            <Package className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Courier</Label>
+              <p className="font-semibold text-base mt-1" data-testid="text-courier">{operation.courier || 'N/A'}</p>
+            </div>
           </div>
-          <div>
-            <Label className="text-muted-foreground flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
-              Dirección de Entrega
-            </Label>
-            <p className="font-medium" data-testid="text-delivery">{operation.deliveryAddress || 'N/A'}</p>
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+            <Link2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Número de Reserva/Tracking</Label>
+              <p className="font-semibold text-base mt-1 font-mono" data-testid="text-tracking">{operation.bookingTracking || 'N/A'}</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+            <FileText className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">MBL/AWB</Label>
+              <p className="font-semibold text-base mt-1 font-mono" data-testid="text-mbl">{operation.mblAwb || 'N/A'}</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+            <FileText className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">HBL/AWB</Label>
+              <p className="font-semibold text-base mt-1 font-mono" data-testid="text-hbl">{operation.hblAwb || 'N/A'}</p>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Fechas Importantes</CardTitle>
+      <Card className="overflow-hidden border-primary/20 hover:border-primary/40 transition-all hover:shadow-lg bg-gradient-to-br from-card to-card/50">
+        <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent pb-4">
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <MapPin className="w-5 h-5 text-primary" />
+            Direcciones
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label className="text-muted-foreground flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Fecha de Recogida
-            </Label>
-            <p className="font-medium" data-testid="text-pickup-date">
-              {operation.pickUpDate ? format(new Date(operation.pickUpDate), 'PPP') : 'N/A'}
-            </p>
+        <CardContent className="space-y-5 pt-6">
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/20 hover:bg-green-500/20 transition-colors">
+            <MapPin className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                Dirección de Recogida
+              </Label>
+              <p className="font-medium text-sm mt-2 leading-relaxed" data-testid="text-pickup">
+                {operation.pickUpAddress || 'N/A'}
+              </p>
+            </div>
           </div>
-          <div>
-            <Label className="text-muted-foreground flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              ETD (Fecha Estimada de Salida)
-            </Label>
-            <p className="font-medium" data-testid="text-etd">
-              {operation.etd ? format(new Date(operation.etd), 'PPP') : 'N/A'}
-            </p>
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-colors">
+            <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                Dirección de Entrega
+              </Label>
+              <p className="font-medium text-sm mt-2 leading-relaxed" data-testid="text-delivery">
+                {operation.deliveryAddress || 'N/A'}
+              </p>
+            </div>
           </div>
-          <div>
-            <Label className="text-muted-foreground flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              ETA (Fecha Estimada de Llegada)
-            </Label>
-            <p className="font-medium" data-testid="text-eta">
-              {operation.eta ? format(new Date(operation.eta), 'PPP') : 'N/A'}
-            </p>
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden border-primary/20 hover:border-primary/40 transition-all hover:shadow-lg bg-gradient-to-br from-card to-card/50">
+        <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent pb-4">
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <Calendar className="w-5 h-5 text-primary" />
+            Fechas Importantes
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5 pt-6">
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+            <Calendar className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">Fecha de Recogida</Label>
+              <p className="font-semibold text-base mt-1" data-testid="text-pickup-date">
+                {operation.pickUpDate ? format(new Date(operation.pickUpDate), 'PPP', { locale: require('date-fns/locale/es') }) : 'N/A'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 transition-colors">
+            <Calendar className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">ETD (Fecha Estimada de Salida)</Label>
+              <p className="font-semibold text-base mt-1" data-testid="text-etd">
+                {operation.etd ? format(new Date(operation.etd), 'PPP', { locale: require('date-fns/locale/es') }) : 'N/A'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
+            <Calendar className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wide">ETA (Fecha Estimada de Llegada)</Label>
+              <p className="font-semibold text-base mt-1" data-testid="text-eta">
+                {operation.eta ? format(new Date(operation.eta), 'PPP', { locale: require('date-fns/locale/es') }) : 'N/A'}
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
