@@ -12,5 +12,27 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Optimized pool configuration to reduce NeonDB costs
+export const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  max: 10, // Limit max connections (instead of default 20)
+  idleTimeoutMillis: 10000, // Close idle connections after 10s
+  connectionTimeoutMillis: 10000, // Connection timeout
+});
+
+// Configure Neon for optimal performance
+neonConfig.fetchConnectionCache = true; // Enable connection caching
+neonConfig.pipelineConnect = 'password'; // Faster authentication
+
 export const db = drizzle({ client: pool, schema });
+
+// Graceful shutdown to close all connections
+process.on('SIGINT', async () => {
+  await pool.end();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await pool.end();
+  process.exit(0);
+});
