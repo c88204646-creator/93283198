@@ -4,6 +4,7 @@ import type { GmailAccount } from '@shared/schema';
 import * as calendarSync from './calendar-sync';
 import { AttachmentAnalyzer } from './attachment-analyzer';
 import { backblazeStorage } from './backblazeStorage';
+import { SpamFilter } from './spam-filter';
 
 // Construir la URL de redirección automáticamente
 function getRedirectUri(): string {
@@ -122,6 +123,7 @@ export async function startSync(accountId: string) {
 
     let pageToken: string | undefined;
     let syncedCount = 0;
+    let filteredSpamCount = 0;
     let totalProcessed = 0;
 
     console.log(`Starting sync for account ${accountId} from date ${account.syncFromDate}`);
@@ -209,6 +211,23 @@ export async function startSync(accountId: string) {
         const isRead = !labels.includes('UNREAD');
         const isStarred = labels.includes('STARRED');
         const isImportant = labels.includes('IMPORTANT');
+
+        // Aplicar filtro de spam inteligente
+        const spamCheck = SpamFilter.getFilterStats({
+          fromEmail,
+          fromName,
+          subject,
+          bodyText,
+          bodyHtml,
+          labels,
+        });
+
+        // Si es spam, saltar este correo (pero registrar la acción)
+        if (spamCheck.isSpam) {
+          filteredSpamCount++;
+          console.log(`[SPAM FILTERED] ${fromEmail} - "${subject}" | Reason: ${spamCheck.reason} (Confidence: ${spamCheck.confidence})`);
+          continue; // No guardar este correo
+        }
 
         // Store email body in Backblaze B2 (if configured)
         let bodyTextB2Key: string | undefined;
@@ -364,7 +383,7 @@ export async function startSync(accountId: string) {
       errorMessage: null,
     });
 
-    console.log(`Sync completed for account ${accountId}. Total processed: ${totalProcessed} messages, New messages synced: ${syncedCount}`);
+    console.log(`Sync completed for account ${accountId}. Total processed: ${totalProcessed} messages, New messages synced: ${syncedCount}, Spam filtered: ${filteredSpamCount}`);
 
   } catch (error: any) {
     console.error(`Sync error for account ${accountId}:`, error);
