@@ -84,6 +84,11 @@ export class AutomationService {
         await this.processMessage(message, enabledRules, config);
       }
 
+      // Process attachments for linked messages if enabled
+      if (config.processAttachments) {
+        await this.processLinkedMessagesAttachments(config);
+      }
+
       // Update last processed timestamp
       await storage.updateAutomationConfig(config.id, {
         lastProcessedAt: new Date(),
@@ -287,7 +292,7 @@ export class AutomationService {
     });
   }
 
-  private async getOrCreateCategoryFolder(operationId: string, category: string | null): Promise<string | null> {
+  private async getOrCreateCategoryFolder(operationId: string, category: string | null, config: AutomationConfig): Promise<string | null> {
     if (!category) return null;
 
     const categoryNames: Record<string, string> = {
@@ -386,7 +391,7 @@ export class AutomationService {
           const category = this.categorizeFile(attachment.filename, attachment.mimeType);
 
           // Get or create folder for this category
-          const folderId = await this.getOrCreateCategoryFolder(operationId, category);
+          const folderId = await this.getOrCreateCategoryFolder(operationId, category, config);
 
           // Create file record
           await storage.createOperationFile({
@@ -401,7 +406,11 @@ export class AutomationService {
             description: `Adjunto de correo: ${message.subject}`,
             tags: ['automatico', 'gmail'],
             uploadedBy: config.userId,
-            uploadedVia: 'automation',
+            uploadedVia: 'gmail_automation',
+            sourceGmailMessageId: message.id,
+            sourceGmailAttachmentId: attachment.id,
+            metadata: null,
+            extractedText: null,
           });
 
           console.log(`[Automation] Processed attachment ${attachment.filename} for operation ${operationId} in folder ${folderId}`);
@@ -411,6 +420,42 @@ export class AutomationService {
       }
     } catch (error) {
       console.error(`[Automation] Error processing email attachments:`, error);
+    }
+  }
+
+  private async processLinkedMessagesAttachments(config: AutomationConfig) {
+    try {
+      // Get all messages linked to operations that have attachments
+      const db = (await import('./db')).db;
+      const { gmailMessages, gmailAttachments, operationFiles } = await import('@shared/schema');
+      const { eq, and, isNotNull, sql: sqlFunc } = await import('drizzle-orm');
+      
+      const messagesWithAttachments = await db.select()
+        .from(gmailMessages)
+        .where(and(
+          isNotNull(gmailMessages.operationId),
+          eq(gmailMessages.hasAttachments, true)
+        ));
+
+      console.log(`[Automation] Found ${messagesWithAttachments.length} linked messages with attachments`);
+
+      for (const message of messagesWithAttachments) {
+        // Check if attachments have already been processed
+        const existingFiles = await db.select()
+          .from(operationFiles)
+          .where(eq(operationFiles.sourceGmailMessageId, message.id));
+
+        if (existingFiles.length > 0) {
+          // Attachments already processed, skip
+          continue;
+        }
+
+        // Process attachments for this message
+        console.log(`[Automation] Processing attachments for message ${message.id} (operation: ${message.operationId})`);
+        await this.processEmailAttachments(message as any, message.operationId!, config);
+      }
+    } catch (error) {
+      console.error('[Automation] Error processing linked messages attachments:', error);
     }
   }
 
