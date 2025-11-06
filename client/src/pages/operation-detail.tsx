@@ -1412,7 +1412,7 @@ function FilesTab({ operationId }: { operationId: string }) {
 
   const handleUploadComplete = async (fileURL: string, file: any) => {
     try {
-      await apiRequest(`/api/operations/${operationId}/files`, "POST", {
+      await apiRequest("POST", `/api/operations/${operationId}/files`, {
         name: file.name,
         originalName: file.name,
         mimeType: file.type,
@@ -1430,7 +1430,7 @@ function FilesTab({ operationId }: { operationId: string }) {
 
   const createFolderMutation = useMutation({
     mutationFn: async (folderName: string) => {
-      return apiRequest(`/api/operations/${operationId}/folders`, "POST", {
+      return apiRequest("POST", `/api/operations/${operationId}/folders`, {
         name: folderName,
         parentFolderId: selectedFolder,
       });
