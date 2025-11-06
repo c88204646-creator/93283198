@@ -100,10 +100,13 @@ export default function OperationFilesPage() {
   });
 
   const { data: files = [] } = useQuery<OperationFile[]>({
-    queryKey: ["/api/operations", operationId, "files"],
-    queryFn: () =>
-      fetch(`/api/operations/${operationId}/files?folderId=${selectedFolder || 'null'}`)
-        .then((res) => res.json()),
+    queryKey: ["/api/operations", operationId, "files", selectedFolder],
+    queryFn: () => {
+      const url = selectedFolder === null 
+        ? `/api/operations/${operationId}/files`
+        : `/api/operations/${operationId}/files?folderId=${selectedFolder}`;
+      return fetch(url).then((res) => res.json());
+    },
   });
 
   const createFolderMutation = useMutation({
