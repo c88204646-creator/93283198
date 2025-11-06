@@ -36,9 +36,9 @@ export class BackblazeStorage {
     let endpoint = process.env.B2_ENDPOINT;
     const keyId = process.env.B2_APPLICATION_KEY_ID;
     const appKey = process.env.B2_APPLICATION_KEY;
-    const bucketId = process.env.B2_BUCKET_ID;
+    const bucketName = process.env.B2_BUCKET_NAME;
 
-    if (!endpoint || !keyId || !appKey || !bucketId) {
+    if (!endpoint || !keyId || !appKey || !bucketName) {
       console.warn('Backblaze B2 credentials not configured. File operations will fall back to legacy storage.');
       this.isConfigured = false;
       return;
@@ -51,7 +51,7 @@ export class BackblazeStorage {
     }
 
     this.endpoint = endpoint;
-    this.bucketName = bucketId;
+    this.bucketName = bucketName;
     this.isConfigured = true;
 
     const region = this.extractRegionFromEndpoint(endpoint);
@@ -66,12 +66,12 @@ export class BackblazeStorage {
       forcePathStyle: true,
     });
     
-    console.log(`Backblaze B2 configurado: Region=${region}, Bucket=${bucketId}`);
+    console.log(`Backblaze B2 configurado: Region=${region}, Bucket=${bucketName}`);
   }
 
   private ensureConfigured(): void {
     if (!this.isConfigured || !this.client || !this.bucketName) {
-      throw new Error('Backblaze B2 is not configured. Please set B2_ENDPOINT, B2_APPLICATION_KEY_ID, B2_APPLICATION_KEY, and B2_BUCKET_ID environment variables.');
+      throw new Error('Backblaze B2 is not configured. Please set B2_ENDPOINT, B2_APPLICATION_KEY_ID, B2_APPLICATION_KEY, and B2_BUCKET_NAME environment variables.');
     }
   }
 
