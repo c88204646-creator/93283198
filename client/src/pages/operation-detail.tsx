@@ -972,7 +972,19 @@ function EmailsTab({ operationId, operation }: {
   });
 
   // Get full email content with signed URLs when a message is selected
-  const { data: emailContent, isLoading: isLoadingContent } = useQuery({
+  const { data: emailContent, isLoading: isLoadingContent } = useQuery<{
+    htmlBodyUrl?: string;
+    textBodyUrl?: string;
+    attachments?: Array<{
+      id: string;
+      filename: string;
+      mimeType: string;
+      size: number;
+      isInline: boolean;
+      contentId?: string;
+      signedUrl?: string;
+    }>;
+  }>({
     queryKey: ['/api/gmail/messages', selectedMessageId, 'content'],
     enabled: !!selectedMessageId,
   });
@@ -1236,9 +1248,10 @@ function EmailsTab({ operationId, operation }: {
               </div>
             </div>
 
-            {/* Email Body */}
-            <ScrollArea className="flex-1">
-              <div className="p-4">
+            {/* Email Body con scroll */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4 space-y-4">
+                {/* Contenido del correo */}
                 {isLoadingContent ? (
                   <div className="space-y-3">
                     <div className="h-4 bg-muted animate-pulse rounded"></div>
@@ -1281,60 +1294,87 @@ function EmailsTab({ operationId, operation }: {
                   <p className="text-muted-foreground italic text-center py-8">Sin contenido</p>
                 )}
 
-                {/* Attachments - Solo los que NO son inline */}
-                {emailContent?.attachments && emailContent.attachments.filter((a: any) => !a.isInline).length > 0 && (
-                  <div className="mt-6 pt-4 border-t">
-                    <h3 className="text-xs font-semibold mb-3 flex items-center gap-2 text-muted-foreground uppercase tracking-wide">
-                      <Paperclip className="w-3.5 h-3.5" />
-                      Archivos Adjuntos ({emailContent.attachments.filter((a: any) => !a.isInline).length})
+                {/* Attachments - Siempre visible si hay adjuntos */}
+                {emailContent?.attachments && emailContent.attachments.length > 0 && (
+                  <div className="pt-4 border-t">
+                    <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <Paperclip className="w-4 h-4" />
+                      Archivos Adjuntos ({emailContent.attachments.filter((a: any) => !a.isInline).length > 0 ? emailContent.attachments.filter((a: any) => !a.isInline).length : emailContent.attachments.length})
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {emailContent.attachments.filter((a: any) => !a.isInline).map((attachment: any) => {
+                    <div className="space-y-2">
+                      {emailContent.attachments.map((attachment: any, index: number) => {
+                        // Siempre mostrar adjuntos que no son inline, y también los inline si no hay otros
+                        const shouldShow = !attachment.isInline || emailContent.attachments.filter((a: any) => !a.isInline).length === 0;
+                        if (!shouldShow) return null;
+                        
                         const Icon = getFileIcon(attachment.mimeType);
                         const isImage = attachment.mimeType.startsWith('image/');
+                        const isPdf = attachment.mimeType === 'application/pdf';
                         
                         return (
                           <div 
-                            key={attachment.id} 
-                            className="flex items-center gap-2 p-2 rounded-lg border bg-card hover:bg-accent transition-colors group" 
+                            key={attachment.id || index} 
+                            className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:shadow-md transition-all group" 
                             data-testid={`card-attachment-${attachment.id}`}
                           >
-                            {/* Thumbnail for images */}
+                            {/* Thumbnail más grande para imágenes */}
                             {isImage && attachment.signedUrl ? (
-                              <div className="w-12 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
+                              <div className="w-16 h-16 rounded overflow-hidden bg-muted flex-shrink-0 cursor-pointer" onClick={() => window.open(attachment.signedUrl, '_blank')}>
                                 <img
                                   src={attachment.signedUrl}
                                   alt={attachment.filename}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover hover:scale-110 transition-transform"
                                   loading="lazy"
                                 />
                               </div>
                             ) : (
-                              <div className="w-12 h-12 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                <Icon className="w-5 h-5 text-primary" />
+                              <div className="w-16 h-16 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                <Icon className="w-7 h-7 text-primary" />
                               </div>
                             )}
                             
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium truncate" title={attachment.filename}>
+                              <p className="text-sm font-medium truncate mb-1" title={attachment.filename}>
                                 {attachment.filename}
                               </p>
-                              <p className="text-[10px] text-muted-foreground">
-                                {formatFileSize(attachment.size)}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs text-muted-foreground">
+                                  {formatFileSize(attachment.size)}
+                                </p>
+                                {attachment.isInline && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                    Inline
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="flex-shrink-0 h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => {
-                                window.open(`/api/gmail/attachments/${attachment.id}/download`, '_blank');
-                              }}
-                              data-testid={`button-download-${attachment.id}`}
-                            >
-                              <Download className="w-3.5 h-3.5" />
-                            </Button>
+                            <div className="flex gap-1 flex-shrink-0">
+                              {(isImage || isPdf) && attachment.signedUrl && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-9 w-9 p-0"
+                                  onClick={() => window.open(attachment.signedUrl, '_blank')}
+                                  data-testid={`button-preview-${attachment.id}`}
+                                  title="Vista previa"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-9 w-9 p-0"
+                                onClick={() => {
+                                  window.open(`/api/gmail/attachments/${attachment.id}/download`, '_blank');
+                                }}
+                                data-testid={`button-download-${attachment.id}`}
+                                title="Descargar"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                         );
                       })}
@@ -1342,7 +1382,7 @@ function EmailsTab({ operationId, operation }: {
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </>
         )}
       </div>
