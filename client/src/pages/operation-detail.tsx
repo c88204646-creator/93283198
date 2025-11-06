@@ -16,7 +16,8 @@ import { format } from "date-fns";
 import {
   ArrowLeft, Package, FileText, CheckSquare, Mail, Edit2, Trash2, Plus,
   Calendar, User as UserIcon, MapPin, Ship, Plane, Truck, DollarSign, FolderOpen,
-  Download, Paperclip, Upload, Link, FileIcon, Image, ExternalLink, Eye, MoreVertical
+  Download, Paperclip, Upload, Link, FileIcon, Image, ExternalLink, Eye, MoreVertical,
+  Grid3x3, List, Zap, File, ChevronLeft, ChevronRight, FileArchive, FileSpreadsheet, Clock
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import DOMPurify from 'isomorphic-dompurify';
@@ -1402,6 +1403,7 @@ function FilesTab({ operationId }: { operationId: string }) {
   const { toast } = useToast();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [editingFile, setEditingFile] = useState<any>(null);
@@ -1411,6 +1413,8 @@ function FilesTab({ operationId }: { operationId: string }) {
   const [editingFolder, setEditingFolder] = useState<any>(null);
   const [editFolderName, setEditFolderName] = useState("");
   const [deletingFolder, setDeletingFolder] = useState<any>(null);
+  const [previewFile, setPreviewFile] = useState<any>(null);
+  const [previewIndex, setPreviewIndex] = useState<number>(0);
 
   const { data: folders = [], isLoading: loadingFolders } = useQuery<any[]>({
     queryKey: ["/api/operations", operationId, "folders"],
@@ -1532,25 +1536,72 @@ function FilesTab({ operationId }: { operationId: string }) {
   });
 
   const getFileIcon = (mimeType: string) => {
-    if (mimeType.startsWith("image/")) return "🖼️";
-    if (mimeType.includes("pdf")) return "📄";
-    if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) return "📊";
-    return "📎";
+    if (mimeType.startsWith("image/")) return Image;
+    if (mimeType.includes("pdf")) return FileText;
+    if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) return FileSpreadsheet;
+    if (mimeType.includes("zip") || mimeType.includes("rar") || mimeType.includes("compressed")) return FileArchive;
+    return File;
+  };
+
+  const getFileTypeLabel = (mimeType: string): string => {
+    if (mimeType.includes("pdf")) return "PDF";
+    if (mimeType.includes("image")) return "Image";
+    if (mimeType.includes("excel") || mimeType.includes("spreadsheet")) return "Spreadsheet";
+    if (mimeType.includes("word") || mimeType.includes("document")) return "Document";
+    if (mimeType.includes("zip") || mimeType.includes("rar")) return "Archive";
+    return "File";
   };
 
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + " B";
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
-    return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  };
+
+  const handlePreview = (file: any) => {
+    if (file.mimeType.startsWith("image/") || file.mimeType.includes("pdf")) {
+      const previewableFiles = files.filter((f: any) => 
+        f.mimeType.startsWith("image/") || f.mimeType.includes("pdf")
+      );
+      const index = previewableFiles.findIndex((f: any) => f.id === file.id);
+      setPreviewIndex(index);
+      setPreviewFile(file);
+    }
+  };
+
+  const nextPreview = () => {
+    const previewableFiles = files.filter((f: any) => 
+      f.mimeType.startsWith("image/") || f.mimeType.includes("pdf")
+    );
+    if (previewIndex < previewableFiles.length - 1) {
+      const nextFile = previewableFiles[previewIndex + 1];
+      setPreviewFile(nextFile);
+      setPreviewIndex(previewIndex + 1);
+    }
+  };
+
+  const prevPreview = () => {
+    const previewableFiles = files.filter((f: any) => 
+      f.mimeType.startsWith("image/") || f.mimeType.includes("pdf")
+    );
+    if (previewIndex > 0) {
+      const prevFile = previewableFiles[previewIndex - 1];
+      setPreviewFile(prevFile);
+      setPreviewIndex(previewIndex - 1);
+    }
   };
 
   if (loadingFolders || loadingFiles) {
     return <div className="text-center py-8 text-muted-foreground">Cargando archivos...</div>;
   }
 
+  const previewableFiles = files.filter((f: any) => 
+    f.mimeType.startsWith("image/") || f.mimeType.includes("pdf")
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold">Archivos de la Operación</h3>
           <p className="text-sm text-muted-foreground">
@@ -1560,7 +1611,15 @@ function FilesTab({ operationId }: { operationId: string }) {
             )}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+            data-testid="button-toggle-view"
+          >
+            {viewMode === "grid" ? <List className="w-4 h-4" /> : <Grid3x3 className="w-4 h-4" />}
+          </Button>
           <Button onClick={() => setIsCreateFolderOpen(true)} variant="outline" data-testid="button-create-folder">
             <FolderOpen className="w-4 h-4 mr-2" />
             Nueva Carpeta
@@ -1573,34 +1632,35 @@ function FilesTab({ operationId }: { operationId: string }) {
       </div>
 
       {folders.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 overflow-x-auto pb-2">
           <Button
             variant={selectedFolder === null ? "default" : "outline"}
-            size="sm"
             onClick={() => setSelectedFolder(null)}
+            className="shrink-0"
             data-testid="button-folder-root"
           >
-            📁 Todos los archivos
+            <FolderOpen className="w-4 h-4 mr-2" />
+            Todos los archivos
           </Button>
           {folders.map((folder: any) => (
-            <div key={folder.id} className="flex items-center gap-1">
+            <div key={folder.id} className="relative shrink-0 group">
               <Button
                 variant={selectedFolder === folder.id ? "default" : "outline"}
-                size="sm"
                 onClick={() => setSelectedFolder(folder.id)}
                 data-testid={`button-folder-${folder.id}`}
               >
-                📁 {folder.name}
+                <FolderOpen className="w-4 h-4 mr-2" />
+                {folder.name}
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    size="sm"
-                    className="h-8 w-8 p-0"
+                    size="icon"
+                    className="absolute -top-1 -right-1 w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity"
                     data-testid={`button-folder-menu-${folder.id}`}
                   >
-                    <MoreVertical className="w-4 h-4" />
+                    <MoreVertical className="w-3 h-3" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -1629,89 +1689,230 @@ function FilesTab({ operationId }: { operationId: string }) {
         </div>
       )}
 
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-        {files.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            No hay archivos en esta carpeta
-          </div>
-        ) : (
-          files.map((file: any) => (
-            <Card key={file.id} className="hover-elevate" data-testid={`card-file-${file.id}`}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className="text-2xl flex-shrink-0">
-                      {getFileIcon(file.mimeType)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate" data-testid={`text-filename-${file.id}`}>
-                        {file.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(file.size)}
-                      </p>
+      {files.length === 0 ? (
+        <Card className="p-12 text-center">
+          <FolderOpen className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+          <h3 className="text-lg font-semibold mb-2">No hay archivos</h3>
+          <p className="text-muted-foreground mb-4">
+            Sube tu primer archivo para comenzar
+          </p>
+          <Button onClick={() => setIsUploadOpen(true)}>
+            <Upload className="w-4 h-4 mr-2" />
+            Subir Archivo
+          </Button>
+        </Card>
+      ) : viewMode === "grid" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {files.map((file: any) => {
+            const FileIconComponent = getFileIcon(file.mimeType);
+            const isImage = file.mimeType.startsWith("image/");
+            const isAutomated = file.uploadedVia === "gmail_automation" || !!file.sourceGmailAttachmentId;
+
+            return (
+              <Card
+                key={file.id}
+                className="group overflow-hidden hover:shadow-lg transition-all cursor-pointer border-2"
+                onClick={() => handlePreview(file)}
+                data-testid={`card-file-${file.id}`}
+              >
+                {/* Thumbnail/Preview */}
+                <div className="relative h-48 bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center overflow-hidden">
+                  {isImage ? (
+                    <img
+                      src={`/api/operations/${operationId}/files/${file.id}/download`}
+                      alt={file.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <FileIconComponent className="w-20 h-20 text-muted-foreground/40" />
+                  )}
+                  
+                  {/* Automated Badge */}
+                  {isAutomated && (
+                    <Badge className="absolute top-2 left-2 bg-primary/90 text-primary-foreground border-0">
+                      <Zap className="w-3 h-3 mr-1" />
+                      Automated
+                    </Badge>
+                  )}
+
+                  {/* Actions Menu */}
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="secondary" size="icon" className="shadow-lg" data-testid={`button-file-menu-${file.id}`}>
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`/api/operations/${operationId}/files/${file.id}/download`, "_blank");
+                          }}
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Download
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingFile(file);
+                            setEditFileName(file.name);
+                            setEditFileFolderId(file.folderId);
+                          }}
+                        >
+                          <Edit2 className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingFile(file);
+                          }}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  {/* File Type Badge */}
+                  <Badge variant="secondary" className="absolute bottom-2 left-2 text-xs">
+                    {getFileTypeLabel(file.mimeType)}
+                  </Badge>
+                </div>
+
+                {/* File Info */}
+                <div className="p-4">
+                  <h3 className="font-medium truncate mb-1" title={file.name}>
+                    {file.name}
+                  </h3>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                    <span>{formatFileSize(file.size)}</span>
+                    <span>{format(new Date(file.createdAt), "MMM d, yyyy")}</span>
+                  </div>
+                  {file.category && (
+                    <Badge variant="outline" className="text-xs">
+                      {file.category}
+                    </Badge>
+                  )}
+                  {file.description && (
+                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                      {file.description}
+                    </p>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <Card>
+          <div className="divide-y">
+            {files.map((file: any) => {
+              const FileIconComponent = getFileIcon(file.mimeType);
+              const isAutomated = file.uploadedVia === "gmail_automation" || !!file.sourceGmailAttachmentId;
+
+              return (
+                <div
+                  key={file.id}
+                  className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors cursor-pointer group"
+                  onClick={() => handlePreview(file)}
+                  data-testid={`card-file-${file.id}`}
+                >
+                  {/* Icon/Thumbnail */}
+                  <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                    {file.mimeType.startsWith("image/") ? (
+                      <img
+                        src={`/api/operations/${operationId}/files/${file.id}/download`}
+                        alt={file.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <FileIconComponent className="w-6 h-6 text-muted-foreground" />
+                    )}
+                  </div>
+
+                  {/* File Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium truncate">{file.name}</h3>
+                      {isAutomated && (
+                        <Badge variant="secondary" className="shrink-0">
+                          <Zap className="w-3 h-3 mr-1" />
+                          Automated
+                        </Badge>
+                      )}
                       {file.category && (
-                        <Badge variant="secondary" className="text-xs mt-1">
+                        <Badge variant="outline" className="shrink-0 text-xs">
                           {file.category}
                         </Badge>
                       )}
-                      {file.uploadedVia === 'automation' && (
-                        <Badge variant="outline" className="text-xs mt-1 ml-1">
-                          Auto
-                        </Badge>
-                      )}
+                    </div>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                      <span>{formatFileSize(file.size)}</span>
+                      <span>•</span>
+                      <span>{getFileTypeLabel(file.mimeType)}</span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {format(new Date(file.createdAt), "MMM d, yyyy")}
+                      </span>
                     </div>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        data-testid={`button-file-menu-${file.id}`}
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => window.open(file.objectPath, '_blank')}
-                        data-testid={`button-download-${file.id}`}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setEditingFile(file);
-                          setEditFileName(file.name);
-                          setEditFileFolderId(file.folderId);
-                        }}
-                        data-testid={`button-edit-file-${file.id}`}
-                      >
-                        <Edit2 className="w-4 h-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setDeletingFile(file)}
-                        className="text-red-600"
-                        data-testid={`button-delete-file-${file.id}`}
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(`/api/operations/${operationId}/files/${file.id}/download`, "_blank");
+                      }}
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingFile(file);
+                            setEditFileName(file.name);
+                            setEditFileFolderId(file.folderId);
+                          }}
+                        >
+                          <Edit2 className="w-4 h-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingFile(file);
+                          }}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
-                {file.description && (
-                  <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                    {file.description}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
         <DialogContent className="sm:max-w-[550px]">
@@ -1938,6 +2139,79 @@ function FilesTab({ operationId }: { operationId: string }) {
               {deleteFileMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
+        <DialogContent className="max-w-5xl h-[90vh]">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="truncate pr-4">{previewFile?.name}</DialogTitle>
+              <div className="flex items-center gap-2 shrink-0">
+                {previewableFiles.length > 1 && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={prevPreview}
+                      disabled={previewIndex === 0}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <span className="text-sm text-muted-foreground px-2">
+                      {previewIndex + 1} / {previewableFiles.length}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={nextPreview}
+                      disabled={previewIndex === previewableFiles.length - 1}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => window.open(`/api/operations/${operationId}/files/${previewFile?.id}/download`, "_blank")}
+                >
+                  <Download className="w-4 h-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={() => setPreviewFile(null)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden rounded-lg bg-muted/30 flex items-center justify-center">
+            {previewFile?.mimeType.startsWith("image/") ? (
+              <img
+                src={`/api/operations/${operationId}/files/${previewFile.id}/download`}
+                alt={previewFile.name}
+                className="max-w-full max-h-full object-contain"
+              />
+            ) : previewFile?.mimeType.includes("pdf") ? (
+              <iframe
+                src={`/api/operations/${operationId}/files/${previewFile.id}/download`}
+                className="w-full h-full"
+                title={previewFile.name}
+              />
+            ) : (
+              <div className="text-center p-8">
+                <Eye className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+                <p className="text-muted-foreground">Preview not available</p>
+                <Button
+                  className="mt-4"
+                  onClick={() => window.open(`/api/operations/${operationId}/files/${previewFile?.id}/download`, "_blank")}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download to View
+                </Button>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
