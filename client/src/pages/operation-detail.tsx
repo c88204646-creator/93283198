@@ -21,7 +21,7 @@ import {
 import { useState, useEffect, useMemo } from "react";
 import DOMPurify from 'isomorphic-dompurify';
 import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage } from "@shared/schema";
-import { ObjectUploader } from "@/components/ObjectUploader";
+import { FileUploader } from "@/components/FileUploader";
 import {
   Dialog,
   DialogContent,
@@ -1410,21 +1410,23 @@ function FilesTab({ operationId }: { operationId: string }) {
     },
   });
 
-  const handleUploadComplete = async (fileURL: string, file: any) => {
+  const handleUploadComplete = async (result: { b2Key: string; fileHash: string; size: number; originalName: string; mimeType: string }) => {
     try {
       await apiRequest("POST", `/api/operations/${operationId}/files`, {
-        name: file.name,
-        originalName: file.name,
-        mimeType: file.type,
-        size: file.size,
-        objectPath: fileURL,
+        name: result.originalName,
+        b2Key: result.b2Key,
+        fileHash: result.fileHash,
+        mimeType: result.mimeType,
+        size: result.size,
         folderId: selectedFolder,
       });
       
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
-      toast({ title: "Archivo subido exitosamente" });
-    } catch (error) {
-      toast({ title: "Error al guardar archivo", variant: "destructive" });
+      setIsUploadOpen(false);
+      toast({ title: "File uploaded successfully" });
+    } catch (error: any) {
+      console.error("File save error:", error);
+      toast({ title: "Error saving file", description: error?.message || "Unknown error", variant: "destructive" });
     }
   };
 
@@ -1571,11 +1573,19 @@ function FilesTab({ operationId }: { operationId: string }) {
         )}
       </div>
 
-      <ObjectUploader
-        isOpen={isUploadOpen}
-        onClose={() => setIsUploadOpen(false)}
-        onUploadComplete={handleUploadComplete}
-      />
+      <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload File</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <FileUploader
+              operationId={operationId!}
+              onUploadComplete={handleUploadComplete}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
         <DialogContent>
