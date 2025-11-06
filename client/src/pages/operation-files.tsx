@@ -50,22 +50,22 @@ import {
 import type { OperationFile, OperationFolder } from "@shared/schema";
 
 const FILE_CATEGORIES = [
-  { value: "payment", label: "Pago", icon: "💰" },
-  { value: "expense", label: "Gasto", icon: "💸" },
-  { value: "image", label: "Imagen", icon: "🖼️" },
-  { value: "document", label: "Documento", icon: "📄" },
-  { value: "contract", label: "Contrato", icon: "📋" },
-  { value: "invoice", label: "Factura", icon: "🧾" },
-  { value: "other", label: "Otro", icon: "📎" },
+  { value: "payment", label: "Payment", icon: "💰" },
+  { value: "expense", label: "Expense", icon: "💸" },
+  { value: "image", label: "Image", icon: "🖼️" },
+  { value: "document", label: "Document", icon: "📄" },
+  { value: "contract", label: "Contract", icon: "📋" },
+  { value: "invoice", label: "Invoice", icon: "🧾" },
+  { value: "other", label: "Other", icon: "📎" },
 ];
 
 const FOLDER_COLORS = [
-  { value: "blue", label: "Azul", class: "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300" },
-  { value: "green", label: "Verde", class: "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300" },
-  { value: "yellow", label: "Amarillo", class: "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300" },
-  { value: "red", label: "Rojo", class: "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300" },
-  { value: "purple", label: "Púrpura", class: "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300" },
-  { value: "gray", label: "Gris", class: "bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-300" },
+  { value: "blue", label: "Blue", class: "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300" },
+  { value: "green", label: "Green", class: "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300" },
+  { value: "yellow", label: "Yellow", class: "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300" },
+  { value: "red", label: "Red", class: "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300" },
+  { value: "purple", label: "Purple", class: "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300" },
+  { value: "gray", label: "Gray", class: "bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-300" },
 ];
 
 function getFileIcon(mimeType: string, category: string | null) {
@@ -114,13 +114,13 @@ export default function OperationFilesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
       setIsFolderDialogOpen(false);
       setEditingFolder(null);
-      toast({ title: "Carpeta creada exitosamente" });
+      toast({ title: "Folder created successfully" });
     },
     onError: (error: any) => {
       console.error("Error creating folder:", error);
       toast({ 
-        title: "Error al crear carpeta", 
-        description: error.message || "Ocurrió un error inesperado",
+        title: "Error creating folder", 
+        description: error.message || "An unexpected error occurred",
         variant: "destructive" 
       });
     },
@@ -134,13 +134,13 @@ export default function OperationFilesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
       setIsFolderDialogOpen(false);
       setEditingFolder(null);
-      toast({ title: "Carpeta actualizada" });
+      toast({ title: "Folder updated" });
     },
     onError: (error: any) => {
       console.error("Error updating folder:", error);
       toast({ 
-        title: "Error al actualizar carpeta", 
-        description: error.message || "Ocurrió un error inesperado",
+        title: "Error updating folder", 
+        description: error.message || "An unexpected error occurred",
         variant: "destructive" 
       });
     },
@@ -152,13 +152,13 @@ export default function OperationFilesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
-      toast({ title: "Carpeta eliminada" });
+      toast({ title: "Folder deleted" });
     },
     onError: (error: any) => {
       console.error("Error deleting folder:", error);
       toast({ 
-        title: "Error al eliminar carpeta", 
-        description: error.message || "Ocurrió un error inesperado",
+        title: "Error deleting folder", 
+        description: error.message || "An unexpected error occurred",
         variant: "destructive" 
       });
     },
@@ -173,13 +173,13 @@ export default function OperationFilesPage() {
       setPendingUpload(null);
       setIsFileDialogOpen(false);
       setIsUploadOpen(false);
-      toast({ title: "Archivo subido exitosamente" });
+      toast({ title: "File uploaded successfully" });
     },
     onError: (error: any) => {
       console.error("Error creating file:", error);
       toast({ 
-        title: "Error al subir archivo", 
-        description: error.message || "Ocurrió un error inesperado",
+        title: "Error uploading file", 
+        description: error.message || "An unexpected error occurred",
         variant: "destructive" 
       });
     },
@@ -193,13 +193,13 @@ export default function OperationFilesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
       setIsFileDialogOpen(false);
       setEditingFile(null);
-      toast({ title: "Archivo actualizado" });
+      toast({ title: "File updated" });
     },
     onError: (error: any) => {
       console.error("Error updating file:", error);
       toast({ 
-        title: "Error al actualizar archivo", 
-        description: error.message || "Ocurrió un error inesperado",
+        title: "Error updating file", 
+        description: error.message || "An unexpected error occurred",
         variant: "destructive" 
       });
     },
@@ -211,13 +211,13 @@ export default function OperationFilesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
-      toast({ title: "Archivo eliminado" });
+      toast({ title: "File deleted" });
     },
     onError: (error: any) => {
       console.error("Error deleting file:", error);
       toast({ 
-        title: "Error al eliminar archivo", 
-        description: error.message || "Ocurrió un error inesperado",
+        title: "Error deleting file", 
+        description: error.message || "An unexpected error occurred",
         variant: "destructive" 
       });
     },
@@ -302,8 +302,8 @@ export default function OperationFilesPage() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Gestión de Archivos</h1>
-          <p className="text-muted-foreground">Organiza y gestiona todos los archivos de la operación</p>
+          <h1 className="text-3xl font-bold">File Management</h1>
+          <p className="text-muted-foreground">Organize and manage all operation files</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -315,14 +315,14 @@ export default function OperationFilesPage() {
             }}
           >
             <FolderPlus className="w-4 h-4 mr-2" />
-            Nueva Carpeta
+            New Folder
           </Button>
           <Button
             data-testid="button-upload-file"
             onClick={() => setIsUploadOpen(true)}
           >
             <Upload className="w-4 h-4 mr-2" />
-            Subir Archivo
+            Upload File
           </Button>
         </div>
       </div>
@@ -330,7 +330,7 @@ export default function OperationFilesPage() {
       <div className="grid gap-6 md:grid-cols-4">
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle className="text-lg">Carpetas</CardTitle>
+            <CardTitle className="text-lg">Folders</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <Button
@@ -370,19 +370,19 @@ export default function OperationFilesPage() {
                         }}
                       >
                         <Edit className="w-4 h-4 mr-2" />
-                        Editar
+                        Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         data-testid={`folder-delete-${folder.id}`}
                         onClick={() => {
-                          if (confirm("¿Eliminar esta carpeta?")) {
+                          if (confirm("Delete this folder?")) {
                             deleteFolderMutation.mutate(folder.id);
                           }
                         }}
                         className="text-destructive"
                       >
                         <Trash className="w-4 h-4 mr-2" />
-                        Eliminar
+                        Delete
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -397,15 +397,15 @@ export default function OperationFilesPage() {
             <CardHeader>
               <CardTitle>
                 {selectedFolder
-                  ? folders.find(f => f.id === selectedFolder)?.name || "Archivos"
-                  : "Todos los archivos"}
+                  ? folders.find(f => f.id === selectedFolder)?.name || "Files"
+                  : "All Files"}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {files.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No hay archivos en esta carpeta</p>
+                  <p>No files in this folder</p>
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -449,7 +449,7 @@ export default function OperationFilesPage() {
                                       }}
                                     >
                                       <Download className="w-4 h-4 mr-2" />
-                                      Descargar
+                                      Download
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       data-testid={`file-edit-${file.id}`}
@@ -460,20 +460,20 @@ export default function OperationFilesPage() {
                                       }}
                                     >
                                       <Edit className="w-4 h-4 mr-2" />
-                                      Editar
+                                      Edit
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       data-testid={`file-delete-${file.id}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (confirm("¿Eliminar este archivo?")) {
+                                        if (confirm("Delete this file?")) {
                                           deleteFileMutation.mutate(file.id);
                                         }
                                       }}
                                       className="text-destructive"
                                     >
                                       <Trash className="w-4 h-4 mr-2" />
-                                      Eliminar
+                                      Delete
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
@@ -508,7 +508,7 @@ export default function OperationFilesPage() {
                                       }}
                                     >
                                       <Download className="w-4 h-4 mr-2" />
-                                      Descargar
+                                      Download
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       data-testid={`file-edit-${file.id}`}
@@ -519,20 +519,20 @@ export default function OperationFilesPage() {
                                       }}
                                     >
                                       <Edit className="w-4 h-4 mr-2" />
-                                      Editar
+                                      Edit
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
                                       data-testid={`file-delete-${file.id}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        if (confirm("¿Eliminar este archivo?")) {
+                                        if (confirm("Delete this file?")) {
                                           deleteFileMutation.mutate(file.id);
                                         }
                                       }}
                                       className="text-destructive"
                                     >
                                       <Trash className="w-4 h-4 mr-2" />
-                                      Eliminar
+                                      Delete
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>
@@ -581,11 +581,11 @@ export default function OperationFilesPage() {
         <DialogContent data-testid="dialog-folder">
           <form onSubmit={handleSaveFolder}>
             <DialogHeader>
-              <DialogTitle>{editingFolder ? "Editar Carpeta" : "Nueva Carpeta"}</DialogTitle>
+              <DialogTitle>{editingFolder ? "Edit Folder" : "New Folder"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <Label htmlFor="name">Nombre</Label>
+                <Label htmlFor="name">Name</Label>
                 <Input
                   id="name"
                   name="name"
@@ -595,7 +595,7 @@ export default function OperationFilesPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="description">Descripción</Label>
+                <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
                   name="description"
@@ -604,10 +604,10 @@ export default function OperationFilesPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="category">Categoría</Label>
+                <Label htmlFor="category">Category</Label>
                 <Select name="category" defaultValue={editingFolder?.category || undefined}>
                   <SelectTrigger data-testid="select-folder-category">
-                    <SelectValue placeholder="Seleccionar categoría" />
+                    <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
                     {FILE_CATEGORIES.map((cat) => (
@@ -644,10 +644,10 @@ export default function OperationFilesPage() {
                 }}
                 data-testid="button-cancel-folder"
               >
-                Cancelar
+                Cancel
               </Button>
               <Button type="submit" data-testid="button-save-folder">
-                {editingFolder ? "Actualizar" : "Crear"}
+                {editingFolder ? "Update" : "Create"}
               </Button>
             </DialogFooter>
           </form>
@@ -658,11 +658,11 @@ export default function OperationFilesPage() {
         <DialogContent data-testid="dialog-file">
           <form onSubmit={handleSaveFile}>
             <DialogHeader>
-              <DialogTitle>{editingFile ? "Editar Archivo" : "Detalles del Archivo"}</DialogTitle>
+              <DialogTitle>{editingFile ? "Edit File" : "File Details"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <Label htmlFor="file-name">Nombre</Label>
+                <Label htmlFor="file-name">Name</Label>
                 <Input
                   id="file-name"
                   name="name"
@@ -672,13 +672,13 @@ export default function OperationFilesPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="file-folder">Carpeta</Label>
+                <Label htmlFor="file-folder">Folder</Label>
                 <Select name="folderId" defaultValue={editingFile?.folderId || selectedFolder || undefined}>
                   <SelectTrigger data-testid="select-file-folder">
-                    <SelectValue placeholder="Sin carpeta" />
+                    <SelectValue placeholder="No folder" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin carpeta</SelectItem>
+                    <SelectItem value="">No folder</SelectItem>
                     {folders.map((folder) => (
                       <SelectItem key={folder.id} value={folder.id}>
                         {folder.name}
@@ -688,10 +688,10 @@ export default function OperationFilesPage() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="file-category">Categoría</Label>
+                <Label htmlFor="file-category">Category</Label>
                 <Select name="category" defaultValue={editingFile?.category || undefined}>
                   <SelectTrigger data-testid="select-file-category">
-                    <SelectValue placeholder="Seleccionar categoría" />
+                    <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
                     {FILE_CATEGORIES.map((cat) => (
@@ -712,13 +712,13 @@ export default function OperationFilesPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="file-tags">Etiquetas (separadas por comas)</Label>
+                <Label htmlFor="file-tags">Tags (comma-separated)</Label>
                 <Input
                   id="file-tags"
                   name="tags"
                   data-testid="input-file-tags"
                   defaultValue={editingFile?.tags?.join(", ") || ""}
-                  placeholder="ej: importante, urgente"
+                  placeholder="e.g.: important, urgent"
                 />
               </div>
             </div>
@@ -733,10 +733,10 @@ export default function OperationFilesPage() {
                 }}
                 data-testid="button-cancel-file"
               >
-                Cancelar
+                Cancel
               </Button>
               <Button type="submit" data-testid="button-save-file">
-                {editingFile ? "Actualizar" : "Guardar"}
+                {editingFile ? "Update" : "Save"}
               </Button>
             </DialogFooter>
           </form>
@@ -823,14 +823,14 @@ export default function OperationFilesPage() {
                       data-testid="button-open-new-tab"
                     >
                       <Eye className="w-4 h-4 mr-2" />
-                      Abrir en nueva pestaña
+                      Open in new tab
                     </Button>
                   </div>
                 )}
               </div>
               {previewFile.description && (
                 <div className="p-4 border-t bg-background">
-                  <h4 className="font-medium mb-1">Descripción</h4>
+                  <h4 className="font-medium mb-1">Description</h4>
                   <p className="text-sm text-muted-foreground">{previewFile.description}</p>
                 </div>
               )}
