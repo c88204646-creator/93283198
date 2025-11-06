@@ -1428,7 +1428,7 @@ function FilesTab({ operationId }: { operationId: string }) {
   const handleUploadComplete = async (result: { b2Key: string; fileHash: string; size: number; originalName: string; mimeType: string }) => {
     try {
       await apiRequest("POST", `/api/operations/${operationId}/files`, {
-        name: result.originalName,
+        originalName: result.originalName,
         b2Key: result.b2Key,
         fileHash: result.fileHash,
         mimeType: result.mimeType,
@@ -1714,9 +1714,14 @@ function FilesTab({ operationId }: { operationId: string }) {
       </div>
 
       <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
-            <DialogTitle>Upload File</DialogTitle>
+            <DialogTitle>Upload File to Operation</DialogTitle>
+            <DialogDescription>
+              {selectedFolder 
+                ? `Upload a file to the "${folders.find((f: any) => f.id === selectedFolder)?.name}" folder`
+                : "Upload a file to the root directory"}
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <FileUploader
@@ -1724,6 +1729,11 @@ function FilesTab({ operationId }: { operationId: string }) {
               onUploadComplete={handleUploadComplete}
             />
           </div>
+          <DialogFooter className="sm:justify-start">
+            <p className="text-xs text-muted-foreground">
+              Files are securely stored in Backblaze B2 with automatic deduplication
+            </p>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
