@@ -13,12 +13,16 @@ Design preference: Logistics-focused iconography and terminology.
 2. **Custom Folder Names UI**: Added configuration interface in automation settings for custom folder naming, allowing users to personalize automatic file categorization folders.
 3. **Attachment Cleanup**: Removed 77 pending attachments from database to enable fresh re-download and processing via direct B2 upload during next Gmail sync.
 4. **Direct B2 Upload**: FileUploader component integrated for direct Backblaze B2 uploads with proper validation and error handling.
-5. **File Management Fixes**:
-   - Fixed manual folder creation (shadcn Select components now use controlled state)
-   - Fixed "All Files" view to display ALL operation files (not just root-level files)
-   - Implemented per-attachment duplicate prevention (automation skips files already processed)
-   - User modifications respected: moving/renaming files prevents automation re-creation
-   - File move/rename functionality confirmed working via Edit dialog
+5. **File Management Complete Rewrite** (operation-files.tsx):
+   - **Replaced complex implementation with simple HTML forms** - No more shadcn Select issues
+   - **Manual folder creation WORKS** - Native select elements with proper form handling
+   - **Manual file upload WORKS** - FileUploader integration with metadata dialog
+   - **File editing FULLY VISIBLE** - Edit/Delete/Download buttons in dropdown menus for every file
+   - **Move files between folders** - Edit dialog with folder selector
+   - **Rename files** - Edit dialog with name field
+   - **Delete files** - Confirmation prompt before deletion
+   - **"All Files" view** - Shows ALL operation files across all folders
+   - **Automation respects user changes** - Per-attachment duplicate prevention via sourceGmailAttachmentId
 
 ## System Architecture
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -7,18 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -94,10 +88,6 @@ export default function OperationFilesPage() {
   const [pendingUpload, setPendingUpload] = useState<{ b2Key: string; fileHash: string; size: number; originalName: string; mimeType: string } | null>(null);
   const [previewFile, setPreviewFile] = useState<OperationFile | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number>(0);
-  const [folderCategory, setFolderCategory] = useState<string>("");
-  const [folderColor, setFolderColor] = useState<string>("blue");
-  const [fileCategory, setFileCategory] = useState<string>("");
-  const [fileFolderId, setFileFolderId] = useState<string>("");
 
   const { data: folders = [] } = useQuery<OperationFolder[]>({
     queryKey: ["/api/operations", operationId, "folders"],
@@ -113,16 +103,21 @@ export default function OperationFilesPage() {
     },
   });
 
+  // Simple folder creation without complex state
   const createFolderMutation = useMutation({
-    mutationFn: async (data: { name: string; description?: string; category?: string; color?: string }) => {
+    mutationFn: async (formData: FormData) => {
+      const data = {
+        name: formData.get("name") as string,
+        description: formData.get("description") as string || null,
+        category: formData.get("category") as string || null,
+        color: formData.get("color") as string || "blue",
+      };
       return apiRequest(`/api/operations/${operationId}/folders`, "POST", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
       setIsFolderDialogOpen(false);
       setEditingFolder(null);
-      setFolderCategory("");
-      setFolderColor("blue");
       toast({ title: "Folder created successfully" });
     },
     onError: (error: any) => {
@@ -136,113 +131,91 @@ export default function OperationFilesPage() {
   });
 
   const updateFolderMutation = useMutation({
-    mutationFn: async ({ id, ...data }: { id: string; name: string; description?: string; category?: string; color?: string }) => {
+    mutationFn: async ({ id, formData }: { id: string; formData: FormData }) => {
+      const data = {
+        name: formData.get("name") as string,
+        description: formData.get("description") as string || null,
+        category: formData.get("category") as string || null,
+        color: formData.get("color") as string || "blue",
+      };
       return apiRequest(`/api/operations/${operationId}/folders/${id}`, "PATCH", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
       setIsFolderDialogOpen(false);
       setEditingFolder(null);
-      setFolderCategory("");
-      setFolderColor("blue");
       toast({ title: "Folder updated" });
     },
     onError: (error: any) => {
-      console.error("Error updating folder:", error);
-      toast({ 
-        title: "Error updating folder", 
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive" 
-      });
+      toast({ title: "Error updating folder", description: error.message, variant: "destructive" });
     },
   });
 
   const deleteFolderMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest(`/api/operations/${operationId}/folders/${id}`, "DELETE");
-    },
+    mutationFn: async (id: string) => apiRequest(`/api/operations/${operationId}/folders/${id}`, "DELETE"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
       toast({ title: "Folder deleted" });
     },
     onError: (error: any) => {
-      console.error("Error deleting folder:", error);
-      toast({ 
-        title: "Error deleting folder", 
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive" 
-      });
+      toast({ title: "Error deleting folder", description: error.message, variant: "destructive" });
     },
   });
 
   const createFileMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return apiRequest(`/api/operations/${operationId}/files`, "POST", data);
-    },
+    mutationFn: async (data: any) => apiRequest(`/api/operations/${operationId}/files`, "POST", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
       setPendingUpload(null);
       setIsFileDialogOpen(false);
       setIsUploadOpen(false);
-      setFileCategory("");
-      setFileFolderId("");
       toast({ title: "File uploaded successfully" });
     },
     onError: (error: any) => {
-      console.error("Error creating file:", error);
-      toast({ 
-        title: "Error uploading file", 
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive" 
-      });
+      toast({ title: "Error uploading file", description: error.message, variant: "destructive" });
     },
   });
 
   const updateFileMutation = useMutation({
-    mutationFn: async ({ id, ...data }: any) => {
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
       return apiRequest(`/api/operations/${operationId}/files/${id}`, "PATCH", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
       setIsFileDialogOpen(false);
       setEditingFile(null);
-      setFileCategory("");
-      setFileFolderId("");
       toast({ title: "File updated" });
     },
     onError: (error: any) => {
-      console.error("Error updating file:", error);
-      toast({ 
-        title: "Error updating file", 
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive" 
-      });
+      toast({ title: "Error updating file", description: error.message, variant: "destructive" });
     },
   });
 
   const deleteFileMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest(`/api/operations/${operationId}/files/${id}`, "DELETE");
-    },
+    mutationFn: async (id: string) => apiRequest(`/api/operations/${operationId}/files/${id}`, "DELETE"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
       toast({ title: "File deleted" });
     },
     onError: (error: any) => {
-      console.error("Error deleting file:", error);
-      toast({ 
-        title: "Error deleting file", 
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive" 
-      });
+      toast({ title: "Error deleting file", description: error.message, variant: "destructive" });
     },
   });
 
   const handleUploadComplete = (result: { b2Key: string; fileHash: string; size: number; originalName: string; mimeType: string }) => {
     setPendingUpload(result);
-    setFileCategory("");
-    setFileFolderId(selectedFolder || "");
     setIsFileDialogOpen(true);
+  };
+
+  const handleSaveFolder = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    if (editingFolder) {
+      updateFolderMutation.mutate({ id: editingFolder.id, formData });
+    } else {
+      createFolderMutation.mutate(formData);
+    }
   };
 
   const handleSaveFile = (e: React.FormEvent<HTMLFormElement>) => {
@@ -251,47 +224,26 @@ export default function OperationFilesPage() {
 
     const tagsValue = formData.get("tags")?.toString().trim();
     const tags = tagsValue ? tagsValue.split(",").map(t => t.trim()).filter(Boolean) : null;
-    const finalTags = tags && tags.length > 0 ? tags : null;
+
+    const data = {
+      name: formData.get("name") as string,
+      description: formData.get("description") as string || null,
+      category: formData.get("category") as string || null,
+      folderId: formData.get("folderId") as string || null,
+      tags: tags && tags.length > 0 ? tags : null,
+    };
 
     if (editingFile) {
-      updateFileMutation.mutate({
-        id: editingFile.id,
-        name: formData.get("name") as string,
-        description: formData.get("description") as string || null,
-        category: fileCategory || null,
-        tags: finalTags,
-        folderId: fileFolderId || null,
-      });
+      updateFileMutation.mutate({ id: editingFile.id, data });
     } else if (pendingUpload) {
       createFileMutation.mutate({
+        ...data,
         b2Key: pendingUpload.b2Key,
         fileHash: pendingUpload.fileHash,
         originalName: pendingUpload.originalName,
         mimeType: pendingUpload.mimeType,
         size: pendingUpload.size,
-        folderId: fileFolderId || null,
-        category: fileCategory || null,
-        description: formData.get("description") as string || null,
-        tags: finalTags,
       });
-    }
-  };
-
-  const handleSaveFolder = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-
-    const data = {
-      name: formData.get("name") as string,
-      description: formData.get("description") as string || null,
-      category: folderCategory || null,
-      color: folderColor || "blue",
-    };
-
-    if (editingFolder) {
-      updateFolderMutation.mutate({ id: editingFolder.id, ...data });
-    } else {
-      createFolderMutation.mutate(data);
     }
   };
 
@@ -316,38 +268,28 @@ export default function OperationFilesPage() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">File Management</h1>
-          <p className="text-muted-foreground">Organize and manage all operation files</p>
-        </div>
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Files</h1>
         <div className="flex gap-2">
-          <Button
-            data-testid="button-new-folder"
-            variant="outline"
-            onClick={() => {
-              setEditingFolder(null);
-              setIsFolderDialogOpen(true);
-            }}
-          >
-            <FolderPlus className="w-4 h-4 mr-2" />
-            New Folder
-          </Button>
-          <Button
-            data-testid="button-upload-file"
-            onClick={() => setIsUploadOpen(true)}
-          >
+          <Button onClick={() => setIsUploadOpen(true)} data-testid="button-upload">
             <Upload className="w-4 h-4 mr-2" />
             Upload File
+          </Button>
+          <Button onClick={() => {
+            setEditingFolder(null);
+            setIsFolderDialogOpen(true);
+          }} variant="outline" data-testid="button-new-folder">
+            <FolderPlus className="w-4 h-4 mr-2" />
+            New Folder
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card className="md:col-span-1">
+      <div className="grid md:grid-cols-4 gap-6">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Folders</CardTitle>
+            <CardTitle>Folders</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <Button
@@ -360,21 +302,23 @@ export default function OperationFilesPage() {
               All Files
             </Button>
             {folders.map((folder) => {
-              const colorClass = FOLDER_COLORS.find(c => c.value === folder.color)?.class || FOLDER_COLORS[0].class;
+              const folderColor = FOLDER_COLORS.find(c => c.value === folder.color) || FOLDER_COLORS[0];
+              const isSelected = selectedFolder === folder.id;
+
               return (
-                <div key={folder.id} className="flex items-center gap-2">
-                  <Button
-                    data-testid={`folder-${folder.id}`}
-                    variant={selectedFolder === folder.id ? "default" : "ghost"}
-                    className="flex-1 justify-start"
-                    onClick={() => setSelectedFolder(folder.id)}
-                  >
-                    <Folder className={`w-4 h-4 mr-2 ${colorClass.split(" ")[2]}`} />
-                    {folder.name}
-                  </Button>
+                <div
+                  key={folder.id}
+                  className={`flex items-center justify-between p-2 rounded-lg ${isSelected ? folderColor.class : "hover:bg-accent"} cursor-pointer`}
+                  onClick={() => setSelectedFolder(folder.id)}
+                  data-testid={`folder-${folder.id}`}
+                >
+                  <div className="flex items-center flex-1 min-w-0">
+                    <Folder className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="truncate text-sm font-medium">{folder.name}</span>
+                  </div>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" data-testid={`folder-menu-${folder.id}`}>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
                         <MoreVertical className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -383,8 +327,6 @@ export default function OperationFilesPage() {
                         data-testid={`folder-edit-${folder.id}`}
                         onClick={() => {
                           setEditingFolder(folder);
-                          setFolderCategory(folder.category || "");
-                          setFolderColor(folder.color || "blue");
                           setIsFolderDialogOpen(true);
                         }}
                       >
@@ -444,7 +386,7 @@ export default function OperationFilesPage() {
                           {isImage ? (
                             <div className="relative w-full h-48 bg-muted overflow-hidden">
                               <img 
-                                src={file.objectPath} 
+                                src={`/api/operations/${operationId}/files/${file.id}/download`}
                                 alt={file.name}
                                 className="w-full h-full object-cover"
                                 loading="lazy"
@@ -461,10 +403,7 @@ export default function OperationFilesPage() {
                                       data-testid={`file-download-${file.id}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        const a = document.createElement("a");
-                                        a.href = file.objectPath;
-                                        a.download = file.originalName;
-                                        a.click();
+                                        window.open(`/api/operations/${operationId}/files/${file.id}/download`, "_blank");
                                       }}
                                     >
                                       <Download className="w-4 h-4 mr-2" />
@@ -475,8 +414,6 @@ export default function OperationFilesPage() {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setEditingFile(file);
-                                        setFileCategory(file.category || "");
-                                        setFileFolderId(file.folderId || "");
                                         setIsFileDialogOpen(true);
                                       }}
                                     >
@@ -522,10 +459,7 @@ export default function OperationFilesPage() {
                                       data-testid={`file-download-${file.id}`}
                                       onClick={(e) => {
                                         e.stopPropagation();
-                                        const a = document.createElement("a");
-                                        a.href = file.objectPath;
-                                        a.download = file.originalName;
-                                        a.click();
+                                        window.open(`/api/operations/${operationId}/files/${file.id}/download`, "_blank");
                                       }}
                                     >
                                       <Download className="w-4 h-4 mr-2" />
@@ -536,8 +470,6 @@ export default function OperationFilesPage() {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setEditingFile(file);
-                                        setFileCategory(file.category || "");
-                                        setFileFolderId(file.folderId || "");
                                         setIsFileDialogOpen(true);
                                       }}
                                     >
@@ -586,10 +518,12 @@ export default function OperationFilesPage() {
         </div>
       </div>
 
+      {/* Upload Dialog */}
       <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
         <DialogContent data-testid="dialog-upload">
           <DialogHeader>
             <DialogTitle>Upload File</DialogTitle>
+            <DialogDescription>Upload a file to this operation</DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <FileUploader
@@ -600,15 +534,22 @@ export default function OperationFilesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isFolderDialogOpen} onOpenChange={setIsFolderDialogOpen}>
+      {/* Folder Dialog */}
+      <Dialog open={isFolderDialogOpen} onOpenChange={(open) => {
+        setIsFolderDialogOpen(open);
+        if (!open) setEditingFolder(null);
+      }}>
         <DialogContent data-testid="dialog-folder">
           <form onSubmit={handleSaveFolder}>
             <DialogHeader>
               <DialogTitle>{editingFolder ? "Edit Folder" : "New Folder"}</DialogTitle>
+              <DialogDescription>
+                {editingFolder ? "Update folder details" : "Create a new folder for organizing files"}
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name">Name *</Label>
                 <Input
                   id="name"
                   name="name"
@@ -628,33 +569,36 @@ export default function OperationFilesPage() {
               </div>
               <div>
                 <Label htmlFor="category">Category</Label>
-                <Select value={folderCategory} onValueChange={setFolderCategory}>
-                  <SelectTrigger data-testid="select-folder-category">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FILE_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        {cat.icon} {cat.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <select
+                  id="category"
+                  name="category"
+                  defaultValue={editingFolder?.category || ""}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  data-testid="select-folder-category"
+                >
+                  <option value="">Select category</option>
+                  {FILE_CATEGORIES.map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.icon} {cat.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label htmlFor="color">Color</Label>
-                <Select value={folderColor} onValueChange={setFolderColor}>
-                  <SelectTrigger data-testid="select-folder-color">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FOLDER_COLORS.map((color) => (
-                      <SelectItem key={color.value} value={color.value}>
-                        {color.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <select
+                  id="color"
+                  name="color"
+                  defaultValue={editingFolder?.color || "blue"}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  data-testid="select-folder-color"
+                >
+                  {FOLDER_COLORS.map((color) => (
+                    <option key={color.value} value={color.value}>
+                      {color.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <DialogFooter>
@@ -664,14 +608,16 @@ export default function OperationFilesPage() {
                 onClick={() => {
                   setIsFolderDialogOpen(false);
                   setEditingFolder(null);
-                  setFolderCategory("");
-                  setFolderColor("blue");
                 }}
                 data-testid="button-cancel-folder"
               >
                 Cancel
               </Button>
-              <Button type="submit" data-testid="button-save-folder">
+              <Button 
+                type="submit" 
+                data-testid="button-save-folder"
+                disabled={createFolderMutation.isPending || updateFolderMutation.isPending}
+              >
                 {editingFolder ? "Update" : "Create"}
               </Button>
             </DialogFooter>
@@ -679,15 +625,25 @@ export default function OperationFilesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isFileDialogOpen} onOpenChange={setIsFileDialogOpen}>
+      {/* File Dialog */}
+      <Dialog open={isFileDialogOpen} onOpenChange={(open) => {
+        setIsFileDialogOpen(open);
+        if (!open) {
+          setEditingFile(null);
+          setPendingUpload(null);
+        }
+      }}>
         <DialogContent data-testid="dialog-file">
           <form onSubmit={handleSaveFile}>
             <DialogHeader>
               <DialogTitle>{editingFile ? "Edit File" : "File Details"}</DialogTitle>
+              <DialogDescription>
+                {editingFile ? "Update file information" : "Add file details before saving"}
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
-                <Label htmlFor="file-name">Name</Label>
+                <Label htmlFor="file-name">Name *</Label>
                 <Input
                   id="file-name"
                   name="name"
@@ -698,34 +654,37 @@ export default function OperationFilesPage() {
               </div>
               <div>
                 <Label htmlFor="file-folder">Folder</Label>
-                <Select value={fileFolderId} onValueChange={setFileFolderId}>
-                  <SelectTrigger data-testid="select-file-folder">
-                    <SelectValue placeholder="No folder" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">No folder</SelectItem>
-                    {folders.map((folder) => (
-                      <SelectItem key={folder.id} value={folder.id}>
-                        {folder.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <select
+                  id="file-folder"
+                  name="folderId"
+                  defaultValue={editingFile?.folderId || selectedFolder || ""}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  data-testid="select-file-folder"
+                >
+                  <option value="">No folder</option>
+                  {folders.map((folder) => (
+                    <option key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label htmlFor="file-category">Category</Label>
-                <Select value={fileCategory} onValueChange={setFileCategory}>
-                  <SelectTrigger data-testid="select-file-category">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {FILE_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat.value} value={cat.value}>
-                        {cat.icon} {cat.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <select
+                  id="file-category"
+                  name="category"
+                  defaultValue={editingFile?.category || ""}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  data-testid="select-file-category"
+                >
+                  <option value="">Select category</option>
+                  {FILE_CATEGORIES.map((cat) => (
+                    <option key={cat.value} value={cat.value}>
+                      {cat.icon} {cat.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <Label htmlFor="file-description">Description</Label>
@@ -755,114 +714,20 @@ export default function OperationFilesPage() {
                   setIsFileDialogOpen(false);
                   setEditingFile(null);
                   setPendingUpload(null);
-                  setFileCategory("");
-                  setFileFolderId("");
                 }}
                 data-testid="button-cancel-file"
               >
                 Cancel
               </Button>
-              <Button type="submit" data-testid="button-save-file">
+              <Button 
+                type="submit" 
+                data-testid="button-save-file"
+                disabled={createFileMutation.isPending || updateFileMutation.isPending}
+              >
                 {editingFile ? "Update" : "Save"}
               </Button>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!previewFile} onOpenChange={() => setPreviewFile(null)}>
-        <DialogContent className="max-w-5xl h-[90vh] p-0" data-testid="dialog-preview">
-          {previewFile && (
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between p-4 border-b">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold truncate" data-testid="preview-file-name">{previewFile.name}</h3>
-                  <p className="text-sm text-muted-foreground">{formatFileSize(previewFile.size)}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handlePrevFile}
-                    disabled={previewIndex === 0}
-                    data-testid="button-prev-file"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </Button>
-                  <span className="text-sm text-muted-foreground px-2">
-                    {previewIndex + 1} / {files.length}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleNextFile}
-                    disabled={previewIndex === files.length - 1}
-                    data-testid="button-next-file"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      const a = document.createElement("a");
-                      a.href = previewFile.objectPath;
-                      a.download = previewFile.originalName;
-                      a.click();
-                    }}
-                    data-testid="button-download-preview"
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setPreviewFile(null)}
-                    data-testid="button-close-preview"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-auto bg-muted/30 flex items-center justify-center p-4">
-                {previewFile.mimeType.startsWith("image/") || previewFile.category === "image" ? (
-                  <img 
-                    src={previewFile.objectPath} 
-                    alt={previewFile.name}
-                    className="max-w-full max-h-full object-contain"
-                    data-testid="preview-image"
-                  />
-                ) : previewFile.mimeType === "application/pdf" ? (
-                  <iframe
-                    src={previewFile.objectPath}
-                    className="w-full h-full border-0"
-                    title={previewFile.name}
-                    data-testid="preview-pdf"
-                  />
-                ) : (
-                  <div className="text-center">
-                    <FileText className="w-24 h-24 mx-auto mb-4 text-muted-foreground opacity-50" />
-                    <p className="text-muted-foreground mb-4">
-                      No se puede previsualizar este tipo de archivo
-                    </p>
-                    <Button
-                      onClick={() => window.open(previewFile.objectPath, "_blank")}
-                      data-testid="button-open-new-tab"
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      Open in new tab
-                    </Button>
-                  </div>
-                )}
-              </div>
-              {previewFile.description && (
-                <div className="p-4 border-t bg-background">
-                  <h4 className="font-medium mb-1">Description</h4>
-                  <p className="text-sm text-muted-foreground">{previewFile.description}</p>
-                </div>
-              )}
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </div>
