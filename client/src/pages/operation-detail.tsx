@@ -16,9 +16,10 @@ import { format } from "date-fns";
 import {
   ArrowLeft, Package, FileText, CheckSquare, Mail, Edit2, Trash2, Plus,
   Calendar, User as UserIcon, MapPin, Ship, Plane, Truck, DollarSign, FolderOpen,
-  Download, Paperclip, Upload, Link
+  Download, Paperclip, Upload, Link, FileIcon, Image, ExternalLink, Eye
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import DOMPurify from 'isomorphic-dompurify';
 import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage } from "@shared/schema";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import {
@@ -942,196 +943,388 @@ function EmailsTab({ operationId, operation }: {
   operationId: string; 
   operation: Operation;
 }) {
-  const [selectedMessage, setSelectedMessage] = useState<GmailMessage | null>(null);
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   
   // Use optimized endpoint to get messages directly linked to this operation
   const { data: relatedEmails = [], isLoading: isLoadingMessages } = useQuery<GmailMessage[]>({
     queryKey: ['/api/operations', operationId, 'messages'],
   });
 
-  const { data: attachments = [] } = useQuery({
-    queryKey: ['/api/gmail/messages', selectedMessage?.id, 'attachments'],
-    enabled: !!selectedMessage?.id,
+  // Get full email content with signed URLs when a message is selected
+  const { data: emailContent, isLoading: isLoadingContent } = useQuery({
+    queryKey: ['/api/gmail/messages', selectedMessageId, 'content'],
+    enabled: !!selectedMessageId,
   });
 
+  // Group emails by date
+  const groupedEmails = useMemo(() => {
+    const groups: { [key: string]: GmailMessage[] } = {};
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    relatedEmails.forEach((email) => {
+      const emailDate = new Date(email.date);
+      let groupKey: string;
+
+      if (emailDate.toDateString() === today.toDateString()) {
+        groupKey = 'Hoy';
+      } else if (emailDate.toDateString() === yesterday.toDateString()) {
+        groupKey = 'Ayer';
+      } else {
+        groupKey = format(emailDate, 'dd MMM yyyy');
+      }
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(email);
+    });
+
+    return groups;
+  }, [relatedEmails]);
+
+  const selectedMessage = relatedEmails.find(e => e.id === selectedMessageId);
+
+  // Format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  };
+
+  // Get file icon based on mime type
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) return Image;
+    if (mimeType.includes('pdf')) return FileText;
+    return FileIcon;
+  };
+
+  // Fetch HTML body content and sanitize
+  const [htmlBodyContent, setHtmlBodyContent] = useState<string>('');
+  const [textBodyContent, setTextBodyContent] = useState<string>('');
+
+  useEffect(() => {
+    const loadEmailBody = async () => {
+      if (!emailContent) return;
+
+      // Load HTML body from signed URL
+      if (emailContent.htmlBodyUrl) {
+        try {
+          const response = await fetch(emailContent.htmlBodyUrl);
+          const html = await response.text();
+          
+          // Sanitize HTML before rendering
+          const cleanHtml = DOMPurify.sanitize(html, {
+            ADD_TAGS: ['style'],
+            ADD_ATTR: ['target'],
+          });
+          
+          setHtmlBodyContent(cleanHtml);
+        } catch (error) {
+          console.error('Error loading HTML body:', error);
+        }
+      }
+
+      // Load text body from signed URL
+      if (emailContent.textBodyUrl && !emailContent.htmlBodyUrl) {
+        try {
+          const response = await fetch(emailContent.textBodyUrl);
+          const text = await response.text();
+          setTextBodyContent(text);
+        } catch (error) {
+          console.error('Error loading text body:', error);
+        }
+      }
+    };
+
+    loadEmailBody();
+  }, [emailContent]);
+
+  // Mobile view check
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  if (relatedEmails.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Mail className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <p className="text-muted-foreground text-lg font-medium">
+            No hay correos vinculados
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Los correos relacionados con esta operación aparecerán aquí
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <div className="space-y-3">
-      {relatedEmails.length === 0 ? (
-        <Card>
-          <CardContent className="py-8 text-center text-muted-foreground">
-            No se encontraron emails relacionados con esta operación
-          </CardContent>
-        </Card>
-      ) : (
-        relatedEmails.map((email) => (
-          <Card 
-            key={email.id} 
-            data-testid={`card-email-${email.id}`} 
-            className="hover-elevate cursor-pointer"
-            onClick={() => setSelectedMessage(email)}
-          >
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="space-y-1 flex-1">
-                  <CardTitle className="text-lg" data-testid={`text-email-subject-${email.id}`}>
-                    {email.subject}
-                  </CardTitle>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Mail className="w-3 h-3" />
-                      <span data-testid={`text-email-from-${email.id}`}>{email.fromEmail}</span>
-                    </div>
-                    <span>{format(new Date(email.date), 'PPp')}</span>
-                    {email.hasAttachments && (
-                      <Badge variant="secondary" className="text-xs">
-                        <Paperclip className="w-3 h-3 mr-1" />
-                        Adjuntos
-                      </Badge>
-                    )}
-                  </div>
+    <div className="h-[calc(100vh-20rem)] flex flex-col md:flex-row gap-4">
+      {/* Email List - Master Panel */}
+      <div className={`${isMobile && selectedMessageId ? 'hidden' : 'flex'} flex-col md:w-80 lg:w-96 border rounded-lg bg-card overflow-hidden`}>
+        <div className="p-4 border-b bg-muted/30">
+          <h3 className="font-semibold text-sm flex items-center gap-2">
+            <Mail className="w-4 h-4" />
+            Correos Vinculados ({relatedEmails.length})
+          </h3>
+        </div>
+        
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-4">
+            {Object.entries(groupedEmails).map(([dateGroup, emails]) => (
+              <div key={dateGroup}>
+                <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {dateGroup}
+                </div>
+                <div className="space-y-1">
+                  {emails.map((email) => {
+                    const isSelected = email.id === selectedMessageId;
+                    return (
+                      <button
+                        key={email.id}
+                        data-testid={`button-email-${email.id}`}
+                        onClick={() => setSelectedMessageId(email.id)}
+                        className={`w-full text-left p-3 rounded-lg transition-all ${
+                          isSelected 
+                            ? 'bg-primary text-primary-foreground shadow-sm' 
+                            : 'hover:bg-muted/50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Avatar with initials */}
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 ${
+                            isSelected ? 'bg-primary-foreground/20' : 'bg-primary/10 text-primary'
+                          }`}>
+                            {(email.fromName || email.fromEmail).charAt(0).toUpperCase()}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0 space-y-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className={`text-sm font-semibold truncate ${isSelected ? '' : 'text-foreground'}`}>
+                                {email.fromName || email.fromEmail}
+                              </p>
+                              <span className={`text-xs flex-shrink-0 ${isSelected ? 'opacity-90' : 'text-muted-foreground'}`}>
+                                {format(new Date(email.date), 'HH:mm')}
+                              </span>
+                            </div>
+                            
+                            <p className={`text-sm font-medium truncate ${isSelected ? 'opacity-95' : 'text-foreground'}`}>
+                              {email.subject || '(Sin asunto)'}
+                            </p>
+                            
+                            <p className={`text-xs truncate line-clamp-2 ${isSelected ? 'opacity-80' : 'text-muted-foreground'}`}>
+                              {email.snippet}
+                            </p>
+                            
+                            {/* Badges */}
+                            <div className="flex items-center gap-2 mt-1">
+                              {email.hasAttachments && (
+                                <Badge variant={isSelected ? "secondary" : "outline"} className="text-xs px-1.5 py-0">
+                                  <Paperclip className="w-3 h-3" />
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground" data-testid={`text-email-snippet-${email.id}`}>
-                {email.snippet}
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
+
+      {/* Email Viewer - Detail Panel */}
+      <div className={`${isMobile && !selectedMessageId ? 'hidden' : 'flex'} flex-1 flex-col border rounded-lg bg-card overflow-hidden`}>
+        {!selectedMessage ? (
+          <div className="flex-1 flex items-center justify-center p-8 text-center">
+            <div>
+              <Eye className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+              <p className="text-muted-foreground text-lg font-medium">
+                Selecciona un correo
               </p>
-            </CardContent>
-          </Card>
-        ))
-      )}
+              <p className="text-sm text-muted-foreground mt-2">
+                Elige un correo de la lista para ver su contenido
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Email Header */}
+            <div className="p-4 border-b bg-muted/30 space-y-3">
+              {isMobile && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedMessageId(null)}
+                  className="mb-2"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Volver
+                </Button>
+              )}
+              
+              <div className="flex items-start justify-between gap-4">
+                <h2 className="text-xl font-bold flex-1" data-testid="text-email-subject">
+                  {selectedMessage.subject || '(Sin asunto)'}
+                </h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(`https://mail.google.com/mail/u/0/#inbox/${selectedMessage.gmailMessageId}`, '_blank')}
+                  data-testid="button-open-gmail"
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Abrir en Gmail
+                </Button>
+              </div>
 
-      <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="text-xl">{selectedMessage?.subject || "(Sin asunto)"}</DialogTitle>
-          </DialogHeader>
-          
-          {selectedMessage && (
-            <div className="flex-1 overflow-y-auto pr-2">
-              <div className="space-y-4">
-                {/* Email Header Info */}
-                <Card>
-                  <CardContent className="pt-4">
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-center gap-2 flex-1">
-                          <UserIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">
-                              {selectedMessage.fromName || selectedMessage.fromEmail}
-                            </p>
-                            {selectedMessage.fromName && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                {selectedMessage.fromEmail}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground flex-shrink-0">
-                          <Calendar className="h-4 w-4" />
-                          <span>{format(new Date(selectedMessage.date), "dd/MM/yyyy HH:mm")}</span>
-                        </div>
-                      </div>
-                      
-                      <Separator />
-                      
-                      <div className="space-y-2 text-sm">
-                        <div>
-                          <span className="font-medium text-muted-foreground">Para: </span>
-                          <span className="break-words">{selectedMessage.toEmails.join(", ")}</span>
-                        </div>
-                        {selectedMessage.ccEmails && selectedMessage.ccEmails.length > 0 && (
-                          <div>
-                            <span className="font-medium text-muted-foreground">CC: </span>
-                            <span className="break-words">{selectedMessage.ccEmails.join(", ")}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">
+                  {(selectedMessage.fromName || selectedMessage.fromEmail).charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm" data-testid="text-from-name">
+                    {selectedMessage.fromName || selectedMessage.fromEmail}
+                  </p>
+                  <p className="text-xs text-muted-foreground" data-testid="text-from-email">
+                    {selectedMessage.fromEmail}
+                  </p>
+                </div>
+                <div className="text-sm text-muted-foreground" data-testid="text-email-date">
+                  {format(new Date(selectedMessage.date), 'dd MMM yyyy, HH:mm')}
+                </div>
+              </div>
 
-                {/* Email Body */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Contenido del mensaje</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {selectedMessage.bodyHtml ? (
-                      <div
-                        className="prose prose-sm max-w-none dark:prose-invert"
-                        style={{
-                          wordBreak: 'break-word',
-                          overflowWrap: 'break-word'
-                        }}
-                        dangerouslySetInnerHTML={{ __html: selectedMessage.bodyHtml }}
-                      />
-                    ) : selectedMessage.bodyText ? (
-                      <div 
-                        className="text-sm whitespace-pre-wrap font-sans"
-                        style={{
-                          wordBreak: 'break-word',
-                          overflowWrap: 'break-word'
-                        }}
-                      >
-                        {selectedMessage.bodyText}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground italic">Sin contenido</p>
-                    )}
-                  </CardContent>
-                </Card>
+              <div className="text-sm space-y-1">
+                <div>
+                  <span className="text-muted-foreground">Para:</span>{' '}
+                  <span className="font-medium">{selectedMessage.toEmails.join(', ')}</span>
+                </div>
+                {selectedMessage.ccEmails && selectedMessage.ccEmails.length > 0 && (
+                  <div>
+                    <span className="text-muted-foreground">CC:</span>{' '}
+                    <span className="font-medium">{selectedMessage.ccEmails.join(', ')}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Email Body */}
+            <ScrollArea className="flex-1">
+              <div className="p-6">
+                {isLoadingContent ? (
+                  <div className="space-y-3">
+                    <div className="h-4 bg-muted animate-pulse rounded"></div>
+                    <div className="h-4 bg-muted animate-pulse rounded w-5/6"></div>
+                    <div className="h-4 bg-muted animate-pulse rounded w-4/6"></div>
+                  </div>
+                ) : htmlBodyContent ? (
+                  <div
+                    className="prose prose-sm max-w-none dark:prose-invert"
+                    dangerouslySetInnerHTML={{ __html: htmlBodyContent }}
+                    data-testid="email-html-content"
+                  />
+                ) : textBodyContent ? (
+                  <pre 
+                    className="text-sm whitespace-pre-wrap font-sans text-foreground"
+                    data-testid="email-text-content"
+                  >
+                    {textBodyContent}
+                  </pre>
+                ) : selectedMessage.bodyText ? (
+                  <pre 
+                    className="text-sm whitespace-pre-wrap font-sans text-foreground"
+                    data-testid="email-text-content-fallback"
+                  >
+                    {selectedMessage.bodyText}
+                  </pre>
+                ) : (
+                  <p className="text-muted-foreground italic">Sin contenido</p>
+                )}
 
                 {/* Attachments */}
-                {attachments.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Paperclip className="h-4 w-4" />
-                        Archivos Adjuntos ({attachments.length})
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {attachments.map((attachment: any) => (
-                          <Card key={attachment.id} className="hover:shadow-md transition-shadow">
-                            <CardContent className="p-4">
-                              <div className="flex items-center gap-3">
-                                <div className="flex-shrink-0 w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
-                                  <Paperclip className="h-5 w-5 text-primary" />
+                {emailContent?.attachments && emailContent.attachments.length > 0 && (
+                  <div className="mt-8 pt-6 border-t">
+                    <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                      <Paperclip className="w-4 h-4" />
+                      Archivos Adjuntos ({emailContent.attachments.length})
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {emailContent.attachments.map((attachment: any) => {
+                        const Icon = getFileIcon(attachment.mimeType);
+                        const isImage = attachment.mimeType.startsWith('image/');
+                        
+                        return (
+                          <Card key={attachment.id} className="hover:shadow-md transition-all" data-testid={`card-attachment-${attachment.id}`}>
+                            <CardContent className="p-3">
+                              {/* Thumbnail for images */}
+                              {isImage && attachment.signedUrl && !attachment.isInline && (
+                                <div className="w-full h-32 mb-3 rounded overflow-hidden bg-muted">
+                                  <img
+                                    src={attachment.signedUrl}
+                                    alt={attachment.filename}
+                                    className="w-full h-full object-cover"
+                                    loading="lazy"
+                                  />
                                 </div>
+                              )}
+                              
+                              <div className="flex items-start gap-3">
+                                {!isImage && (
+                                  <div className="flex-shrink-0 w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
+                                    <Icon className="w-5 h-5 text-primary" />
+                                  </div>
+                                )}
+                                
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium truncate" title={attachment.filename}>
                                     {attachment.filename}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
-                                    {(attachment.size / 1024).toFixed(1)} KB
+                                    {formatFileSize(attachment.size)}
                                   </p>
+                                  {attachment.isInline && (
+                                    <Badge variant="outline" className="text-xs mt-1">
+                                      Inline
+                                    </Badge>
+                                  )}
                                 </div>
+                                
                                 <Button
                                   size="sm"
-                                  variant="outline"
+                                  variant="ghost"
                                   className="flex-shrink-0"
                                   onClick={() => {
                                     window.open(`/api/gmail/attachments/${attachment.id}/download`, '_blank');
                                   }}
+                                  data-testid={`button-download-${attachment.id}`}
                                 >
-                                  <Download className="h-4 w-4" />
+                                  <Download className="w-4 h-4" />
                                 </Button>
                               </div>
                             </CardContent>
                           </Card>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            </ScrollArea>
+          </>
+        )}
+      </div>
     </div>
   );
 }
