@@ -1033,12 +1033,23 @@ function EmailsTab({ operationId, operation }: {
       if (emailContent.htmlBodyUrl) {
         try {
           const response = await fetch(emailContent.htmlBodyUrl);
-          const html = await response.text();
+          let html = await response.text();
+          
+          // Replace CID references with signed URLs for inline images
+          if (emailContent.attachments) {
+            emailContent.attachments.forEach((attachment: any) => {
+              if (attachment.isInline && attachment.contentId && attachment.signedUrl) {
+                const cidPattern = new RegExp(`cid:${attachment.contentId.replace(/[<>]/g, '')}`, 'gi');
+                html = html.replace(cidPattern, attachment.signedUrl);
+              }
+            });
+          }
           
           // Sanitize HTML before rendering
           const cleanHtml = DOMPurify.sanitize(html, {
             ADD_TAGS: ['style'],
-            ADD_ATTR: ['target'],
+            ADD_ATTR: ['target', 'style', 'class'],
+            ALLOW_DATA_ATTR: true,
           });
           
           setHtmlBodyContent(cleanHtml);
@@ -1088,24 +1099,24 @@ function EmailsTab({ operationId, operation }: {
   }
 
   return (
-    <div className="h-[calc(100vh-20rem)] flex flex-col md:flex-row gap-4">
-      {/* Email List - Master Panel */}
-      <div className={`${isMobile && selectedMessageId ? 'hidden' : 'flex'} flex-col md:w-80 lg:w-96 border rounded-lg bg-card overflow-hidden`}>
-        <div className="p-4 border-b bg-muted/30">
-          <h3 className="font-semibold text-sm flex items-center gap-2">
-            <Mail className="w-4 h-4" />
+    <div className="h-[calc(100vh-20rem)] flex flex-col md:flex-row gap-3">
+      {/* Email List - Master Panel - Más compacto */}
+      <div className={`${isMobile && selectedMessageId ? 'hidden' : 'flex'} flex-col w-full md:w-72 border rounded-lg bg-card overflow-hidden shadow-sm`}>
+        <div className="px-3 py-2 border-b bg-muted/50">
+          <h3 className="font-semibold text-xs flex items-center gap-2 text-muted-foreground uppercase tracking-wide">
+            <Mail className="w-3.5 h-3.5" />
             Correos Vinculados ({relatedEmails.length})
           </h3>
         </div>
         
         <ScrollArea className="flex-1">
-          <div className="p-2 space-y-4">
+          <div className="p-1">
             {Object.entries(groupedEmails).map(([dateGroup, emails]) => (
-              <div key={dateGroup}>
-                <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              <div key={dateGroup} className="mb-2">
+                <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
                   {dateGroup}
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                   {emails.map((email) => {
                     const isSelected = email.id === selectedMessageId;
                     return (
@@ -1113,46 +1124,41 @@ function EmailsTab({ operationId, operation }: {
                         key={email.id}
                         data-testid={`button-email-${email.id}`}
                         onClick={() => setSelectedMessageId(email.id)}
-                        className={`w-full text-left p-3 rounded-lg transition-all ${
+                        className={`w-full text-left px-2 py-2 rounded-md transition-all ${
                           isSelected 
-                            ? 'bg-primary text-primary-foreground shadow-sm' 
-                            : 'hover:bg-muted/50'
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'hover:bg-accent'
                         }`}
                       >
-                        <div className="flex items-start gap-3">
-                          {/* Avatar with initials */}
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 ${
-                            isSelected ? 'bg-primary-foreground/20' : 'bg-primary/10 text-primary'
+                        <div className="flex items-start gap-2">
+                          {/* Avatar más pequeño */}
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                            isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/15 text-primary'
                           }`}>
                             {(email.fromName || email.fromEmail).charAt(0).toUpperCase()}
                           </div>
                           
-                          <div className="flex-1 min-w-0 space-y-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className={`text-sm font-semibold truncate ${isSelected ? '' : 'text-foreground'}`}>
-                                {email.fromName || email.fromEmail}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline justify-between gap-1 mb-0.5">
+                              <p className={`text-xs font-semibold truncate ${isSelected ? 'text-primary-foreground' : 'text-foreground'}`}>
+                                {email.fromName || email.fromEmail.split('@')[0]}
                               </p>
-                              <span className={`text-xs flex-shrink-0 ${isSelected ? 'opacity-90' : 'text-muted-foreground'}`}>
+                              <span className={`text-[10px] flex-shrink-0 ${isSelected ? 'opacity-90' : 'text-muted-foreground'}`}>
                                 {format(new Date(email.date), 'HH:mm')}
                               </span>
                             </div>
                             
-                            <p className={`text-sm font-medium truncate ${isSelected ? 'opacity-95' : 'text-foreground'}`}>
+                            <p className={`text-xs font-medium truncate mb-1 ${isSelected ? 'opacity-95' : 'text-foreground'}`}>
                               {email.subject || '(Sin asunto)'}
                             </p>
                             
-                            <p className={`text-xs truncate line-clamp-2 ${isSelected ? 'opacity-80' : 'text-muted-foreground'}`}>
+                            <p className={`text-[11px] line-clamp-1 ${isSelected ? 'opacity-75' : 'text-muted-foreground'}`}>
                               {email.snippet}
                             </p>
                             
-                            {/* Badges */}
-                            <div className="flex items-center gap-2 mt-1">
-                              {email.hasAttachments && (
-                                <Badge variant={isSelected ? "secondary" : "outline"} className="text-xs px-1.5 py-0">
-                                  <Paperclip className="w-3 h-3" />
-                                </Badge>
-                              )}
-                            </div>
+                            {email.hasAttachments && (
+                              <Paperclip className={`w-3 h-3 mt-1 ${isSelected ? 'opacity-70' : 'text-muted-foreground'}`} />
+                            )}
                           </div>
                         </div>
                       </button>
@@ -1181,8 +1187,8 @@ function EmailsTab({ operationId, operation }: {
           </div>
         ) : (
           <>
-            {/* Email Header */}
-            <div className="p-4 border-b bg-muted/30 space-y-3">
+            {/* Email Header - Compacto y profesional */}
+            <div className="px-4 py-3 border-b bg-muted/20">
               {isMobile && (
                 <Button
                   variant="ghost"
@@ -1195,47 +1201,36 @@ function EmailsTab({ operationId, operation }: {
                 </Button>
               )}
               
-              <div className="flex items-start justify-between gap-4">
-                <h2 className="text-xl font-bold flex-1" data-testid="text-email-subject">
-                  {selectedMessage.subject || '(Sin asunto)'}
-                </h2>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open(`https://mail.google.com/mail/u/0/#inbox/${selectedMessage.gmailMessageId}`, '_blank')}
-                  data-testid="button-open-gmail"
-                >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Abrir en Gmail
-                </Button>
-              </div>
+              <h2 className="text-lg font-bold mb-3" data-testid="text-email-subject">
+                {selectedMessage.subject || '(Sin asunto)'}
+              </h2>
 
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold flex-shrink-0">
                   {(selectedMessage.fromName || selectedMessage.fromEmail).charAt(0).toUpperCase()}
                 </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-sm" data-testid="text-from-name">
-                    {selectedMessage.fromName || selectedMessage.fromEmail}
-                  </p>
-                  <p className="text-xs text-muted-foreground" data-testid="text-from-email">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline justify-between gap-2 mb-1">
+                    <p className="font-semibold text-sm truncate" data-testid="text-from-name">
+                      {selectedMessage.fromName || selectedMessage.fromEmail}
+                    </p>
+                    <span className="text-xs text-muted-foreground flex-shrink-0" data-testid="text-email-date">
+                      {format(new Date(selectedMessage.date), 'dd MMM yyyy, HH:mm')}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate" data-testid="text-from-email">
                     {selectedMessage.fromEmail}
                   </p>
                 </div>
-                <div className="text-sm text-muted-foreground" data-testid="text-email-date">
-                  {format(new Date(selectedMessage.date), 'dd MMM yyyy, HH:mm')}
-                </div>
               </div>
 
-              <div className="text-sm space-y-1">
-                <div>
-                  <span className="text-muted-foreground">Para:</span>{' '}
-                  <span className="font-medium">{selectedMessage.toEmails.join(', ')}</span>
+              <div className="mt-2 text-xs space-y-0.5 text-muted-foreground">
+                <div className="truncate">
+                  <span className="font-medium">Para:</span> {selectedMessage.toEmails.join(', ')}
                 </div>
                 {selectedMessage.ccEmails && selectedMessage.ccEmails.length > 0 && (
-                  <div>
-                    <span className="text-muted-foreground">CC:</span>{' '}
-                    <span className="font-medium">{selectedMessage.ccEmails.join(', ')}</span>
+                  <div className="truncate">
+                    <span className="font-medium">CC:</span> {selectedMessage.ccEmails.join(', ')}
                   </div>
                 )}
               </div>
@@ -1243,7 +1238,7 @@ function EmailsTab({ operationId, operation }: {
 
             {/* Email Body */}
             <ScrollArea className="flex-1">
-              <div className="p-6">
+              <div className="p-4">
                 {isLoadingContent ? (
                   <div className="space-y-3">
                     <div className="h-4 bg-muted animate-pulse rounded"></div>
@@ -1252,14 +1247,22 @@ function EmailsTab({ operationId, operation }: {
                   </div>
                 ) : htmlBodyContent ? (
                   <div
-                    className="prose prose-sm max-w-none dark:prose-invert"
+                    className="prose prose-sm max-w-none dark:prose-invert [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md"
                     dangerouslySetInnerHTML={{ __html: htmlBodyContent }}
                     data-testid="email-html-content"
+                    style={{
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word'
+                    }}
                   />
                 ) : textBodyContent ? (
                   <pre 
                     className="text-sm whitespace-pre-wrap font-sans text-foreground"
                     data-testid="email-text-content"
+                    style={{
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word'
+                    }}
                   >
                     {textBodyContent}
                   </pre>
@@ -1267,75 +1270,72 @@ function EmailsTab({ operationId, operation }: {
                   <pre 
                     className="text-sm whitespace-pre-wrap font-sans text-foreground"
                     data-testid="email-text-content-fallback"
+                    style={{
+                      wordBreak: 'break-word',
+                      overflowWrap: 'break-word'
+                    }}
                   >
                     {selectedMessage.bodyText}
                   </pre>
                 ) : (
-                  <p className="text-muted-foreground italic">Sin contenido</p>
+                  <p className="text-muted-foreground italic text-center py-8">Sin contenido</p>
                 )}
 
-                {/* Attachments */}
-                {emailContent?.attachments && emailContent.attachments.length > 0 && (
-                  <div className="mt-8 pt-6 border-t">
-                    <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
-                      <Paperclip className="w-4 h-4" />
-                      Archivos Adjuntos ({emailContent.attachments.length})
+                {/* Attachments - Solo los que NO son inline */}
+                {emailContent?.attachments && emailContent.attachments.filter((a: any) => !a.isInline).length > 0 && (
+                  <div className="mt-6 pt-4 border-t">
+                    <h3 className="text-xs font-semibold mb-3 flex items-center gap-2 text-muted-foreground uppercase tracking-wide">
+                      <Paperclip className="w-3.5 h-3.5" />
+                      Archivos Adjuntos ({emailContent.attachments.filter((a: any) => !a.isInline).length})
                     </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {emailContent.attachments.map((attachment: any) => {
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {emailContent.attachments.filter((a: any) => !a.isInline).map((attachment: any) => {
                         const Icon = getFileIcon(attachment.mimeType);
                         const isImage = attachment.mimeType.startsWith('image/');
                         
                         return (
-                          <Card key={attachment.id} className="hover:shadow-md transition-all" data-testid={`card-attachment-${attachment.id}`}>
-                            <CardContent className="p-3">
-                              {/* Thumbnail for images */}
-                              {isImage && attachment.signedUrl && !attachment.isInline && (
-                                <div className="w-full h-32 mb-3 rounded overflow-hidden bg-muted">
-                                  <img
-                                    src={attachment.signedUrl}
-                                    alt={attachment.filename}
-                                    className="w-full h-full object-cover"
-                                    loading="lazy"
-                                  />
-                                </div>
-                              )}
-                              
-                              <div className="flex items-start gap-3">
-                                {!isImage && (
-                                  <div className="flex-shrink-0 w-10 h-10 rounded bg-primary/10 flex items-center justify-center">
-                                    <Icon className="w-5 h-5 text-primary" />
-                                  </div>
-                                )}
-                                
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate" title={attachment.filename}>
-                                    {attachment.filename}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {formatFileSize(attachment.size)}
-                                  </p>
-                                  {attachment.isInline && (
-                                    <Badge variant="outline" className="text-xs mt-1">
-                                      Inline
-                                    </Badge>
-                                  )}
-                                </div>
-                                
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="flex-shrink-0"
-                                  onClick={() => {
-                                    window.open(`/api/gmail/attachments/${attachment.id}/download`, '_blank');
-                                  }}
-                                  data-testid={`button-download-${attachment.id}`}
-                                >
-                                  <Download className="w-4 h-4" />
-                                </Button>
+                          <div 
+                            key={attachment.id} 
+                            className="flex items-center gap-2 p-2 rounded-lg border bg-card hover:bg-accent transition-colors group" 
+                            data-testid={`card-attachment-${attachment.id}`}
+                          >
+                            {/* Thumbnail for images */}
+                            {isImage && attachment.signedUrl ? (
+                              <div className="w-12 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
+                                <img
+                                  src={attachment.signedUrl}
+                                  alt={attachment.filename}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
                               </div>
-                            </CardContent>
-                          </Card>
+                            ) : (
+                              <div className="w-12 h-12 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                <Icon className="w-5 h-5 text-primary" />
+                              </div>
+                            )}
+                            
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium truncate" title={attachment.filename}>
+                                {attachment.filename}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {formatFileSize(attachment.size)}
+                              </p>
+                            </div>
+                            
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="flex-shrink-0 h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => {
+                                window.open(`/api/gmail/attachments/${attachment.id}/download`, '_blank');
+                              }}
+                              data-testid={`button-download-${attachment.id}`}
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
                         );
                       })}
                     </div>
