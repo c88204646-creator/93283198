@@ -443,11 +443,11 @@ export const backblazeStorage = {
     }
     return backblazeStorageInstance.uploadEmailAttachment(data, filename, mimeType);
   },
-  async uploadOperationFile(data: Buffer, filename: string, mimeType: string, uploadedBy: string) {
+  async uploadOperationFile(data: Buffer, filename: string, mimeType: string, operationId: string, uploadedBy: string, category?: string, extractedText?: string) {
     if (!backblazeStorageInstance) {
       backblazeStorageInstance = new BackblazeStorage();
     }
-    return backblazeStorageInstance.uploadOperationFile(data, filename, mimeType, uploadedBy);
+    return backblazeStorageInstance.uploadOperationFile(data, filename, mimeType, operationId, uploadedBy, category, extractedText);
   },
   async getSignedUrl(fileKey: string, expiresIn: number = 600) {
     if (!backblazeStorageInstance) {
