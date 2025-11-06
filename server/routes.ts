@@ -1265,6 +1265,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get email content with signed URLs for bodies and attachments
+  app.get("/api/gmail/messages/:id/content", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+
+      const message = await storage.getGmailMessage(id);
+      if (!message) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      const account = await storage.getGmailAccount(message.gmailAccountId);
+      if (!account || account.userId !== userId) {
+        return res.status(404).json({ message: "Message not found" });
+      }
+
+      // Get attachments
+      const attachments = await storage.getGmailAttachments(id);
+
+      // Generate signed URLs for email body
+      let htmlBodyUrl: string | null = null;
+      let textBodyUrl: string | null = null;
+
+      if (backblazeStorage.isAvailable()) {
+        try {
+          if (message.bodyHtmlB2Key) {
+            htmlBodyUrl = await backblazeStorage.getSignedUrl(message.bodyHtmlB2Key, 1800); // 30 min
+          }
+          if (message.bodyTextB2Key) {
+            textBodyUrl = await backblazeStorage.getSignedUrl(message.bodyTextB2Key, 1800);
+          }
+        } catch (error) {
+          console.error("Error generating signed URLs for email body:", error);
+        }
+      }
+
+      // Generate signed URLs for attachments
+      const attachmentsWithUrls = await Promise.all(
+        attachments.map(async (attachment) => {
+          let signedUrl: string | null = null;
+          
+          if (attachment.objectKey && backblazeStorage.isAvailable()) {
+            try {
+              signedUrl = await backblazeStorage.getSignedUrl(attachment.objectKey, 1800);
+            } catch (error) {
+              console.error(`Error generating signed URL for attachment ${attachment.id}:`, error);
+            }
+          }
+
+          return {
+            ...attachment,
+            signedUrl,
+          };
+        })
+      );
+
+      res.json({
+        message,
+        htmlBodyUrl,
+        textBodyUrl,
+        attachments: attachmentsWithUrls,
+      });
+    } catch (error) {
+      console.error("Get email content error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Download email body from Backblaze
   app.get("/api/gmail/messages/:id/body/:type", requireAuth, async (req, res) => {
     try {
