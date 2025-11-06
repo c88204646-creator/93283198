@@ -9,10 +9,16 @@ Industry focus: Freight forwarding and logistics operations.
 Design preference: Logistics-focused iconography and terminology.
 
 ## Recent Updates (November 6, 2025)
-1. **Complete English Translation**: Operation files module fully translated to English including UI, error messages, categories, colors, and all user-facing text.
+1. **Complete English Translation**: Operation files and automation modules fully translated to English including UI, error messages, categories, colors, and all user-facing text.
 2. **Custom Folder Names UI**: Added configuration interface in automation settings for custom folder naming, allowing users to personalize automatic file categorization folders.
 3. **Attachment Cleanup**: Removed 77 pending attachments from database to enable fresh re-download and processing via direct B2 upload during next Gmail sync.
 4. **Direct B2 Upload**: FileUploader component integrated for direct Backblaze B2 uploads with proper validation and error handling.
+5. **File Management Fixes**:
+   - Fixed manual folder creation (shadcn Select components now use controlled state)
+   - Fixed "All Files" view to display ALL operation files (not just root-level files)
+   - Implemented per-attachment duplicate prevention (automation skips files already processed)
+   - User modifications respected: moving/renaming files prevents automation re-creation
+   - File move/rename functionality confirmed working via Edit dialog
 
 ## System Architecture
 
@@ -41,7 +47,7 @@ Design preference: Logistics-focused iconography and terminology.
 - **Automation Module**: Plugin-based system for entity creation from email patterns (e.g., Operations from emails), rule-based matching, custom folder name configuration for automatic file categorization.
 - **AI-Powered Task & Note Automation**: Automatically analyzes email threads linked to operations and creates relevant tasks and notes using Gemini AI, with smart caching and deduplication for optimized API usage.
 - **Employee Birthday Tracking**: Automatic creation/update of birthday events in calendar, special UI indicators.
-- **File Management**: Backblaze B2 storage (exclusive), automatic attachment processing from emails with categorization, SHA-256 hash-based deduplication, hierarchical folder organization, metadata tracking, automatic file versioning.
+- **File Management**: Backblaze B2 storage (exclusive), automatic attachment processing from emails with categorization, SHA-256 hash-based deduplication, hierarchical folder organization, metadata tracking, automatic file versioning. Manual folder creation and file upload supported. Files can be moved between folders and renamed via Edit dialog. Automation respects user modifications (per-attachment checking prevents duplicates).
 
 ## External Dependencies
 

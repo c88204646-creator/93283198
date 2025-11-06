@@ -94,6 +94,10 @@ export default function OperationFilesPage() {
   const [pendingUpload, setPendingUpload] = useState<{ b2Key: string; fileHash: string; size: number; originalName: string; mimeType: string } | null>(null);
   const [previewFile, setPreviewFile] = useState<OperationFile | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number>(0);
+  const [folderCategory, setFolderCategory] = useState<string>("");
+  const [folderColor, setFolderColor] = useState<string>("blue");
+  const [fileCategory, setFileCategory] = useState<string>("");
+  const [fileFolderId, setFileFolderId] = useState<string>("");
 
   const { data: folders = [] } = useQuery<OperationFolder[]>({
     queryKey: ["/api/operations", operationId, "folders"],
@@ -117,6 +121,8 @@ export default function OperationFilesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
       setIsFolderDialogOpen(false);
       setEditingFolder(null);
+      setFolderCategory("");
+      setFolderColor("blue");
       toast({ title: "Folder created successfully" });
     },
     onError: (error: any) => {
@@ -137,6 +143,8 @@ export default function OperationFilesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
       setIsFolderDialogOpen(false);
       setEditingFolder(null);
+      setFolderCategory("");
+      setFolderColor("blue");
       toast({ title: "Folder updated" });
     },
     onError: (error: any) => {
@@ -176,6 +184,8 @@ export default function OperationFilesPage() {
       setPendingUpload(null);
       setIsFileDialogOpen(false);
       setIsUploadOpen(false);
+      setFileCategory("");
+      setFileFolderId("");
       toast({ title: "File uploaded successfully" });
     },
     onError: (error: any) => {
@@ -196,6 +206,8 @@ export default function OperationFilesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
       setIsFileDialogOpen(false);
       setEditingFile(null);
+      setFileCategory("");
+      setFileFolderId("");
       toast({ title: "File updated" });
     },
     onError: (error: any) => {
@@ -228,6 +240,8 @@ export default function OperationFilesPage() {
 
   const handleUploadComplete = (result: { b2Key: string; fileHash: string; size: number; originalName: string; mimeType: string }) => {
     setPendingUpload(result);
+    setFileCategory("");
+    setFileFolderId(selectedFolder || "");
     setIsFileDialogOpen(true);
   };
 
@@ -244,9 +258,9 @@ export default function OperationFilesPage() {
         id: editingFile.id,
         name: formData.get("name") as string,
         description: formData.get("description") as string || null,
-        category: formData.get("category") as string || null,
+        category: fileCategory || null,
         tags: finalTags,
-        folderId: formData.get("folderId") as string || null,
+        folderId: fileFolderId || null,
       });
     } else if (pendingUpload) {
       createFileMutation.mutate({
@@ -255,8 +269,8 @@ export default function OperationFilesPage() {
         originalName: pendingUpload.originalName,
         mimeType: pendingUpload.mimeType,
         size: pendingUpload.size,
-        folderId: formData.get("folderId") as string || null,
-        category: formData.get("category") as string || null,
+        folderId: fileFolderId || null,
+        category: fileCategory || null,
         description: formData.get("description") as string || null,
         tags: finalTags,
       });
@@ -270,8 +284,8 @@ export default function OperationFilesPage() {
     const data = {
       name: formData.get("name") as string,
       description: formData.get("description") as string || null,
-      category: formData.get("category") as string || null,
-      color: formData.get("color") as string || null,
+      category: folderCategory || null,
+      color: folderColor || "blue",
     };
 
     if (editingFolder) {
@@ -369,6 +383,8 @@ export default function OperationFilesPage() {
                         data-testid={`folder-edit-${folder.id}`}
                         onClick={() => {
                           setEditingFolder(folder);
+                          setFolderCategory(folder.category || "");
+                          setFolderColor(folder.color || "blue");
                           setIsFolderDialogOpen(true);
                         }}
                       >
@@ -459,6 +475,8 @@ export default function OperationFilesPage() {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setEditingFile(file);
+                                        setFileCategory(file.category || "");
+                                        setFileFolderId(file.folderId || "");
                                         setIsFileDialogOpen(true);
                                       }}
                                     >
@@ -518,6 +536,8 @@ export default function OperationFilesPage() {
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setEditingFile(file);
+                                        setFileCategory(file.category || "");
+                                        setFileFolderId(file.folderId || "");
                                         setIsFileDialogOpen(true);
                                       }}
                                     >
@@ -608,7 +628,7 @@ export default function OperationFilesPage() {
               </div>
               <div>
                 <Label htmlFor="category">Category</Label>
-                <Select name="category" defaultValue={editingFolder?.category || undefined}>
+                <Select value={folderCategory} onValueChange={setFolderCategory}>
                   <SelectTrigger data-testid="select-folder-category">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -623,7 +643,7 @@ export default function OperationFilesPage() {
               </div>
               <div>
                 <Label htmlFor="color">Color</Label>
-                <Select name="color" defaultValue={editingFolder?.color || "blue"}>
+                <Select value={folderColor} onValueChange={setFolderColor}>
                   <SelectTrigger data-testid="select-folder-color">
                     <SelectValue />
                   </SelectTrigger>
@@ -644,6 +664,8 @@ export default function OperationFilesPage() {
                 onClick={() => {
                   setIsFolderDialogOpen(false);
                   setEditingFolder(null);
+                  setFolderCategory("");
+                  setFolderColor("blue");
                 }}
                 data-testid="button-cancel-folder"
               >
@@ -676,7 +698,7 @@ export default function OperationFilesPage() {
               </div>
               <div>
                 <Label htmlFor="file-folder">Folder</Label>
-                <Select name="folderId" defaultValue={editingFile?.folderId || selectedFolder || undefined}>
+                <Select value={fileFolderId} onValueChange={setFileFolderId}>
                   <SelectTrigger data-testid="select-file-folder">
                     <SelectValue placeholder="No folder" />
                   </SelectTrigger>
@@ -692,7 +714,7 @@ export default function OperationFilesPage() {
               </div>
               <div>
                 <Label htmlFor="file-category">Category</Label>
-                <Select name="category" defaultValue={editingFile?.category || undefined}>
+                <Select value={fileCategory} onValueChange={setFileCategory}>
                   <SelectTrigger data-testid="select-file-category">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
@@ -733,6 +755,8 @@ export default function OperationFilesPage() {
                   setIsFileDialogOpen(false);
                   setEditingFile(null);
                   setPendingUpload(null);
+                  setFileCategory("");
+                  setFileFolderId("");
                 }}
                 data-testid="button-cancel-file"
               >
