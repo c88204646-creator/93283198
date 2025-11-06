@@ -78,7 +78,9 @@ Design preference: Logistics-focused iconography and terminology.
 
 ### Object Storage
 - **Backblaze B2** (Exclusive storage solution, S3-compatible API via `@aws-sdk/client-s3`) for email bodies, attachments, and operation files, with SHA-256 hash-based automatic file deduplication.
-- Required environment variables: `B2_BUCKET_ID`, `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_ENDPOINT`
+- Required environment variables: `B2_BUCKET_NAME`, `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_ENDPOINT`
+- Lazy initialization pattern: backblazeStorage singleton initializes on first use to ensure secrets are available
+- Metadata sanitization: All metadata fields are sanitized to remove invalid HTTP header characters (control chars, non-ASCII)
 
 ### Artificial Intelligence
 - Google Gemini AI (via `GEMINI_API_KEY`) for task and note automation.
