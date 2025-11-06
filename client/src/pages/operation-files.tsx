@@ -706,7 +706,7 @@ export default function OperationFilesPage() {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="file-description">Descripción</Label>
+                <Label htmlFor="file-description">Description</Label>
                 <Textarea
                   id="file-description"
                   name="description"

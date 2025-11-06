@@ -364,11 +364,27 @@ export class AutomationService {
       }
 
       const b2Storage = new BackblazeStorage();
+      const db = (await import('./db')).db;
+      const { operationFiles } = await import('@shared/schema');
+      const { eq } = await import('drizzle-orm');
 
       for (const attachment of attachments) {
         try {
           // Skip inline images
           if (attachment.isInline) {
+            continue;
+          }
+
+          // Check if this specific attachment has already been processed
+          // This respects user modifications - if the file exists, we don't touch it
+          // If the user deleted it, we can recreate it
+          const existingFile = await db.select()
+            .from(operationFiles)
+            .where(eq(operationFiles.sourceGmailAttachmentId, attachment.id))
+            .limit(1);
+
+          if (existingFile.length > 0) {
+            console.log(`[Automation] Attachment ${attachment.filename} already exists, skipping`);
             continue;
           }
 
@@ -410,7 +426,7 @@ export class AutomationService {
             size: attachment.size,
             objectPath,
             category,
-            description: `Adjunto de correo: ${message.subject}`,
+            description: `Email attachment: ${message.subject}`,
             uploadedBy: config.userId,
             uploadedVia: 'gmail_automation',
             sourceGmailMessageId: message.id,
@@ -444,17 +460,10 @@ export class AutomationService {
       console.log(`[Automation] Found ${messagesWithAttachments.length} linked messages with attachments`);
 
       for (const message of messagesWithAttachments) {
-        // Check if attachments have already been processed
-        const existingFiles = await db.select()
-          .from(operationFiles)
-          .where(eq(operationFiles.sourceGmailMessageId, message.id));
-
-        if (existingFiles.length > 0) {
-          // Attachments already processed, skip
-          continue;
-        }
-
         // Process attachments for this message
+        // The processEmailAttachments function now checks each attachment individually
+        // This respects user modifications: if a user deletes a file, it can be recreated
+        // If a user edits a file (moves, renames), it won't be duplicated
         console.log(`[Automation] Processing attachments for message ${message.id} (operation: ${message.operationId})`);
         await this.processEmailAttachments(message as any, message.operationId!, config);
       }
