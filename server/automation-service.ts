@@ -140,9 +140,9 @@ export class AutomationService {
       if (field === 'subject') {
         fieldValue = message.subject;
       } else if (field === 'from') {
-        fieldValue = message.from;
+        fieldValue = message.fromEmail || message.fromName || '';
       } else if (field === 'to') {
-        fieldValue = message.to;
+        fieldValue = message.toRecipients || '';
       } else if (field === 'body') {
         fieldValue = message.snippet || '';
       } else {
@@ -243,7 +243,7 @@ export class AutomationService {
     // Create operation with minimal data
     const operation = await storage.createOperation({
       name: operationName,
-      description: `Operación creada automáticamente desde correo: ${message.subject}\n\nDe: ${message.from}\nFecha: ${message.receivedAt}\n\nSnippet: ${message.snippet}`,
+      description: `Operación creada automáticamente desde correo: ${message.subject}\n\nDe: ${message.fromEmail} (${message.fromName})\nFecha: ${message.date}\n\nSnippet: ${message.snippet}`,
       status: 'planning',
       priority: 'medium',
       startDate: new Date(),

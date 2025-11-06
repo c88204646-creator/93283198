@@ -243,3 +243,48 @@ export class EmailTaskAutomation {
 }
 
 export const emailTaskAutomation = new EmailTaskAutomation();
+
+/**
+ * Función helper para procesar el thread de un correo específico y crear tasks/notes
+ * Usado por el servicio de automatización
+ */
+export async function processEmailThreadForAutomation(
+  messageId: string,
+  operationId: string,
+  autoCreateTasks: string,
+  autoCreateNotes: string,
+  optimizationLevel: 'high' | 'medium' | 'low' = 'high'
+): Promise<void> {
+  // Obtener el mensaje
+  const message = await storage.getGmailMessage(messageId);
+  if (!message) {
+    console.error(`[Email Task Automation] Message ${messageId} not found`);
+    return;
+  }
+
+  // Obtener la operación para determinar el userId
+  const operation = await storage.getOperation(operationId);
+  if (!operation) {
+    console.error(`[Email Task Automation] Operation ${operationId} not found`);
+    return;
+  }
+
+  // Obtener el usuario que creó la operación (asumiendo que storage tiene una forma de obtener esto)
+  // Por ahora usaremos una búsqueda indirecta
+  const configs = await storage.getEnabledAutomationConfigs();
+  const config = configs.find(c => c.moduleName === 'operation_creator');
+  
+  if (!config) {
+    console.error('[Email Task Automation] No operation creator config found');
+    return;
+  }
+
+  // Procesar la operación
+  await emailTaskAutomation.processOperation(
+    operationId,
+    config.userId,
+    autoCreateTasks,
+    autoCreateNotes,
+    optimizationLevel
+  );
+}
