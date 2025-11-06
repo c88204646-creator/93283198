@@ -122,71 +122,92 @@ export default function OperationDetail() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto p-6 space-y-6 max-w-7xl">
+      <div className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-6 max-w-7xl">
+        {/* Breadcrumbs */}
+        <nav className="flex items-center gap-2 text-sm text-muted-foreground px-2">
+          <button
+            onClick={() => navigate('/')}
+            className="hover:text-foreground transition-colors"
+            data-testid="button-breadcrumb-home"
+          >
+            Inicio
+          </button>
+          <span>/</span>
+          <button
+            onClick={() => navigate('/operations')}
+            className="hover:text-foreground transition-colors"
+            data-testid="button-breadcrumb-operations"
+          >
+            Operaciones
+          </button>
+          <span>/</span>
+          <span className="text-foreground font-medium truncate max-w-xs" data-testid="text-breadcrumb-current">
+            {operation.name}
+          </span>
+        </nav>
+
         {/* Header mejorado con gradiente */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-8 shadow-xl backdrop-blur-sm">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-4 md:p-8 shadow-xl backdrop-blur-sm">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -ml-24 -mb-24" />
           
-          <div className="relative flex items-start justify-between">
-            <div className="flex items-start gap-6 flex-1">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => navigate('/operations')}
-                data-testid="button-back"
-                className="shrink-0 bg-background/50 backdrop-blur-sm hover:bg-background/80 transition-all"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              
-              <div className="flex-1 space-y-4">
-                <div className="flex items-start gap-4 flex-wrap">
-                  <div className="flex items-center gap-2 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                    {getOperationTypeIcon(operation.operationType)}
-                    <span className="text-sm font-medium">{operation.operationType}</span>
-                  </div>
-                  <Badge className={`${getStatusColor(operation.status)} text-sm px-3 py-1`} data-testid="badge-status">
-                    {operation.status === 'planning' ? 'Planificación' : 
-                     operation.status === 'in-progress' ? 'En Progreso' : 
-                     operation.status === 'completed' ? 'Completado' : 
-                     'Cancelado'}
+          <div className="relative flex flex-col md:flex-row items-start gap-4 md:gap-6">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate('/operations')}
+              data-testid="button-back"
+              className="shrink-0 bg-background/50 backdrop-blur-sm hover:bg-background/80 transition-all"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            
+            <div className="flex-1 space-y-4 w-full">
+              <div className="flex items-start gap-2 md:gap-4 flex-wrap">
+                <div className="flex items-center gap-2 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
+                  {getOperationTypeIcon(operation.operationType)}
+                  <span className="text-sm font-medium">{operation.operationType}</span>
+                </div>
+                <Badge className={`${getStatusColor(operation.status)} text-xs md:text-sm px-2 md:px-3 py-1`} data-testid="badge-status">
+                  {operation.status === 'planning' ? 'Planificación' : 
+                   operation.status === 'in-progress' ? 'En Progreso' : 
+                   operation.status === 'completed' ? 'Completado' : 
+                   'Cancelado'}
+                </Badge>
+                {operation.priority && (
+                  <Badge className={`${getPriorityColor(operation.priority)} text-xs md:text-sm px-2 md:px-3 py-1`} data-testid="badge-priority">
+                    {operation.priority === 'low' ? 'Baja' : 
+                     operation.priority === 'medium' ? 'Media' : 
+                     operation.priority === 'high' ? 'Alta' : 
+                     'Urgente'}
                   </Badge>
-                  {operation.priority && (
-                    <Badge className={`${getPriorityColor(operation.priority)} text-sm px-3 py-1`} data-testid="badge-priority">
-                      Prioridad: {operation.priority === 'low' ? 'Baja' : 
-                                  operation.priority === 'medium' ? 'Media' : 
-                                  operation.priority === 'high' ? 'Alta' : 
-                                  'Urgente'}
-                    </Badge>
-                  )}
-                </div>
-                
-                <div>
-                  <h1 className="text-4xl font-bold tracking-tight mb-2" data-testid="text-operation-name">
-                    {operation.name}
-                  </h1>
-                  {operation.description && (
-                    <p className="text-muted-foreground text-lg max-w-3xl" data-testid="text-description">
-                      {operation.description}
-                    </p>
-                  )}
-                </div>
-                
-                {client && (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <UserIcon className="w-4 h-4" />
-                    <span className="font-medium">Cliente:</span>
-                    <span>{client.name}</span>
-                  </div>
                 )}
               </div>
+              
+              <div>
+                <h1 className="text-2xl md:text-4xl font-bold tracking-tight mb-2" data-testid="text-operation-name">
+                  {operation.name}
+                </h1>
+                {operation.description && (
+                  <p className="text-muted-foreground text-sm md:text-lg max-w-3xl" data-testid="text-description">
+                    {operation.description}
+                  </p>
+                )}
+              </div>
+              
+              {client && (
+                <div className="flex items-center gap-2 text-sm md:text-base text-muted-foreground">
+                  <UserIcon className="w-4 h-4" />
+                  <span className="font-medium">Cliente:</span>
+                  <span className="truncate">{client.name}</span>
+                </div>
+              )}
             </div>
             
             <Button
               onClick={() => navigate(`/operations`)}
               data-testid="button-edit"
-              className="shrink-0 bg-primary/90 hover:bg-primary shadow-lg"
+              className="shrink-0 w-full md:w-auto bg-primary/90 hover:bg-primary shadow-lg"
             >
               <Edit2 className="w-4 h-4 mr-2" />
               Editar Operación
