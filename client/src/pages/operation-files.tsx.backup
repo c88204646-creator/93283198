@@ -27,7 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { FileUploader } from "@/components/FileUploader";
+import { ObjectUploader } from "@/components/ObjectUploader";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
@@ -91,7 +91,7 @@ export default function OperationFilesPage() {
   const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<OperationFolder | null>(null);
   const [editingFile, setEditingFile] = useState<OperationFile | null>(null);
-  const [pendingUpload, setPendingUpload] = useState<{ b2Key: string; fileHash: string; size: number; originalName: string; mimeType: string } | null>(null);
+  const [pendingUpload, setPendingUpload] = useState<{ fileURL: string; file: any } | null>(null);
   const [previewFile, setPreviewFile] = useState<OperationFile | null>(null);
   const [previewIndex, setPreviewIndex] = useState<number>(0);
 
@@ -223,8 +223,8 @@ export default function OperationFilesPage() {
     },
   });
 
-  const handleUploadComplete = (result: { b2Key: string; fileHash: string; size: number; originalName: string; mimeType: string }) => {
-    setPendingUpload(result);
+  const handleUploadComplete = (fileURL: string, file: any) => {
+    setPendingUpload({ fileURL, file });
     setIsFileDialogOpen(true);
   };
 
@@ -247,11 +247,10 @@ export default function OperationFilesPage() {
       });
     } else if (pendingUpload) {
       createFileMutation.mutate({
-        b2Key: pendingUpload.b2Key,
-        fileHash: pendingUpload.fileHash,
-        originalName: pendingUpload.originalName,
-        mimeType: pendingUpload.mimeType,
-        size: pendingUpload.size,
+        fileURL: pendingUpload.fileURL,
+        originalName: pendingUpload.file.name,
+        mimeType: pendingUpload.file.type || "application/octet-stream",
+        size: pendingUpload.file.size,
         folderId: formData.get("folderId") as string || null,
         category: formData.get("category") as string || null,
         description: formData.get("description") as string || null,
@@ -563,19 +562,11 @@ export default function OperationFilesPage() {
         </div>
       </div>
 
-      <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-        <DialogContent data-testid="dialog-upload">
-          <DialogHeader>
-            <DialogTitle>Upload File</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <FileUploader
-              operationId={operationId!}
-              onUploadComplete={handleUploadComplete}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ObjectUploader
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        onUploadComplete={handleUploadComplete}
+      />
 
       <Dialog open={isFolderDialogOpen} onOpenChange={setIsFolderDialogOpen}>
         <DialogContent data-testid="dialog-folder">
@@ -667,7 +658,7 @@ export default function OperationFilesPage() {
                   id="file-name"
                   name="name"
                   data-testid="input-file-name"
-                  defaultValue={editingFile?.name || pendingUpload?.originalName}
+                  defaultValue={editingFile?.name || pendingUpload?.file.name}
                   required
                 />
               </div>
