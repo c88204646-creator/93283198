@@ -23,6 +23,7 @@ import { useState, useEffect, useMemo } from "react";
 import DOMPurify from 'isomorphic-dompurify';
 import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage } from "@shared/schema";
 import { FileUploader } from "@/components/FileUploader";
+import { OperationAnalysisComponent } from "@/components/OperationAnalysis";
 import {
   Dialog,
   DialogContent,
@@ -296,8 +297,13 @@ export default function OperationDetail() {
 
 function InformationTab({ operation, client, employees }: { operation: Operation; client?: Client; employees: Employee[] }) {
   return (
-    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
-      <Card className="overflow-hidden border-primary/20 hover:border-primary/40 transition-all hover:shadow-lg bg-gradient-to-br from-card to-card/50">
+    <div className="space-y-6">
+      {/* AI-Powered Operation Analysis */}
+      <OperationAnalysisComponent operationId={operation.id} />
+
+      {/* Existing Information Cards */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+        <Card className="overflow-hidden border-primary/20 hover:border-primary/40 transition-all hover:shadow-lg bg-gradient-to-br from-card to-card/50">
         <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent pb-4">
           <CardTitle className="flex items-center gap-2 text-xl">
             <Package className="w-5 h-5 text-primary" />
@@ -471,6 +477,7 @@ function InformationTab({ operation, client, employees }: { operation: Operation
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
