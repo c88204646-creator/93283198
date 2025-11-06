@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import {
   ArrowLeft, Package, FileText, CheckSquare, Mail, Edit2, Trash2, Plus,
   Calendar, User as UserIcon, MapPin, Ship, Plane, Truck, DollarSign, FolderOpen,
-  Download, Paperclip, Upload, Link, FileIcon, Image, ExternalLink, Eye
+  Download, Paperclip, Upload, Link, FileIcon, Image, ExternalLink, Eye, MoreVertical
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import DOMPurify from 'isomorphic-dompurify';
@@ -27,7 +27,15 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -1396,6 +1404,13 @@ function FilesTab({ operationId }: { operationId: string }) {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [editingFile, setEditingFile] = useState<any>(null);
+  const [editFileName, setEditFileName] = useState("");
+  const [editFileFolderId, setEditFileFolderId] = useState<string | null>(null);
+  const [deletingFile, setDeletingFile] = useState<any>(null);
+  const [editingFolder, setEditingFolder] = useState<any>(null);
+  const [editFolderName, setEditFolderName] = useState("");
+  const [deletingFolder, setDeletingFolder] = useState<any>(null);
 
   const { data: folders = [], isLoading: loadingFolders } = useQuery<any[]>({
     queryKey: ["/api/operations", operationId, "folders"],
@@ -1455,6 +1470,67 @@ function FilesTab({ operationId }: { operationId: string }) {
     }
   };
 
+  const deleteFolderMutation = useMutation({
+    mutationFn: async (folderId: string) => {
+      return apiRequest("DELETE", `/api/operations/${operationId}/folders/${folderId}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
+      toast({ title: "Folder deleted successfully" });
+      setDeletingFolder(null);
+      setSelectedFolder(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error deleting folder", description: error?.message, variant: "destructive" });
+    },
+  });
+
+  const updateFolderMutation = useMutation({
+    mutationFn: async ({ folderId, name }: { folderId: string; name: string }) => {
+      return apiRequest("PATCH", `/api/operations/${operationId}/folders/${folderId}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
+      toast({ title: "Folder updated successfully" });
+      setEditingFolder(null);
+      setEditFolderName("");
+    },
+    onError: (error: any) => {
+      toast({ title: "Error updating folder", description: error?.message, variant: "destructive" });
+    },
+  });
+
+  const deleteFileMutation = useMutation({
+    mutationFn: async (fileId: string) => {
+      return apiRequest("DELETE", `/api/operations/${operationId}/files/${fileId}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
+      toast({ title: "File deleted successfully" });
+      setDeletingFile(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error deleting file", description: error?.message, variant: "destructive" });
+    },
+  });
+
+  const updateFileMutation = useMutation({
+    mutationFn: async ({ fileId, name, folderId }: { fileId: string; name: string; folderId: string | null }) => {
+      return apiRequest("PATCH", `/api/operations/${operationId}/files/${fileId}`, { name, folderId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
+      toast({ title: "File updated successfully" });
+      setEditingFile(null);
+      setEditFileName("");
+      setEditFileFolderId(null);
+    },
+    onError: (error: any) => {
+      toast({ title: "Error updating file", description: error?.message, variant: "destructive" });
+    },
+  });
+
   const getFileIcon = (mimeType: string) => {
     if (mimeType.startsWith("image/")) return "🖼️";
     if (mimeType.includes("pdf")) return "📄";
@@ -1507,15 +1583,48 @@ function FilesTab({ operationId }: { operationId: string }) {
             📁 Todos los archivos
           </Button>
           {folders.map((folder: any) => (
-            <Button
-              key={folder.id}
-              variant={selectedFolder === folder.id ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedFolder(folder.id)}
-              data-testid={`button-folder-${folder.id}`}
-            >
-              📁 {folder.name}
-            </Button>
+            <div key={folder.id} className="flex items-center gap-1">
+              <Button
+                variant={selectedFolder === folder.id ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedFolder(folder.id)}
+                data-testid={`button-folder-${folder.id}`}
+              >
+                📁 {folder.name}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    data-testid={`button-folder-menu-${folder.id}`}
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setEditingFolder(folder);
+                      setEditFolderName(folder.name);
+                    }}
+                    data-testid={`button-edit-folder-${folder.id}`}
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" />
+                    Edit Folder
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setDeletingFolder(folder)}
+                    className="text-red-600"
+                    data-testid={`button-delete-folder-${folder.id}`}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Folder
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ))}
         </div>
       )}
@@ -1553,14 +1662,45 @@ function FilesTab({ operationId }: { operationId: string }) {
                       )}
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => window.open(file.objectPath, '_blank')}
-                    data-testid={`button-download-${file.id}`}
-                  >
-                    <Download className="w-4 h-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        data-testid={`button-file-menu-${file.id}`}
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => window.open(file.objectPath, '_blank')}
+                        data-testid={`button-download-${file.id}`}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setEditingFile(file);
+                          setEditFileName(file.name);
+                          setEditFileFolderId(file.folderId);
+                        }}
+                        data-testid={`button-edit-file-${file.id}`}
+                      >
+                        <Edit2 className="w-4 h-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setDeletingFile(file)}
+                        className="text-red-600"
+                        data-testid={`button-delete-file-${file.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 {file.description && (
                   <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
@@ -1626,6 +1766,168 @@ function FilesTab({ operationId }: { operationId: string }) {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingFolder} onOpenChange={(open) => !open && setEditingFolder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Folder</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-folder-name">Folder Name</Label>
+              <Input
+                id="edit-folder-name"
+                value={editFolderName}
+                onChange={(e) => setEditFolderName(e.target.value)}
+                placeholder="Folder name"
+                data-testid="input-edit-folder-name"
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setEditingFolder(null)}
+                data-testid="button-cancel-edit-folder"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (editingFolder && editFolderName.trim()) {
+                    updateFolderMutation.mutate({
+                      folderId: editingFolder.id,
+                      name: editFolderName.trim(),
+                    });
+                  }
+                }}
+                disabled={!editFolderName.trim() || updateFolderMutation.isPending}
+                data-testid="button-save-folder"
+              >
+                {updateFolderMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deletingFolder} onOpenChange={(open) => !open && setDeletingFolder(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Folder</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deletingFolder?.name}"? All files in this folder will also be deleted. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeletingFolder(null)}
+              data-testid="button-cancel-delete-folder"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deletingFolder && deleteFolderMutation.mutate(deletingFolder.id)}
+              disabled={deleteFolderMutation.isPending}
+              data-testid="button-confirm-delete-folder"
+            >
+              {deleteFolderMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingFile} onOpenChange={(open) => !open && setEditingFile(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit File</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-file-name">File Name</Label>
+              <Input
+                id="edit-file-name"
+                value={editFileName}
+                onChange={(e) => setEditFileName(e.target.value)}
+                placeholder="File name"
+                data-testid="input-edit-file-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-file-folder">Folder</Label>
+              <Select
+                value={editFileFolderId || "root"}
+                onValueChange={(value) => setEditFileFolderId(value === "root" ? null : value)}
+              >
+                <SelectTrigger data-testid="select-edit-file-folder">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="root">Root (No Folder)</SelectItem>
+                  {folders.map((folder: any) => (
+                    <SelectItem key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setEditingFile(null)}
+                data-testid="button-cancel-edit-file"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (editingFile && editFileName.trim()) {
+                    updateFileMutation.mutate({
+                      fileId: editingFile.id,
+                      name: editFileName.trim(),
+                      folderId: editFileFolderId,
+                    });
+                  }
+                }}
+                disabled={!editFileName.trim() || updateFileMutation.isPending}
+                data-testid="button-save-file"
+              >
+                {updateFileMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deletingFile} onOpenChange={(open) => !open && setDeletingFile(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete File</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deletingFile?.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeletingFile(null)}
+              data-testid="button-cancel-delete-file"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deletingFile && deleteFileMutation.mutate(deletingFile.id)}
+              disabled={deleteFileMutation.isPending}
+              data-testid="button-confirm-delete-file"
+            >
+              {deleteFileMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

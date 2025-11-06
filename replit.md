@@ -27,6 +27,15 @@ Design preference: Logistics-focused iconography and terminology.
    - Fixed incorrect parameter order across multiple files (was `url, method, data` ❌ → now `method, url, data` ✅)
    - Fixed files: operation-files.tsx (6 places), operation-detail.tsx (2 places), calendar.tsx (2 places)
    - All CRUD operations now work correctly: create/edit/delete folders and files
+7. **File Upload Limit Increased**: Express body parser limit increased from 100kb to 50mb (supports ~37mb actual files after base64 encoding overhead)
+8. **Operation Detail Files Tab - Full CRUD Visibility** (operation-detail.tsx):
+   - **All file/folder operations now visible** - Dropdown menus (⋮) for every file and folder
+   - **Edit folders** - Rename via dropdown menu with Edit Folder dialog
+   - **Delete folders** - Remove via dropdown menu with confirmation dialog (deletes all contained files)
+   - **Edit files** - Rename and move between folders via dropdown menu with Edit File dialog
+   - **Delete files** - Remove via dropdown menu with confirmation dialog
+   - **Download files** - Direct download via dropdown menu
+   - **Complete feature parity** - Operation detail tab now has same file management capabilities as dedicated files page
 
 ## System Architecture
 
