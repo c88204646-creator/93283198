@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import * as crypto from 'crypto';
 import { Readable } from 'stream';
 
@@ -354,6 +355,40 @@ export class BackblazeStorage {
   getPublicUrl(fileKey: string): string {
     this.ensureConfigured();
     return `${this.endpoint}/${this.bucketName}/${fileKey}`;
+  }
+
+  async getSignedUrl(fileKey: string, expiresIn: number = 600): Promise<string> {
+    this.ensureConfigured();
+    try {
+      const command = new GetObjectCommand({
+        Bucket: this.bucketName!,
+        Key: fileKey,
+      });
+
+      const signedUrl = await getSignedUrl(this.client!, command, { expiresIn });
+      return signedUrl;
+    } catch (error: any) {
+      console.error(`Error generating signed URL for ${fileKey}:`, error);
+      throw new Error(`Failed to generate signed URL: ${error.message}`);
+    }
+  }
+
+  async getMultipleSignedUrls(fileKeys: string[], expiresIn: number = 600): Promise<Map<string, string>> {
+    this.ensureConfigured();
+    const urlMap = new Map<string, string>();
+
+    await Promise.all(
+      fileKeys.map(async (fileKey) => {
+        try {
+          const signedUrl = await this.getSignedUrl(fileKey, expiresIn);
+          urlMap.set(fileKey, signedUrl);
+        } catch (error) {
+          console.error(`Failed to generate signed URL for ${fileKey}:`, error);
+        }
+      })
+    );
+
+    return urlMap;
   }
 
   isAvailable(): boolean {
