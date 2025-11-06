@@ -14,27 +14,27 @@ import { useToast } from "@/hooks/use-toast";
 import { Zap, Settings, Activity, Trash2, Mail, Filter, CheckCircle, XCircle, AlertCircle, Package, FileText, Receipt, Users } from "lucide-react";
 import type { AutomationConfig, AutomationRule, AutomationLog, GmailAccount, Employee } from "@shared/schema";
 
-// Módulos de automatización disponibles
+// Available automation modules
 const AVAILABLE_MODULES = [
   {
     id: "operation-email-automation",
-    name: "Automatización de Operaciones desde Email",
-    description: "Crea operaciones automáticamente cuando llegan correos con patrones específicos (ej: NAVI-123)",
+    name: "Operation Email Automation",
+    description: "Automatically creates operations when emails arrive with specific patterns (e.g.: NAVI-123)",
     icon: Package,
     category: "operations",
   },
   {
     id: "invoice-email-automation",
-    name: "Automatización de Facturas desde Email",
-    description: "Genera facturas automáticamente desde correos con información de facturación",
+    name: "Invoice Email Automation",
+    description: "Automatically generates invoices from emails with billing information",
     icon: FileText,
     category: "invoices",
     comingSoon: true,
   },
   {
     id: "expense-receipt-automation",
-    name: "Automatización de Gastos desde Recibos",
-    description: "Registra gastos automáticamente cuando llegan correos con recibos adjuntos",
+    name: "Expense Receipt Automation",
+    description: "Automatically records expenses when emails arrive with attached receipts",
     icon: Receipt,
     category: "expenses",
     comingSoon: true,
@@ -53,7 +53,7 @@ export default function AutomationPage() {
     queryKey: ["/api/gmail/accounts"],
   });
 
-  // Obtener configuración activa para cada módulo
+  // Get active configuration for each module
   const getModuleConfig = (moduleId: string) => {
     return configs.find((c) => c.moduleName === moduleId);
   };
@@ -61,7 +61,7 @@ export default function AutomationPage() {
   if (configsLoading) {
     return (
       <div className="flex items-center justify-center h-96" data-testid="loading-automation">
-        <div className="text-muted-foreground">Cargando automatizaciones...</div>
+        <div className="text-muted-foreground">Loading automations...</div>
       </div>
     );
   }
@@ -69,9 +69,9 @@ export default function AutomationPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2" data-testid="text-automation-title">Módulos de Automatización</h1>
+        <h1 className="text-3xl font-bold mb-2" data-testid="text-automation-title">Automation Modules</h1>
         <p className="text-muted-foreground">
-          Activa y configura módulos para automatizar procesos desde correos electrónicos
+          Activate and configure modules to automate processes from emails
         </p>
       </div>
 
@@ -93,10 +93,10 @@ export default function AutomationPage() {
                     <ModuleIcon className="w-6 h-6 text-primary" />
                   </div>
                   {module.comingSoon ? (
-                    <Badge variant="secondary">Próximamente</Badge>
+                    <Badge variant="secondary">Coming Soon</Badge>
                   ) : (
                     <Badge variant={isActive ? "default" : "outline"} data-testid={`badge-status-${module.id}`}>
-                      {isActive ? "Activo" : "Inactivo"}
+                      {isActive ? "Active" : "Inactive"}
                     </Badge>
                   )}
                 </div>
@@ -112,12 +112,12 @@ export default function AutomationPage() {
                     data-testid={`button-configure-${module.id}`}
                   >
                     <Settings className="w-4 h-4 mr-2" />
-                    {config ? "Configurar" : "Activar"}
+                    {config ? "Configure" : "Activate"}
                   </Button>
                 )}
                 {module.comingSoon && (
                   <Button className="w-full" variant="secondary" disabled>
-                    Próximamente
+                    Coming Soon
                   </Button>
                 )}
               </CardContent>
@@ -195,14 +195,14 @@ function ModuleConfigurationDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/automation/configs"] });
       toast({
-        title: "Módulo activado",
-        description: "El módulo ha sido activado correctamente.",
+        title: "Module activated",
+        description: "The module has been activated successfully.",
       });
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "No se pudo activar el módulo",
+        description: error.message || "Could not activate the module",
         variant: "destructive",
       });
     },
@@ -224,8 +224,8 @@ function ModuleConfigurationDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/automation/configs"] });
       toast({
-        title: "Configuración actualizada",
-        description: "Los cambios han sido guardados correctamente.",
+        title: "Configuration updated",
+        description: "Changes have been saved successfully.",
       });
     },
   });
@@ -237,8 +237,8 @@ function ModuleConfigurationDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/automation/configs"] });
       toast({
-        title: "Módulo desactivado",
-        description: "El módulo ha sido desactivado completamente.",
+        title: "Module deactivated",
+        description: "The module has been completely deactivated.",
       });
       onClose();
     },
@@ -297,7 +297,7 @@ function ModuleConfigurationDialog({
             data-testid="button-tab-settings"
           >
             <Settings className="w-4 h-4 mr-2" />
-            Configuración
+            Settings
           </Button>
           {config && (
             <>
@@ -308,7 +308,7 @@ function ModuleConfigurationDialog({
                 data-testid="button-tab-rules"
               >
                 <Filter className="w-4 h-4 mr-2" />
-                Reglas
+                Rules
               </Button>
               <Button
                 variant={activeTab === "logs" ? "default" : "ghost"}
@@ -345,7 +345,7 @@ function ModuleConfigurationDialog({
               onCustomFolderNamesChange={setCustomFolderNames}
               onSave={handleSaveSettings}
               onDelete={() => {
-                if (confirm("¿Desactivar este módulo completamente?")) {
+                if (confirm("Deactivate this module completely?")) {
                   deleteConfigMutation.mutate();
                 }
               }}
@@ -413,16 +413,16 @@ function SettingsTab({
   return (
     <div className="space-y-6">
       <div>
-        <Label className="text-base font-semibold mb-3 block">Cuentas Gmail a Monitorear</Label>
+        <Label className="text-base font-semibold mb-3 block">Gmail Accounts to Monitor</Label>
         <p className="text-sm text-muted-foreground mb-4">
-          Selecciona las cuentas de Gmail desde las cuales este módulo procesará correos
+          Select the Gmail accounts from which this module will process emails
         </p>
         {gmailAccounts.length === 0 ? (
           <Card className="bg-muted/50">
             <CardContent className="py-6 text-center">
               <Mail className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">
-                No hay cuentas Gmail conectadas. Ve a la sección Gmail para conectar una cuenta.
+                No Gmail accounts connected. Go to the Gmail section to connect an account.
               </p>
             </CardContent>
           </Card>
@@ -451,7 +451,7 @@ function SettingsTab({
                   </div>
                 </Label>
                 {account.syncEnabled && (
-                  <Badge variant="secondary" className="text-xs">Sincronizando</Badge>
+                  <Badge variant="secondary" className="text-xs">Syncing</Badge>
                 )}
               </div>
             ))}
@@ -460,16 +460,16 @@ function SettingsTab({
       </div>
 
       <div>
-        <Label className="text-base font-semibold mb-3 block">Empleados Asignados por Defecto</Label>
+        <Label className="text-base font-semibold mb-3 block">Default Assigned Employees</Label>
         <p className="text-sm text-muted-foreground mb-4">
-          Selecciona los empleados que se asignarán automáticamente a las operaciones creadas
+          Select the employees that will be automatically assigned to created operations
         </p>
         {employees.length === 0 ? (
           <Card className="bg-muted/50">
             <CardContent className="py-6 text-center">
               <Users className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
               <p className="text-sm text-muted-foreground">
-                No hay empleados disponibles. Crea empleados en la sección de Empleados.
+                No employees available. Create employees in the Employees section.
               </p>
             </CardContent>
           </Card>
@@ -506,10 +506,10 @@ function SettingsTab({
       <div className="border rounded-lg p-4 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <Label className="text-base font-semibold">Procesar Adjuntos de Email</Label>
+            <Label className="text-base font-semibold">Process Email Attachments</Label>
             <p className="text-sm text-muted-foreground mt-1">
-              Cuando está activado, los archivos adjuntos de los correos serán descargados automáticamente
-              y organizados en carpetas por categoría (Pagos, Gastos, Fotos, Facturas, Contratos, Documentos)
+              When enabled, email attachments will be automatically downloaded
+              and organized into folders by category (Payments, Expenses, Photos, Invoices, Contracts, Documents)
             </p>
           </div>
           <Switch
@@ -521,9 +521,9 @@ function SettingsTab({
 
         {processAttachments && (
           <div className="pt-4 border-t">
-            <Label className="text-base font-semibold mb-3 block">📁 Nombres Personalizados de Carpetas</Label>
+            <Label className="text-base font-semibold mb-3 block">📁 Custom Folder Names</Label>
             <p className="text-sm text-muted-foreground mb-4">
-              Configura nombres personalizados para las carpetas donde se organizarán los archivos adjuntos automáticamente
+              Configure custom names for folders where attachments will be automatically organized
             </p>
             
             <div className="grid gap-3 md:grid-cols-2">
@@ -559,73 +559,73 @@ function SettingsTab({
               ))}
             </div>
             <p className="text-xs text-muted-foreground mt-3">
-              💡 Deja en blanco para usar los nombres predeterminados
+              💡 Leave blank to use default names
             </p>
           </div>
         )}
 
         <div className="pt-4 border-t">
-          <Label className="text-base font-semibold mb-3 block">🤖 Automatización con Gemini AI</Label>
+          <Label className="text-base font-semibold mb-3 block">🤖 Gemini AI Automation</Label>
           <p className="text-sm text-muted-foreground mb-4">
-            Utiliza inteligencia artificial para analizar cadenas de correos y crear automáticamente tareas y notas relevantes
+            Use artificial intelligence to analyze email threads and automatically create relevant tasks and notes
           </p>
           
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <Label className="text-sm font-medium mb-2 block">Crear Tareas Automáticamente</Label>
+              <Label className="text-sm font-medium mb-2 block">Automatically Create Tasks</Label>
               <Select value={autoCreateTasks} onValueChange={onAutoCreateTasksChange}>
                 <SelectTrigger data-testid="select-auto-tasks">
-                  <SelectValue placeholder="Seleccionar modo" />
+                  <SelectValue placeholder="Select mode" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="disabled">🚫 Desactivado</SelectItem>
-                  <SelectItem value="basic">✅ Básico (sin AI)</SelectItem>
-                  <SelectItem value="smart_ai">🤖 Inteligente con AI</SelectItem>
+                  <SelectItem value="disabled">🚫 Disabled</SelectItem>
+                  <SelectItem value="basic">✅ Basic (no AI)</SelectItem>
+                  <SelectItem value="smart_ai">🤖 Smart with AI</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                {autoCreateTasks === 'smart_ai' && '✨ Usa Gemini AI para detectar tareas pendientes en correos'}
-                {autoCreateTasks === 'basic' && '📋 Extrae tareas de palabras clave simples'}
-                {autoCreateTasks === 'disabled' && 'No se crearán tareas automáticamente'}
+                {autoCreateTasks === 'smart_ai' && '✨ Uses Gemini AI to detect pending tasks in emails'}
+                {autoCreateTasks === 'basic' && '📋 Extracts tasks from simple keywords'}
+                {autoCreateTasks === 'disabled' && 'Tasks will not be created automatically'}
               </p>
             </div>
 
             <div>
-              <Label className="text-sm font-medium mb-2 block">Crear Notas Automáticamente</Label>
+              <Label className="text-sm font-medium mb-2 block">Automatically Create Notes</Label>
               <Select value={autoCreateNotes} onValueChange={onAutoCreateNotesChange}>
                 <SelectTrigger data-testid="select-auto-notes">
-                  <SelectValue placeholder="Seleccionar modo" />
+                  <SelectValue placeholder="Select mode" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="disabled">🚫 Desactivado</SelectItem>
-                  <SelectItem value="basic">✅ Básico (sin AI)</SelectItem>
-                  <SelectItem value="smart_ai">🤖 Inteligente con AI</SelectItem>
+                  <SelectItem value="disabled">🚫 Disabled</SelectItem>
+                  <SelectItem value="basic">✅ Basic (no AI)</SelectItem>
+                  <SelectItem value="smart_ai">🤖 Smart with AI</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                {autoCreateNotes === 'smart_ai' && '✨ Usa Gemini AI para extraer información importante'}
-                {autoCreateNotes === 'basic' && '📝 Crea resúmenes simples de correos'}
-                {autoCreateNotes === 'disabled' && 'No se crearán notas automáticamente'}
+                {autoCreateNotes === 'smart_ai' && '✨ Uses Gemini AI to extract important information'}
+                {autoCreateNotes === 'basic' && '📝 Creates simple email summaries'}
+                {autoCreateNotes === 'disabled' && 'Notes will not be created automatically'}
               </p>
             </div>
           </div>
 
           {(autoCreateTasks === 'smart_ai' || autoCreateNotes === 'smart_ai') && (
             <div className="mt-4 p-3 bg-primary/5 rounded-lg">
-              <Label className="text-sm font-medium mb-2 block">Nivel de Optimización de API</Label>
+              <Label className="text-sm font-medium mb-2 block">API Optimization Level</Label>
               <Select value={aiOptimizationLevel} onValueChange={onAiOptimizationLevelChange}>
                 <SelectTrigger data-testid="select-ai-optimization">
-                  <SelectValue placeholder="Seleccionar nivel" />
+                  <SelectValue placeholder="Select level" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="high">🔋 Alto (80% reducción de uso)</SelectItem>
-                  <SelectItem value="medium">⚡ Medio (50% reducción de uso)</SelectItem>
-                  <SelectItem value="low">💨 Bajo (20% reducción de uso)</SelectItem>
+                  <SelectItem value="high">🔋 High (80% usage reduction)</SelectItem>
+                  <SelectItem value="medium">⚡ Medium (50% usage reduction)</SelectItem>
+                  <SelectItem value="low">💨 Low (20% usage reduction)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-2">
-                💡 <strong>Recomendado: Alto</strong> - Reduce significativamente el consumo de API mediante caché inteligente,
-                deduplicación y análisis diferencial sin afectar la calidad
+                💡 <strong>Recommended: High</strong> - Significantly reduces API consumption through smart caching,
+                deduplication, and differential analysis without affecting quality
               </p>
             </div>
           )}
@@ -634,7 +634,7 @@ function SettingsTab({
 
       {config && config.lastProcessedAt && (
         <div className="text-sm text-muted-foreground">
-          Última ejecución: {new Date(config.lastProcessedAt).toLocaleString("es-MX")}
+          Last execution: {new Date(config.lastProcessedAt).toLocaleString("en-US")}
         </div>
       )}
 
@@ -644,7 +644,7 @@ function SettingsTab({
           disabled={selectedAccounts.length === 0 || isSaving}
           data-testid="button-save-settings"
         >
-          {isSaving ? "Guardando..." : config ? "Guardar Cambios" : "Activar Módulo"}
+          {isSaving ? "Saving..." : config ? "Save Changes" : "Activate Module"}
         </Button>
         {config && (
           <Button
@@ -653,7 +653,7 @@ function SettingsTab({
             disabled={isDeleting}
             data-testid="button-delete-config"
           >
-            {isDeleting ? "Eliminando..." : "Desactivar Módulo"}
+            {isDeleting ? "Deleting..." : "Deactivate Module"}
           </Button>
         )}
       </div>
@@ -693,19 +693,19 @@ function RulesTab({ configId }: { configId: string }) {
   });
 
   if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">Cargando reglas...</div>;
+    return <div className="text-center py-8 text-muted-foreground">Loading rules...</div>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="font-semibold">Reglas de Automatización</h3>
-          <p className="text-sm text-muted-foreground">Define qué correos debe procesar este módulo</p>
+          <h3 className="font-semibold">Automation Rules</h3>
+          <p className="text-sm text-muted-foreground">Define which emails this module should process</p>
         </div>
         <Button size="sm" onClick={() => setShowNewRuleDialog(true)} data-testid="button-create-rule">
           <Filter className="w-4 h-4 mr-2" />
-          Nueva Regla
+          New Rule
         </Button>
       </div>
 
@@ -713,9 +713,9 @@ function RulesTab({ configId }: { configId: string }) {
         <Card className="text-center py-8">
           <CardContent>
             <Filter className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">No hay reglas configuradas</p>
+            <p className="text-muted-foreground">No rules configured</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Crea reglas para definir qué correos deben procesarse
+              Create rules to define which emails should be processed
             </p>
           </CardContent>
         </Card>
@@ -729,10 +729,10 @@ function RulesTab({ configId }: { configId: string }) {
                     <div className="flex items-center gap-2 mb-1">
                       <CardTitle className="text-base">{(rule as any).name}</CardTitle>
                       <Badge variant={rule.isEnabled ? "default" : "secondary"} data-testid={`badge-rule-status-${rule.id}`}>
-                        {rule.isEnabled ? "Activa" : "Inactiva"}
+                        {rule.isEnabled ? "Active" : "Inactive"}
                       </Badge>
                       {rule.priority !== undefined && rule.priority > 0 && (
-                        <Badge variant="outline">Prioridad: {rule.priority}</Badge>
+                        <Badge variant="outline">Priority: {rule.priority}</Badge>
                       )}
                     </div>
                     {rule.description && (
@@ -759,7 +759,7 @@ function RulesTab({ configId }: { configId: string }) {
                       variant="ghost"
                       size="icon"
                       onClick={() => {
-                        if (confirm("¿Eliminar esta regla?")) {
+                        if (confirm("Delete this rule?")) {
                           deleteRuleMutation.mutate(rule.id);
                         }
                       }}
@@ -878,7 +878,7 @@ function RuleFormDialog({
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "No se pudo guardar la regla",
+        description: error.message || "Could not save the rule",
         variant: "destructive",
       });
     },
@@ -888,9 +888,9 @@ function RuleFormDialog({
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{rule ? "Editar Regla" : "Nueva Regla"}</DialogTitle>
+          <DialogTitle>{rule ? "Edit Rule" : "New Rule"}</DialogTitle>
           <DialogDescription>
-            Configura las condiciones para procesar correos automáticamente
+            Configure the conditions to automatically process emails
           </DialogDescription>
         </DialogHeader>
 
@@ -919,7 +919,7 @@ function RuleFormDialog({
           </div>
 
           <div>
-            <Label htmlFor="priority">Prioridad</Label>
+            <Label htmlFor="priority">Priority</Label>
             <Input
               id="priority"
               type="number"
@@ -957,7 +957,7 @@ function RuleFormDialog({
             disabled={!ruleName || !pattern || saveMutation.isPending}
             data-testid="button-save-rule"
           >
-            {saveMutation.isPending ? "Guardando..." : "Guardar"}
+            {saveMutation.isPending ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -971,7 +971,7 @@ function LogsTab({ configId }: { configId: string }) {
   });
 
   if (isLoading) {
-    return <div className="text-center py-8 text-muted-foreground">Cargando logs...</div>;
+    return <div className="text-center py-8 text-muted-foreground">Loading logs...</div>;
   }
 
   return (
@@ -982,7 +982,7 @@ function LogsTab({ configId }: { configId: string }) {
         <Card className="text-center py-8">
           <CardContent>
             <Activity className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">No hay logs registrados</p>
+            <p className="text-muted-foreground">No logs recorded</p>
           </CardContent>
         </Card>
       ) : (

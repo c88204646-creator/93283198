@@ -340,7 +340,7 @@ export default function OperationFilesPage() {
               onClick={() => setSelectedFolder(null)}
             >
               <Folder className="w-4 h-4 mr-2" />
-              Todos los archivos
+              All Files
             </Button>
             {folders.map((folder) => {
               const colorClass = FOLDER_COLORS.find(c => c.value === folder.color)?.class || FOLDER_COLORS[0].class;

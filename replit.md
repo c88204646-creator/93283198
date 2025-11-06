@@ -8,6 +8,12 @@ Preferred communication style: Simple, everyday language (Spanish).
 Industry focus: Freight forwarding and logistics operations.
 Design preference: Logistics-focused iconography and terminology.
 
+## Recent Updates (November 6, 2025)
+1. **Complete English Translation**: Operation files module fully translated to English including UI, error messages, categories, colors, and all user-facing text.
+2. **Custom Folder Names UI**: Added configuration interface in automation settings for custom folder naming, allowing users to personalize automatic file categorization folders.
+3. **Attachment Cleanup**: Removed 77 pending attachments from database to enable fresh re-download and processing via direct B2 upload during next Gmail sync.
+4. **Direct B2 Upload**: FileUploader component integrated for direct Backblaze B2 uploads with proper validation and error handling.
+
 ## System Architecture
 
 ### Frontend
