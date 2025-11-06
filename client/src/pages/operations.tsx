@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Link2, Zap, Eye, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Link, Zap, Eye, Search } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
@@ -219,7 +219,7 @@ export default function OperationsPage() {
           </div>
           {row.bookingTracking && (
             <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-              <Link2 className="w-3 h-3" />
+              <Link className="w-3 h-3" />
               {row.bookingTracking}
             </div>
           )}
