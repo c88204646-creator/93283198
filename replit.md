@@ -23,6 +23,10 @@ Design preference: Logistics-focused iconography and terminology.
    - **Delete files** - Confirmation prompt before deletion
    - **"All Files" view** - Shows ALL operation files across all folders
    - **Automation respects user changes** - Per-attachment duplicate prevention via sourceGmailAttachmentId
+6. **Critical Bug Fix - apiRequest Parameter Order**:
+   - Fixed incorrect parameter order across multiple files (was `url, method, data` ❌ → now `method, url, data` ✅)
+   - Fixed files: operation-files.tsx (6 places), operation-detail.tsx (2 places), calendar.tsx (2 places)
+   - All CRUD operations now work correctly: create/edit/delete folders and files
 
 ## System Architecture
 

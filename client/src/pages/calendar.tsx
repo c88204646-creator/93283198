@@ -168,9 +168,9 @@ export default function Calendar() {
   const createEventMutation = useMutation({
     mutationFn: async (data: any) => {
       if (data.accountId && data.accountId !== "local") {
-        return apiRequest("/api/calendar/google-events", "POST", data);
+        return apiRequest("POST", "/api/calendar/google-events", data);
       }
-      return apiRequest("/api/calendar/events", "POST", data);
+      return apiRequest("POST", "/api/calendar/events", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });
@@ -185,7 +185,7 @@ export default function Calendar() {
 
   const deleteEventMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/calendar/events/${id}`, "DELETE");
+      return apiRequest("DELETE", `/api/calendar/events/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/calendar/events"] });

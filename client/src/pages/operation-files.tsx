@@ -112,7 +112,7 @@ export default function OperationFilesPage() {
         category: formData.get("category") as string || null,
         color: formData.get("color") as string || "blue",
       };
-      return apiRequest(`/api/operations/${operationId}/folders`, "POST", data);
+      return apiRequest("POST", `/api/operations/${operationId}/folders`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
@@ -138,7 +138,7 @@ export default function OperationFilesPage() {
         category: formData.get("category") as string || null,
         color: formData.get("color") as string || "blue",
       };
-      return apiRequest(`/api/operations/${operationId}/folders/${id}`, "PATCH", data);
+      return apiRequest("PATCH", `/api/operations/${operationId}/folders/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
@@ -152,7 +152,7 @@ export default function OperationFilesPage() {
   });
 
   const deleteFolderMutation = useMutation({
-    mutationFn: async (id: string) => apiRequest(`/api/operations/${operationId}/folders/${id}`, "DELETE"),
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/operations/${operationId}/folders/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
       toast({ title: "Folder deleted" });
@@ -163,7 +163,7 @@ export default function OperationFilesPage() {
   });
 
   const createFileMutation = useMutation({
-    mutationFn: async (data: any) => apiRequest(`/api/operations/${operationId}/files`, "POST", data),
+    mutationFn: async (data: any) => apiRequest("POST", `/api/operations/${operationId}/files`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
       setPendingUpload(null);
@@ -178,7 +178,7 @@ export default function OperationFilesPage() {
 
   const updateFileMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      return apiRequest(`/api/operations/${operationId}/files/${id}`, "PATCH", data);
+      return apiRequest("PATCH", `/api/operations/${operationId}/files/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
@@ -192,7 +192,7 @@ export default function OperationFilesPage() {
   });
 
   const deleteFileMutation = useMutation({
-    mutationFn: async (id: string) => apiRequest(`/api/operations/${operationId}/files/${id}`, "DELETE"),
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/operations/${operationId}/files/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
       toast({ title: "File deleted" });
