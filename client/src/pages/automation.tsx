@@ -169,13 +169,16 @@ function ModuleConfigurationDialog({
   const [aiOptimizationLevel, setAiOptimizationLevel] = useState<string>(
     config?.aiOptimizationLevel || 'high'
   );
+  const [customFolderNames, setCustomFolderNames] = useState<Record<string, string>>(
+    (config?.customFolderNames as Record<string, string>) || {}
+  );
 
   const { data: employees = [] } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
   });
 
   const createConfigMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (sanitizedNames: Record<string, string>) => {
       return apiRequest("POST", "/api/automation/configs", {
         moduleName: module.id,
         moduleDescription: module.description,
@@ -186,6 +189,7 @@ function ModuleConfigurationDialog({
         autoCreateTasks,
         autoCreateNotes,
         aiOptimizationLevel,
+        customFolderNames: sanitizedNames,
       });
     },
     onSuccess: () => {
@@ -205,7 +209,7 @@ function ModuleConfigurationDialog({
   });
 
   const updateConfigMutation = useMutation({
-    mutationFn: async ({ isEnabled, accounts, employees, attachments, tasks, notes, optimization }: { isEnabled?: boolean; accounts?: string[]; employees?: string[]; attachments?: boolean; tasks?: string; notes?: string; optimization?: string }) => {
+    mutationFn: async ({ isEnabled, accounts, employees, attachments, tasks, notes, optimization, folderNames }: { isEnabled?: boolean; accounts?: string[]; employees?: string[]; attachments?: boolean; tasks?: string; notes?: string; optimization?: string; folderNames?: Record<string, string> }) => {
       return apiRequest("PATCH", `/api/automation/configs/${config!.id}`, {
         isEnabled,
         selectedGmailAccounts: accounts,
@@ -214,6 +218,7 @@ function ModuleConfigurationDialog({
         autoCreateTasks: tasks,
         autoCreateNotes: notes,
         aiOptimizationLevel: optimization,
+        customFolderNames: folderNames,
       });
     },
     onSuccess: () => {
@@ -246,10 +251,17 @@ function ModuleConfigurationDialog({
   };
 
   const handleSaveSettings = () => {
+    // Sanitize customFolderNames: trim and remove empty values
+    const sanitizedFolderNames = Object.fromEntries(
+      Object.entries(customFolderNames)
+        .map(([key, value]) => [key, value.trim()])
+        .filter(([_, value]) => value)
+    );
+    
     if (config) {
-      updateConfigMutation.mutate({ accounts: selectedAccounts, employees: selectedEmployees, attachments: processAttachments, tasks: autoCreateTasks, notes: autoCreateNotes, optimization: aiOptimizationLevel });
+      updateConfigMutation.mutate({ accounts: selectedAccounts, employees: selectedEmployees, attachments: processAttachments, tasks: autoCreateTasks, notes: autoCreateNotes, optimization: aiOptimizationLevel, folderNames: sanitizedFolderNames });
     } else {
-      createConfigMutation.mutate();
+      createConfigMutation.mutate(sanitizedFolderNames);
     }
   };
 
@@ -329,6 +341,8 @@ function ModuleConfigurationDialog({
               onAutoCreateTasksChange={setAutoCreateTasks}
               onAutoCreateNotesChange={setAutoCreateNotes}
               onAiOptimizationLevelChange={setAiOptimizationLevel}
+              customFolderNames={customFolderNames}
+              onCustomFolderNamesChange={setCustomFolderNames}
               onSave={handleSaveSettings}
               onDelete={() => {
                 if (confirm("¿Desactivar este módulo completamente?")) {
@@ -361,12 +375,14 @@ function SettingsTab({
   autoCreateTasks,
   autoCreateNotes,
   aiOptimizationLevel,
+  customFolderNames,
   onAccountsChange,
   onEmployeesChange,
   onProcessAttachmentsChange,
   onAutoCreateTasksChange,
   onAutoCreateNotesChange,
   onAiOptimizationLevelChange,
+  onCustomFolderNamesChange,
   onSave,
   onDelete,
   isSaving,
@@ -381,12 +397,14 @@ function SettingsTab({
   autoCreateTasks: string;
   autoCreateNotes: string;
   aiOptimizationLevel: string;
+  customFolderNames: Record<string, string>;
   onAccountsChange: (accounts: string[]) => void;
   onEmployeesChange: (employees: string[]) => void;
   onProcessAttachmentsChange: (enabled: boolean) => void;
   onAutoCreateTasksChange: (mode: string) => void;
   onAutoCreateNotesChange: (mode: string) => void;
   onAiOptimizationLevelChange: (level: string) => void;
+  onCustomFolderNamesChange: (names: Record<string, string>) => void;
   onSave: () => void;
   onDelete: () => void;
   isSaving: boolean;
@@ -500,6 +518,51 @@ function SettingsTab({
             data-testid="switch-process-attachments"
           />
         </div>
+
+        {processAttachments && (
+          <div className="pt-4 border-t">
+            <Label className="text-base font-semibold mb-3 block">📁 Nombres Personalizados de Carpetas</Label>
+            <p className="text-sm text-muted-foreground mb-4">
+              Configura nombres personalizados para las carpetas donde se organizarán los archivos adjuntos automáticamente
+            </p>
+            
+            <div className="grid gap-3 md:grid-cols-2">
+              {[
+                { key: "payments", defaultName: "Payments", icon: "💰" },
+                { key: "expenses", defaultName: "Expenses", icon: "💸" },
+                { key: "images", defaultName: "Images", icon: "🖼️" },
+                { key: "invoices", defaultName: "Invoices", icon: "🧾" },
+                { key: "contracts", defaultName: "Contracts", icon: "📋" },
+                { key: "documents", defaultName: "Documents", icon: "📄" },
+              ].map((category) => (
+                <div key={category.key}>
+                  <Label htmlFor={`folder-${category.key}`} className="text-sm font-medium mb-1 block">
+                    {category.icon} {category.defaultName}
+                  </Label>
+                  <Input
+                    id={`folder-${category.key}`}
+                    value={customFolderNames[category.key] || ""}
+                    onChange={(e) => {
+                      const newNames = { ...customFolderNames };
+                      if (e.target.value) {
+                        newNames[category.key] = e.target.value;
+                      } else {
+                        delete newNames[category.key];
+                      }
+                      onCustomFolderNamesChange(newNames);
+                    }}
+                    placeholder={category.defaultName}
+                    data-testid={`input-folder-${category.key}`}
+                    className="text-sm"
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-3">
+              💡 Deja en blanco para usar los nombres predeterminados
+            </p>
+          </div>
+        )}
 
         <div className="pt-4 border-t">
           <Label className="text-base font-semibold mb-3 block">🤖 Automatización con Gemini AI</Label>
