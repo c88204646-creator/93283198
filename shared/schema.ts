@@ -351,6 +351,7 @@ export const automationConfigs = pgTable("automation_configs", {
   selectedGmailAccounts: jsonb("selected_gmail_accounts"), // Array of gmail account IDs
   defaultEmployees: jsonb("default_employees"), // Array of employee IDs for auto-created operations
   processAttachments: boolean("process_attachments").notNull().default(false), // Automatically process email attachments
+  customFolderNames: jsonb("custom_folder_names"), // Custom folder names for attachment categories {payments: "Payments", expenses: "Expenses", etc.}
   autoCreateTasks: text("auto_create_tasks").default("disabled"), // disabled, basic, smart_ai
   autoCreateNotes: text("auto_create_notes").default("disabled"), // disabled, basic, smart_ai
   aiOptimizationLevel: text("ai_optimization_level").default("high"), // high (80% reduction), medium (50%), low (20%)

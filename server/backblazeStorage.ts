@@ -243,6 +243,18 @@ export class BackblazeStorage {
     return uploadResult;
   }
 
+  async uploadEmailAttachment(
+    data: Buffer,
+    filename: string,
+    mimeType: string
+  ): Promise<B2UploadResult> {
+    return await this.uploadFile(data, 'emails/attachments', {
+      originalName: filename,
+      mimeType,
+      source: 'gmail',
+    });
+  }
+
   async uploadOperationFile(
     data: Buffer,
     filename: string,
