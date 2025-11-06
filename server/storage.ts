@@ -1,6 +1,6 @@
 // Reference: javascript_database blueprint integration
 import { db } from "./db";
-import { eq, desc, and, inArray, gte, sql, isNull, asc } from "drizzle-orm";
+import { eq, desc, and, inArray, gte, sql, isNull, asc, count } from "drizzle-orm";
 import {
   users, clients, employees, operations, invoices, proposals, expenses, leads, 
   invoiceItems, proposalItems, payments, customFields, customFieldValues,
@@ -51,6 +51,7 @@ export interface IStorage {
   createClient(client: InsertClient): Promise<Client>;
   updateClient(id: string, client: Partial<InsertClient>): Promise<Client | undefined>;
   deleteClient(id: string): Promise<void>;
+  countClients(): Promise<number>;
 
   // Employees
   getAllEmployees(): Promise<Employee[]>;
@@ -59,6 +60,7 @@ export interface IStorage {
   createEmployee(employee: InsertEmployee): Promise<Employee>;
   updateEmployee(id: string, employee: Partial<InsertEmployee>): Promise<Employee | undefined>;
   deleteEmployee(id: string): Promise<void>;
+  countEmployees(): Promise<number>;
 
   // Operations
   getAllOperations(): Promise<Operation[]>;
@@ -66,6 +68,7 @@ export interface IStorage {
   createOperation(operation: InsertOperation): Promise<Operation>;
   updateOperation(id: string, operation: Partial<InsertOperation>): Promise<Operation | undefined>;
   deleteOperation(id: string): Promise<void>;
+  countOperations(): Promise<number>;
 
   // Invoices
   getAllInvoices(): Promise<Invoice[]>;
@@ -73,6 +76,7 @@ export interface IStorage {
   createInvoice(invoice: InsertInvoice): Promise<Invoice>;
   updateInvoice(id: string, invoice: Partial<InsertInvoice>): Promise<Invoice | undefined>;
   deleteInvoice(id: string): Promise<void>;
+  countInvoices(): Promise<number>;
 
   // Proposals
   getAllProposals(): Promise<Proposal[]>;
@@ -80,6 +84,7 @@ export interface IStorage {
   createProposal(proposal: InsertProposal): Promise<Proposal>;
   updateProposal(id: string, proposal: Partial<InsertProposal>): Promise<Proposal | undefined>;
   deleteProposal(id: string): Promise<void>;
+  countProposals(): Promise<number>;
 
   // Invoice Items
   getInvoiceItems(invoiceId: string): Promise<InvoiceItem[]>;
@@ -108,6 +113,7 @@ export interface IStorage {
   createExpense(expense: InsertExpense): Promise<Expense>;
   updateExpense(id: string, expense: Partial<InsertExpense>): Promise<Expense | undefined>;
   deleteExpense(id: string): Promise<void>;
+  countExpenses(): Promise<number>;
 
   // Leads
   getAllLeads(): Promise<Lead[]>;
@@ -115,6 +121,7 @@ export interface IStorage {
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: string, lead: Partial<InsertLead>): Promise<Lead | undefined>;
   deleteLead(id: string): Promise<void>;
+  countLeads(): Promise<number>;
 
   // Custom Fields
   getAllCustomFields(): Promise<CustomField[]>;
@@ -271,6 +278,11 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(clients).orderBy(desc(clients.createdAt));
   }
 
+  async countClients(): Promise<number> {
+    const result = await db.select({ value: count() }).from(clients);
+    return Number(result[0]?.value ?? 0);
+  }
+
   async getClient(id: string): Promise<Client | undefined> {
     const [client] = await db.select().from(clients).where(eq(clients.id, id));
     return client || undefined;
@@ -293,6 +305,11 @@ export class DatabaseStorage implements IStorage {
   // Employees
   async getAllEmployees(): Promise<Employee[]> {
     return await db.select().from(employees).orderBy(desc(employees.createdAt));
+  }
+
+  async countEmployees(): Promise<number> {
+    const result = await db.select({ value: count() }).from(employees);
+    return Number(result[0]?.value ?? 0);
   }
 
   async getEmployee(id: string): Promise<Employee | undefined> {
@@ -322,6 +339,11 @@ export class DatabaseStorage implements IStorage {
   // Operations
   async getAllOperations(): Promise<Operation[]> {
     return await db.select().from(operations).orderBy(desc(operations.createdAt));
+  }
+
+  async countOperations(): Promise<number> {
+    const result = await db.select({ value: count() }).from(operations);
+    return Number(result[0]?.value ?? 0);
   }
 
   async getOperation(id: string): Promise<Operation | undefined> {
@@ -367,6 +389,11 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(invoices).orderBy(desc(invoices.createdAt));
   }
 
+  async countInvoices(): Promise<number> {
+    const result = await db.select({ value: count() }).from(invoices);
+    return Number(result[0]?.value ?? 0);
+  }
+
   async getInvoice(id: string): Promise<Invoice | undefined> {
     const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id));
     return invoice || undefined;
@@ -389,6 +416,11 @@ export class DatabaseStorage implements IStorage {
   // Proposals
   async getAllProposals(): Promise<Proposal[]> {
     return await db.select().from(proposals).orderBy(desc(proposals.createdAt));
+  }
+
+  async countProposals(): Promise<number> {
+    const result = await db.select({ value: count() }).from(proposals);
+    return Number(result[0]?.value ?? 0);
   }
 
   async getProposal(id: string): Promise<Proposal | undefined> {
@@ -415,6 +447,11 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(expenses).orderBy(desc(expenses.createdAt));
   }
 
+  async countExpenses(): Promise<number> {
+    const result = await db.select({ value: count() }).from(expenses);
+    return Number(result[0]?.value ?? 0);
+  }
+
   async getExpense(id: string): Promise<Expense | undefined> {
     const [expense] = await db.select().from(expenses).where(eq(expenses.id, id));
     return expense || undefined;
@@ -437,6 +474,11 @@ export class DatabaseStorage implements IStorage {
   // Leads
   async getAllLeads(): Promise<Lead[]> {
     return await db.select().from(leads).orderBy(desc(leads.createdAt));
+  }
+
+  async countLeads(): Promise<number> {
+    const result = await db.select({ value: count() }).from(leads);
+    return Number(result[0]?.value ?? 0);
   }
 
   async getLead(id: string): Promise<Lead | undefined> {
@@ -653,12 +695,12 @@ export class DatabaseStorage implements IStorage {
     await db.delete(gmailAccounts).where(eq(gmailAccounts.id, id));
   }
 
-  // Gmail Messages
-  async getGmailMessages(accountId: string, limit = 200, offset = 0): Promise<GmailMessage[]> {
+  // Gmail Messages  
+  async getGmailMessages(accountId: string, limit = 50, offset = 0): Promise<GmailMessage[]> {
     return await db.select().from(gmailMessages)
       .where(eq(gmailMessages.gmailAccountId, accountId))
       .orderBy(desc(gmailMessages.date))
-      .limit(limit)
+      .limit(Math.min(limit, 100))
       .offset(offset);
   }
 

@@ -44,6 +44,23 @@ Design preference: Logistics-focused iconography and terminology.
 - Drizzle ORM (v0.39.1) & Drizzle Kit
 - External Neon database: `neondb` on Neon cloud (ap-southeast-1)
 
+### Data Transfer Optimizations (Nov 2025)
+**Background**: The project exceeded Neon's data transfer quota. Optimizations implemented to reduce egress data:
+
+1. **Dashboard Stats**: Changed from fetching all records (using `getAll*()`) to using `COUNT(*)` queries - reduces data transfer by ~99% for stats endpoint.
+2. **Background Sync Frequencies**: Reduced to minimize DB queries:
+   - Gmail sync: 10 min → 120 min (12x reduction)
+   - Automation service: 2 min → 15 min (7.5x reduction)
+3. **Gmail Message Queries**: 
+   - Default limit: 200 → 50 messages
+   - Maximum enforced limit: 100 messages per query
+   - Attachment endpoint: 500 → 100 messages per account
+4. **Future Optimizations Needed**:
+   - Add pagination to all `getAll*` methods
+   - Select specific columns instead of `SELECT *`
+   - Implement caching for frequently accessed data
+   - Add indexes for common query patterns
+
 ### UI Libraries
 - Radix UI
 - React Hook Form

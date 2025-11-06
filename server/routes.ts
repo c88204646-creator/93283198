@@ -188,31 +188,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {
       const [
-        allOperations,
-        allClients,
-        allEmployees,
-        allInvoices,
-        allProposals,
-        allExpenses,
-        allLeads,
+        operations,
+        clients,
+        employees,
+        invoices,
+        proposals,
+        expenses,
+        leads,
       ] = await Promise.all([
-        storage.getAllOperations().catch(() => []),
-        storage.getAllClients().catch(() => []),
-        storage.getAllEmployees().catch(() => []),
-        storage.getAllInvoices().catch(() => []),
-        storage.getAllProposals().catch(() => []),
-        storage.getAllExpenses().catch(() => []),
-        storage.getAllLeads().catch(() => []),
+        storage.countOperations().catch(() => 0),
+        storage.countClients().catch(() => 0),
+        storage.countEmployees().catch(() => 0),
+        storage.countInvoices().catch(() => 0),
+        storage.countProposals().catch(() => 0),
+        storage.countExpenses().catch(() => 0),
+        storage.countLeads().catch(() => 0),
       ]);
 
       const stats = {
-        operations: allOperations.length,
-        clients: allClients.length,
-        employees: allEmployees.length,
-        invoices: allInvoices.length,
-        proposals: allProposals.length,
-        expenses: allExpenses.length,
-        leads: allLeads.length,
+        operations,
+        clients,
+        employees,
+        invoices,
+        proposals,
+        expenses,
+        leads,
       };
 
       res.json(stats);
@@ -1397,7 +1397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const allMessages = [];
       for (const account of accounts) {
-        const messages = await storage.getGmailMessages(account.id, 500, 0);
+        const messages = await storage.getGmailMessages(account.id, 100, 0);
         allMessages.push(...messages);
       }
 

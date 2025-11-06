@@ -8,7 +8,7 @@ import { processEmailThreadForAutomation } from './email-task-automation';
 export class AutomationService {
   private isRunning = false;
   private intervalId: NodeJS.Timeout | null = null;
-  private readonly CHECK_INTERVAL = 2 * 60 * 1000; // 2 minutes
+  private readonly CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes (optimized to reduce DB transfer)
 
   start() {
     if (this.isRunning) {
@@ -17,14 +17,14 @@ export class AutomationService {
     }
 
     this.isRunning = true;
-    console.log('Automation service started (interval: 2 minutes)');
+    console.log('Automation service started (interval: 15 minutes)');
 
     // Run immediately on start
     this.processAutomations().catch(err => {
       console.error('Error in initial automation run:', err);
     });
 
-    // Then run every 2 minutes
+    // Then run every 15 minutes
     this.intervalId = setInterval(() => {
       this.processAutomations().catch(err => {
         console.error('Error in automation service:', err);

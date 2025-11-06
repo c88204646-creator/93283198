@@ -59,8 +59,8 @@ app.use((req, res, next) => {
   // Iniciar servicio de automatización en segundo plano
   startAutomationService();
 
-  // Iniciar sincronización automática de Gmail (cada 10 minutos)
-  startAutoGmailSync(10);
+  // Iniciar sincronización automática de Gmail (cada 120 minutos = 2 horas para reducir transferencia de datos)
+  startAutoGmailSync(120);
 
   // Vincular mensajes existentes a operaciones automáticamente (se ejecuta una vez al inicio)
   setTimeout(async () => {
