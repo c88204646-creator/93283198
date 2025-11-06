@@ -6,7 +6,7 @@ import {
   invoiceItems, proposalItems, payments, customFields, customFieldValues,
   operationEmployees, gmailAccounts, gmailMessages, gmailAttachments, calendarEvents,
   automationConfigs, automationRules, automationLogs, operationNotes, operationTasks,
-  operationFolders, operationFiles, chatConversations, chatMessages,
+  operationFolders, operationFiles, operationAnalyses, chatConversations, chatMessages,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Employee, type InsertEmployee,
@@ -32,6 +32,7 @@ import {
   type OperationTask, type InsertOperationTask,
   type OperationFolder, type InsertOperationFolder,
   type OperationFile, type InsertOperationFile,
+  type OperationAnalysis, type InsertOperationAnalysis,
   type ChatConversation, type InsertChatConversation,
   type ChatMessage, type InsertChatMessage,
 } from "@shared/schema";
@@ -232,6 +233,12 @@ export interface IStorage {
   createOperationFile(file: InsertOperationFile): Promise<OperationFile>;
   updateOperationFile(id: string, file: Partial<InsertOperationFile>): Promise<OperationFile | undefined>;
   deleteOperationFile(id: string): Promise<void>;
+
+  // Operation Analysis
+  getOperationAnalysis(operationId: string): Promise<OperationAnalysis | undefined>;
+  createOperationAnalysis(analysis: InsertOperationAnalysis): Promise<OperationAnalysis>;
+  updateOperationAnalysis(id: string, analysis: Partial<InsertOperationAnalysis>): Promise<OperationAnalysis | undefined>;
+  deleteOperationAnalysis(id: string): Promise<void>;
 
   // LiveChat methods
   createChatConversation(userId: string): Promise<ChatConversation>;
@@ -1105,6 +1112,32 @@ export class DatabaseStorage implements IStorage {
 
   async deleteOperationFile(id: string): Promise<void> {
     await db.delete(operationFiles).where(eq(operationFiles.id, id));
+  }
+
+  // Operation Analysis
+  async getOperationAnalysis(operationId: string): Promise<OperationAnalysis | undefined> {
+    const [analysis] = await db.select().from(operationAnalyses)
+      .where(eq(operationAnalyses.operationId, operationId))
+      .orderBy(desc(operationAnalyses.createdAt))
+      .limit(1);
+    return analysis || undefined;
+  }
+
+  async createOperationAnalysis(insertAnalysis: InsertOperationAnalysis): Promise<OperationAnalysis> {
+    const [analysis] = await db.insert(operationAnalyses).values(insertAnalysis).returning();
+    return analysis;
+  }
+
+  async updateOperationAnalysis(id: string, updateData: Partial<InsertOperationAnalysis>): Promise<OperationAnalysis | undefined> {
+    const [analysis] = await db.update(operationAnalyses)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(operationAnalyses.id, id))
+      .returning();
+    return analysis || undefined;
+  }
+
+  async deleteOperationAnalysis(id: string): Promise<void> {
+    await db.delete(operationAnalyses).where(eq(operationAnalyses.id, id));
   }
 
   // LiveChat methods
