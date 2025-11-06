@@ -2286,6 +2286,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/operations/:operationId/files/preview-urls", requireAuth, async (req, res) => {
+    try {
+      const { fileIds } = req.body;
+      
+      if (!fileIds || !Array.isArray(fileIds)) {
+        return res.status(400).json({ message: "fileIds array is required" });
+      }
+
+      const files = await Promise.all(
+        fileIds.map((id: string) => storage.getOperationFile(id))
+      );
+
+      const urlMap: Record<string, string> = {};
+      
+      for (const file of files) {
+        if (!file || !file.b2Key) continue;
+        
+        try {
+          const signedUrl = await backblazeStorage.getSignedUrl(file.b2Key, 3600);
+          urlMap[file.id] = signedUrl;
+        } catch (error) {
+          console.error(`Failed to generate signed URL for file ${file.id}:`, error);
+        }
+      }
+
+      res.json(urlMap);
+    } catch (error) {
+      console.error("Generate preview URLs error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.patch("/api/operations/:operationId/files/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
