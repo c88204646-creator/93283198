@@ -1,11 +1,13 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +22,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import { FileUploader } from "@/components/FileUploader";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -40,8 +41,14 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Grid3x3,
+  List,
+  Zap,
+  File,
+  Clock,
 } from "lucide-react";
 import type { OperationFile, OperationFolder } from "@shared/schema";
+import { format } from "date-fns";
 
 const FILE_CATEGORIES = [
   { value: "payment", label: "Payment", icon: "💰" },
@@ -54,32 +61,42 @@ const FILE_CATEGORIES = [
 ];
 
 const FOLDER_COLORS = [
-  { value: "blue", label: "Blue", class: "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300" },
-  { value: "green", label: "Green", class: "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300" },
-  { value: "yellow", label: "Yellow", class: "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300" },
-  { value: "red", label: "Red", class: "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300" },
-  { value: "purple", label: "Purple", class: "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300" },
-  { value: "gray", label: "Gray", class: "bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-300" },
+  { value: "blue", label: "Blue", class: "bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800" },
+  { value: "green", label: "Green", class: "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800" },
+  { value: "yellow", label: "Yellow", class: "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800" },
+  { value: "red", label: "Red", class: "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800" },
+  { value: "purple", label: "Purple", class: "bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800" },
+  { value: "gray", label: "Gray", class: "bg-gray-100 dark:bg-gray-900/20 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-800" },
 ];
 
 function getFileIcon(mimeType: string, category: string | null) {
   if (category === "image" || mimeType.startsWith("image/")) return Image;
   if (mimeType.includes("pdf")) return FileText;
   if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) return FileSpreadsheet;
-  if (mimeType.includes("zip") || mimeType.includes("rar")) return FileArchive;
-  return FileText;
+  if (mimeType.includes("zip") || mimeType.includes("rar") || mimeType.includes("compressed")) return FileArchive;
+  return File;
 }
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return bytes + " B";
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
-  return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+function getFileTypeLabel(mimeType: string): string {
+  if (mimeType.includes("pdf")) return "PDF";
+  if (mimeType.includes("image")) return "Image";
+  if (mimeType.includes("excel") || mimeType.includes("spreadsheet")) return "Spreadsheet";
+  if (mimeType.includes("word") || mimeType.includes("document")) return "Document";
+  if (mimeType.includes("zip") || mimeType.includes("rar")) return "Archive";
+  return "File";
 }
 
 export default function OperationFilesPage() {
   const { operationId } = useParams<{ operationId: string }>();
   const { toast } = useToast();
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isFolderDialogOpen, setIsFolderDialogOpen] = useState(false);
   const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
@@ -103,7 +120,11 @@ export default function OperationFilesPage() {
     },
   });
 
-  // Simple folder creation without complex state
+  const displayFiles = files;
+  const previewableFiles = displayFiles.filter(f => 
+    f.mimeType.startsWith("image/") || f.mimeType.includes("pdf")
+  );
+
   const createFolderMutation = useMutation({
     mutationFn: async (formData: FormData) => {
       const data = {
@@ -121,12 +142,7 @@ export default function OperationFilesPage() {
       toast({ title: "Folder created successfully" });
     },
     onError: (error: any) => {
-      console.error("Error creating folder:", error);
-      toast({ 
-        title: "Error creating folder", 
-        description: error.message || "An unexpected error occurred",
-        variant: "destructive" 
-      });
+      toast({ title: "Error creating folder", description: error.message, variant: "destructive" });
     },
   });
 
@@ -177,7 +193,13 @@ export default function OperationFilesPage() {
   });
 
   const updateFileMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+    mutationFn: async ({ id, formData }: { id: string; formData: FormData }) => {
+      const data = {
+        name: formData.get("name") as string,
+        description: formData.get("description") as string || null,
+        folderId: formData.get("folderId") as string || null,
+        category: formData.get("category") as string || null,
+      };
       return apiRequest("PATCH", `/api/operations/${operationId}/files/${id}`, data);
     },
     onSuccess: () => {
@@ -202,9 +224,28 @@ export default function OperationFilesPage() {
     },
   });
 
-  const handleUploadComplete = (result: { b2Key: string; fileHash: string; size: number; originalName: string; mimeType: string }) => {
-    setPendingUpload(result);
+  const handleUploadComplete = (upload: { b2Key: string; fileHash: string; size: number; originalName: string; mimeType: string }) => {
+    setPendingUpload(upload);
+    setIsUploadOpen(false);
     setIsFileDialogOpen(true);
+  };
+
+  const handleSaveFile = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    if (editingFile) {
+      updateFileMutation.mutate({ id: editingFile.id, formData });
+    } else if (pendingUpload) {
+      const data = {
+        ...pendingUpload,
+        name: formData.get("name") as string,
+        description: formData.get("description") as string || null,
+        folderId: formData.get("folderId") as string || null,
+        category: formData.get("category") as string || null,
+      };
+      createFileMutation.mutate(data);
+    }
   };
 
   const handleSaveFolder = (e: React.FormEvent<HTMLFormElement>) => {
@@ -218,518 +259,624 @@ export default function OperationFilesPage() {
     }
   };
 
-  const handleSaveFile = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-
-    const tagsValue = formData.get("tags")?.toString().trim();
-    const tags = tagsValue ? tagsValue.split(",").map(t => t.trim()).filter(Boolean) : null;
-
-    const data = {
-      name: formData.get("name") as string,
-      description: formData.get("description") as string || null,
-      category: formData.get("category") as string || null,
-      folderId: formData.get("folderId") as string || null,
-      tags: tags && tags.length > 0 ? tags : null,
-    };
-
-    if (editingFile) {
-      updateFileMutation.mutate({ id: editingFile.id, data });
-    } else if (pendingUpload) {
-      createFileMutation.mutate({
-        ...data,
-        b2Key: pendingUpload.b2Key,
-        fileHash: pendingUpload.fileHash,
-        originalName: pendingUpload.originalName,
-        mimeType: pendingUpload.mimeType,
-        size: pendingUpload.size,
-      });
-    }
-  };
-
   const handlePreview = (file: OperationFile) => {
-    const index = files.findIndex(f => f.id === file.id);
-    setPreviewIndex(index);
-    setPreviewFile(file);
-  };
-
-  const handlePrevFile = () => {
-    if (previewIndex > 0) {
-      setPreviewIndex(previewIndex - 1);
-      setPreviewFile(files[previewIndex - 1]);
+    if (file.mimeType.startsWith("image/") || file.mimeType.includes("pdf")) {
+      const index = previewableFiles.findIndex(f => f.id === file.id);
+      setPreviewIndex(index);
+      setPreviewFile(file);
     }
   };
 
-  const handleNextFile = () => {
-    if (previewIndex < files.length - 1) {
+  const nextPreview = () => {
+    if (previewIndex < previewableFiles.length - 1) {
+      const nextFile = previewableFiles[previewIndex + 1];
+      setPreviewFile(nextFile);
       setPreviewIndex(previewIndex + 1);
-      setPreviewFile(files[previewIndex + 1]);
     }
   };
+
+  const prevPreview = () => {
+    if (previewIndex > 0) {
+      const prevFile = previewableFiles[previewIndex - 1];
+      setPreviewFile(prevFile);
+      setPreviewIndex(previewIndex - 1);
+    }
+  };
+
+  const currentFolder = folders.find(f => f.id === selectedFolder);
+  const folderColorClass = currentFolder 
+    ? FOLDER_COLORS.find(c => c.value === currentFolder.color)?.class 
+    : "";
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Files</h1>
-        <div className="flex gap-2">
-          <Button onClick={() => setIsUploadOpen(true)} data-testid="button-upload">
-            <Upload className="w-4 h-4 mr-2" />
-            Upload File
-          </Button>
-          <Button onClick={() => {
-            setEditingFolder(null);
-            setIsFolderDialogOpen(true);
-          }} variant="outline" data-testid="button-new-folder">
-            <FolderPlus className="w-4 h-4 mr-2" />
-            New Folder
-          </Button>
-        </div>
-      </div>
-
-      <div className="grid md:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Folders</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Operation Files</h1>
+            <p className="text-muted-foreground mt-1">
+              {displayFiles.length} file{displayFiles.length !== 1 ? 's' : ''} 
+              {selectedFolder && ` in ${currentFolder?.name}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
             <Button
-              data-testid="folder-all"
-              variant={selectedFolder === null ? "default" : "ghost"}
-              className="w-full justify-start"
-              onClick={() => setSelectedFolder(null)}
+              variant="outline"
+              size="icon"
+              onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+              data-testid="button-toggle-view"
             >
-              <Folder className="w-4 h-4 mr-2" />
-              All Files
+              {viewMode === "grid" ? <List className="w-4 h-4" /> : <Grid3x3 className="w-4 h-4" />}
             </Button>
-            {folders.map((folder) => {
-              const folderColor = FOLDER_COLORS.find(c => c.value === folder.color) || FOLDER_COLORS[0];
-              const isSelected = selectedFolder === folder.id;
+            <Button
+              variant="outline"
+              onClick={() => setIsFolderDialogOpen(true)}
+              data-testid="button-new-folder"
+            >
+              <FolderPlus className="w-4 h-4 mr-2" />
+              New Folder
+            </Button>
+            <Button
+              onClick={() => setIsUploadOpen(true)}
+              data-testid="button-upload-file"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              Upload File
+            </Button>
+          </div>
+        </div>
+
+        {/* Folders Navigation */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2">
+          <Button
+            variant={selectedFolder === null ? "default" : "outline"}
+            onClick={() => setSelectedFolder(null)}
+            className="shrink-0"
+            data-testid="button-all-files"
+          >
+            <Folder className="w-4 h-4 mr-2" />
+            All Files
+          </Button>
+          {folders.map((folder) => {
+            const colorClass = FOLDER_COLORS.find(c => c.value === folder.color)?.class || "";
+            return (
+              <div key={folder.id} className="relative shrink-0 group">
+                <Button
+                  variant={selectedFolder === folder.id ? "default" : "outline"}
+                  onClick={() => setSelectedFolder(folder.id)}
+                  className={selectedFolder === folder.id ? "" : colorClass}
+                  data-testid={`button-folder-${folder.id}`}
+                >
+                  <Folder className="w-4 h-4 mr-2" />
+                  {folder.name}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute -top-1 -right-1 w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      data-testid={`folder-menu-${folder.id}`}
+                    >
+                      <MoreVertical className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={() => {
+                      setEditingFolder(folder);
+                      setIsFolderDialogOpen(true);
+                    }}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        if (confirm(`Delete folder "${folder.name}"? This will delete all files inside.`)) {
+                          deleteFolderMutation.mutate(folder.id);
+                        }
+                      }}
+                      className="text-destructive"
+                    >
+                      <Trash className="w-4 h-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Files Display */}
+        {displayFiles.length === 0 ? (
+          <Card className="p-12 text-center">
+            <Folder className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+            <h3 className="text-lg font-semibold mb-2">No files yet</h3>
+            <p className="text-muted-foreground mb-4">
+              Upload your first file to get started
+            </p>
+            <Button onClick={() => setIsUploadOpen(true)}>
+              <Upload className="w-4 h-4 mr-2" />
+              Upload File
+            </Button>
+          </Card>
+        ) : viewMode === "grid" ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {displayFiles.map((file) => {
+              const FileIcon = getFileIcon(file.mimeType, file.category);
+              const category = FILE_CATEGORIES.find(c => c.value === file.category);
+              const isImage = file.mimeType.startsWith("image/");
+              const isAutomated = file.uploadedVia === "gmail_automation" || !!file.sourceGmailAttachmentId;
 
               return (
-                <div
-                  key={folder.id}
-                  className={`flex items-center justify-between p-2 rounded-lg ${isSelected ? folderColor.class : "hover:bg-accent"} cursor-pointer`}
-                  onClick={() => setSelectedFolder(folder.id)}
-                  data-testid={`folder-${folder.id}`}
+                <Card
+                  key={file.id}
+                  className="group overflow-hidden hover:shadow-lg transition-all cursor-pointer border-2"
+                  onClick={() => handlePreview(file)}
+                  data-testid={`file-card-${file.id}`}
                 >
-                  <div className="flex items-center flex-1 min-w-0">
-                    <Folder className="w-4 h-4 mr-2 flex-shrink-0" />
-                    <span className="truncate text-sm font-medium">{folder.name}</span>
+                  {/* Thumbnail/Preview */}
+                  <div className="relative h-48 bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center overflow-hidden">
+                    {isImage ? (
+                      <img
+                        src={`/api/operations/${operationId}/files/${file.id}/download`}
+                        alt={file.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <FileIcon className="w-20 h-20 text-muted-foreground/40" />
+                    )}
+                    
+                    {/* Automated Badge */}
+                    {isAutomated && (
+                      <Badge className="absolute top-2 left-2 bg-primary/90 text-primary-foreground border-0">
+                        <Zap className="w-3 h-3 mr-1" />
+                        Automated
+                      </Badge>
+                    )}
+
+                    {/* Actions Menu */}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="secondary" size="icon" className="shadow-lg" data-testid={`file-menu-${file.id}`}>
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(`/api/operations/${operationId}/files/${file.id}/download`, "_blank");
+                            }}
+                          >
+                            <Download className="w-4 h-4 mr-2" />
+                            Download
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingFile(file);
+                              setIsFileDialogOpen(true);
+                            }}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Delete "${file.name}"?`)) {
+                                deleteFileMutation.mutate(file.id);
+                              }
+                            }}
+                            className="text-destructive"
+                          >
+                            <Trash className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {/* File Type Badge */}
+                    <Badge variant="secondary" className="absolute bottom-2 left-2 text-xs">
+                      {getFileTypeLabel(file.mimeType)}
+                    </Badge>
                   </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem
-                        data-testid={`folder-edit-${folder.id}`}
-                        onClick={() => {
-                          setEditingFolder(folder);
-                          setIsFolderDialogOpen(true);
-                        }}
-                      >
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        data-testid={`folder-delete-${folder.id}`}
-                        onClick={() => {
-                          if (confirm("Delete this folder?")) {
-                            deleteFolderMutation.mutate(folder.id);
-                          }
-                        }}
-                        className="text-destructive"
-                      >
-                        <Trash className="w-4 h-4 mr-2" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+
+                  {/* File Info */}
+                  <div className="p-4">
+                    <h3 className="font-medium truncate mb-1" title={file.name}>
+                      {file.name}
+                    </h3>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                      <span>{formatFileSize(file.size)}</span>
+                      <span>{format(new Date(file.createdAt), "MMM d, yyyy")}</span>
+                    </div>
+                    {category && (
+                      <Badge variant="outline" className="text-xs">
+                        {category.icon} {category.label}
+                      </Badge>
+                    )}
+                    {file.description && (
+                      <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                        {file.description}
+                      </p>
+                    )}
+                  </div>
+                </Card>
               );
             })}
-          </CardContent>
-        </Card>
-
-        <div className="md:col-span-3">
+          </div>
+        ) : (
           <Card>
-            <CardHeader>
-              <CardTitle>
-                {selectedFolder
-                  ? folders.find(f => f.id === selectedFolder)?.name || "Files"
-                  : "All Files"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {files.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No files in this folder</p>
-                </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {files.map((file) => {
-                    const FileIcon = getFileIcon(file.mimeType, file.category);
-                    const category = FILE_CATEGORIES.find(c => c.value === file.category);
-                    const isImage = file.mimeType.startsWith("image/") || file.category === "image";
+            <div className="divide-y">
+              {displayFiles.map((file) => {
+                const FileIcon = getFileIcon(file.mimeType, file.category);
+                const category = FILE_CATEGORIES.find(c => c.value === file.category);
+                const isAutomated = file.uploadedVia === "gmail_automation" || !!file.sourceGmailAttachmentId;
 
-                    return (
-                      <Card 
-                        key={file.id} 
-                        className="hover-elevate cursor-pointer overflow-hidden"
-                        onClick={() => handlePreview(file)}
-                        data-testid={`file-card-${file.id}`}
+                return (
+                  <div
+                    key={file.id}
+                    className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors cursor-pointer group"
+                    onClick={() => handlePreview(file)}
+                    data-testid={`file-row-${file.id}`}
+                  >
+                    {/* Icon/Thumbnail */}
+                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+                      {file.mimeType.startsWith("image/") ? (
+                        <img
+                          src={`/api/operations/${operationId}/files/${file.id}/download`}
+                          alt={file.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <FileIcon className="w-6 h-6 text-muted-foreground" />
+                      )}
+                    </div>
+
+                    {/* File Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium truncate">{file.name}</h3>
+                        {isAutomated && (
+                          <Badge variant="secondary" className="shrink-0">
+                            <Zap className="w-3 h-3 mr-1" />
+                            Automated
+                          </Badge>
+                        )}
+                        {category && (
+                          <Badge variant="outline" className="shrink-0 text-xs">
+                            {category.icon} {category.label}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                        <span>{formatFileSize(file.size)}</span>
+                        <span>•</span>
+                        <span>{getFileTypeLabel(file.mimeType)}</span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {format(new Date(file.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(`/api/operations/${operationId}/files/${file.id}/download`, "_blank");
+                        }}
                       >
-                        <CardContent className="p-0">
-                          {isImage ? (
-                            <div className="relative w-full h-48 bg-muted overflow-hidden">
-                              <img 
-                                src={`/api/operations/${operationId}/files/${file.id}/download`}
-                                alt={file.name}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                              />
-                              <div className="absolute top-2 right-2">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                    <Button variant="secondary" size="icon" data-testid={`file-menu-${file.id}`}>
-                                      <MoreVertical className="w-4 h-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent>
-                                    <DropdownMenuItem
-                                      data-testid={`file-download-${file.id}`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        window.open(`/api/operations/${operationId}/files/${file.id}/download`, "_blank");
-                                      }}
-                                    >
-                                      <Download className="w-4 h-4 mr-2" />
-                                      Download
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      data-testid={`file-edit-${file.id}`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditingFile(file);
-                                        setIsFileDialogOpen(true);
-                                      }}
-                                    >
-                                      <Edit className="w-4 h-4 mr-2" />
-                                      Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      data-testid={`file-delete-${file.id}`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (confirm("Delete this file?")) {
-                                          deleteFileMutation.mutate(file.id);
-                                        }
-                                      }}
-                                      className="text-destructive"
-                                    >
-                                      <Trash className="w-4 h-4 mr-2" />
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-center h-32 bg-muted">
-                              <FileIcon className="w-16 h-16 text-primary opacity-50" />
-                            </div>
-                          )}
-                          <div className="p-4">
-                            <div className="flex items-start justify-between gap-2">
-                              <h3 className="font-medium truncate flex-1" data-testid={`file-name-${file.id}`}>
-                                {file.name}
-                              </h3>
-                              {!isImage && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                    <Button variant="ghost" size="icon" data-testid={`file-menu-${file.id}`}>
-                                      <MoreVertical className="w-4 h-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent>
-                                    <DropdownMenuItem
-                                      data-testid={`file-download-${file.id}`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        window.open(`/api/operations/${operationId}/files/${file.id}/download`, "_blank");
-                                      }}
-                                    >
-                                      <Download className="w-4 h-4 mr-2" />
-                                      Download
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      data-testid={`file-edit-${file.id}`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditingFile(file);
-                                        setIsFileDialogOpen(true);
-                                      }}
-                                    >
-                                      <Edit className="w-4 h-4 mr-2" />
-                                      Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      data-testid={`file-delete-${file.id}`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (confirm("Delete this file?")) {
-                                          deleteFileMutation.mutate(file.id);
-                                        }
-                                      }}
-                                      className="text-destructive"
-                                    >
-                                      <Trash className="w-4 h-4 mr-2" />
-                                      Delete
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground mb-2">
-                              {formatFileSize(file.size)}
-                            </p>
-                            {category && (
-                              <Badge variant="secondary" className="text-xs mb-2">
-                                {category.icon} {category.label}
-                              </Badge>
-                            )}
-                            {file.description && (
-                              <p className="text-xs text-muted-foreground line-clamp-2">
-                                {file.description}
-                              </p>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                        <Download className="w-4 h-4" />
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingFile(file);
+                              setIsFileDialogOpen(true);
+                            }}
+                          >
+                            <Edit className="w-4 h-4 mr-2" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Delete "${file.name}"?`)) {
+                                deleteFileMutation.mutate(file.id);
+                              }
+                            }}
+                            className="text-destructive"
+                          >
+                            <Trash className="w-4 h-4 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
+        {/* Upload Dialog */}
+        <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upload File</DialogTitle>
+              <DialogDescription>Upload a file to this operation</DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <FileUploader
+                operationId={operationId!}
+                onUploadComplete={handleUploadComplete}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* File Metadata Dialog */}
+        <Dialog open={isFileDialogOpen} onOpenChange={(open) => {
+          setIsFileDialogOpen(open);
+          if (!open) {
+            setEditingFile(null);
+            setPendingUpload(null);
+          }
+        }}>
+          <DialogContent>
+            <form onSubmit={handleSaveFile}>
+              <DialogHeader>
+                <DialogTitle>{editingFile ? "Edit File" : "File Details"}</DialogTitle>
+                <DialogDescription>
+                  {editingFile ? "Update file information" : "Add details for your file"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    defaultValue={editingFile?.name || pendingUpload?.originalName}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    defaultValue={editingFile?.description || ""}
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="folderId">Folder</Label>
+                  <select
+                    id="folderId"
+                    name="folderId"
+                    defaultValue={editingFile?.folderId || selectedFolder || ""}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  >
+                    <option value="">Root (No folder)</option>
+                    {folders.map((folder) => (
+                      <option key={folder.id} value={folder.id}>
+                        {folder.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <select
+                    id="category"
+                    name="category"
+                    defaultValue={editingFile?.category || ""}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  >
+                    <option value="">Select category</option>
+                    {FILE_CATEGORIES.map((cat) => (
+                      <option key={cat.value} value={cat.value}>
+                        {cat.icon} {cat.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsFileDialogOpen(false);
+                    setEditingFile(null);
+                    setPendingUpload(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createFileMutation.isPending || updateFileMutation.isPending}>
+                  {editingFile ? "Update" : "Save"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Folder Dialog */}
+        <Dialog open={isFolderDialogOpen} onOpenChange={(open) => {
+          setIsFolderDialogOpen(open);
+          if (!open) setEditingFolder(null);
+        }}>
+          <DialogContent>
+            <form onSubmit={handleSaveFolder}>
+              <DialogHeader>
+                <DialogTitle>{editingFolder ? "Edit Folder" : "New Folder"}</DialogTitle>
+                <DialogDescription>
+                  {editingFolder ? "Update folder details" : "Create a new folder for organizing files"}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div>
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    defaultValue={editingFolder?.name}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    defaultValue={editingFolder?.description || ""}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <select
+                    id="category"
+                    name="category"
+                    defaultValue={editingFolder?.category || ""}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  >
+                    <option value="">Select category</option>
+                    {FILE_CATEGORIES.map((cat) => (
+                      <option key={cat.value} value={cat.value}>
+                        {cat.icon} {cat.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="color">Color</Label>
+                  <select
+                    id="color"
+                    name="color"
+                    defaultValue={editingFolder?.color || "blue"}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  >
+                    {FOLDER_COLORS.map((color) => (
+                      <option key={color.value} value={color.value}>
+                        {color.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsFolderDialogOpen(false);
+                    setEditingFolder(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createFolderMutation.isPending || updateFolderMutation.isPending}>
+                  {editingFolder ? "Update" : "Create"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Preview Dialog */}
+        <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
+          <DialogContent className="max-w-5xl h-[90vh]">
+            <DialogHeader>
+              <div className="flex items-center justify-between">
+                <DialogTitle className="truncate pr-4">{previewFile?.name}</DialogTitle>
+                <div className="flex items-center gap-2 shrink-0">
+                  {previewableFiles.length > 1 && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={prevPreview}
+                        disabled={previewIndex === 0}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      <span className="text-sm text-muted-foreground px-2">
+                        {previewIndex + 1} / {previewableFiles.length}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={nextPreview}
+                        disabled={previewIndex === previewableFiles.length - 1}
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => window.open(`/api/operations/${operationId}/files/${previewFile?.id}/download`, "_blank")}
+                  >
+                    <Download className="w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" onClick={() => setPreviewFile(null)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden rounded-lg bg-muted/30 flex items-center justify-center">
+              {previewFile?.mimeType.startsWith("image/") ? (
+                <img
+                  src={`/api/operations/${operationId}/files/${previewFile.id}/download`}
+                  alt={previewFile.name}
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : previewFile?.mimeType.includes("pdf") ? (
+                <iframe
+                  src={`/api/operations/${operationId}/files/${previewFile.id}/download`}
+                  className="w-full h-full"
+                  title={previewFile.name}
+                />
+              ) : (
+                <div className="text-center p-8">
+                  <Eye className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+                  <p className="text-muted-foreground">Preview not available</p>
+                  <Button
+                    className="mt-4"
+                    onClick={() => window.open(`/api/operations/${operationId}/files/${previewFile?.id}/download`, "_blank")}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download to View
+                  </Button>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
-
-      {/* Upload Dialog */}
-      <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-        <DialogContent data-testid="dialog-upload">
-          <DialogHeader>
-            <DialogTitle>Upload File</DialogTitle>
-            <DialogDescription>Upload a file to this operation</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <FileUploader
-              operationId={operationId!}
-              onUploadComplete={handleUploadComplete}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Folder Dialog */}
-      <Dialog open={isFolderDialogOpen} onOpenChange={(open) => {
-        setIsFolderDialogOpen(open);
-        if (!open) setEditingFolder(null);
-      }}>
-        <DialogContent data-testid="dialog-folder">
-          <form onSubmit={handleSaveFolder}>
-            <DialogHeader>
-              <DialogTitle>{editingFolder ? "Edit Folder" : "New Folder"}</DialogTitle>
-              <DialogDescription>
-                {editingFolder ? "Update folder details" : "Create a new folder for organizing files"}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  data-testid="input-folder-name"
-                  defaultValue={editingFolder?.name}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  data-testid="input-folder-description"
-                  defaultValue={editingFolder?.description || ""}
-                />
-              </div>
-              <div>
-                <Label htmlFor="category">Category</Label>
-                <select
-                  id="category"
-                  name="category"
-                  defaultValue={editingFolder?.category || ""}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2"
-                  data-testid="select-folder-category"
-                >
-                  <option value="">Select category</option>
-                  {FILE_CATEGORIES.map((cat) => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.icon} {cat.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="color">Color</Label>
-                <select
-                  id="color"
-                  name="color"
-                  defaultValue={editingFolder?.color || "blue"}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2"
-                  data-testid="select-folder-color"
-                >
-                  {FOLDER_COLORS.map((color) => (
-                    <option key={color.value} value={color.value}>
-                      {color.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsFolderDialogOpen(false);
-                  setEditingFolder(null);
-                }}
-                data-testid="button-cancel-folder"
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                data-testid="button-save-folder"
-                disabled={createFolderMutation.isPending || updateFolderMutation.isPending}
-              >
-                {editingFolder ? "Update" : "Create"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* File Dialog */}
-      <Dialog open={isFileDialogOpen} onOpenChange={(open) => {
-        setIsFileDialogOpen(open);
-        if (!open) {
-          setEditingFile(null);
-          setPendingUpload(null);
-        }
-      }}>
-        <DialogContent data-testid="dialog-file">
-          <form onSubmit={handleSaveFile}>
-            <DialogHeader>
-              <DialogTitle>{editingFile ? "Edit File" : "File Details"}</DialogTitle>
-              <DialogDescription>
-                {editingFile ? "Update file information" : "Add file details before saving"}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="file-name">Name *</Label>
-                <Input
-                  id="file-name"
-                  name="name"
-                  data-testid="input-file-name"
-                  defaultValue={editingFile?.name || pendingUpload?.originalName}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="file-folder">Folder</Label>
-                <select
-                  id="file-folder"
-                  name="folderId"
-                  defaultValue={editingFile?.folderId || selectedFolder || ""}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2"
-                  data-testid="select-file-folder"
-                >
-                  <option value="">No folder</option>
-                  {folders.map((folder) => (
-                    <option key={folder.id} value={folder.id}>
-                      {folder.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="file-category">Category</Label>
-                <select
-                  id="file-category"
-                  name="category"
-                  defaultValue={editingFile?.category || ""}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2"
-                  data-testid="select-file-category"
-                >
-                  <option value="">Select category</option>
-                  {FILE_CATEGORIES.map((cat) => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.icon} {cat.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label htmlFor="file-description">Description</Label>
-                <Textarea
-                  id="file-description"
-                  name="description"
-                  data-testid="input-file-description"
-                  defaultValue={editingFile?.description || ""}
-                />
-              </div>
-              <div>
-                <Label htmlFor="file-tags">Tags (comma-separated)</Label>
-                <Input
-                  id="file-tags"
-                  name="tags"
-                  data-testid="input-file-tags"
-                  defaultValue={editingFile?.tags?.join(", ") || ""}
-                  placeholder="e.g.: important, urgent"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsFileDialogOpen(false);
-                  setEditingFile(null);
-                  setPendingUpload(null);
-                }}
-                data-testid="button-cancel-file"
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                data-testid="button-save-file"
-                disabled={createFileMutation.isPending || updateFileMutation.isPending}
-              >
-                {editingFile ? "Update" : "Save"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
