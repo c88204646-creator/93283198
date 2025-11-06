@@ -2,6 +2,7 @@ import { storage } from './storage';
 import type { AutomationConfig, AutomationRule, GmailMessage } from '@shared/schema';
 import { getAttachmentData } from './gmail-sync';
 import { ObjectStorageService } from './objectStorage';
+import { processEmailThreadForAutomation } from './email-task-automation';
 
 // Automation service that processes emails and creates operations automatically
 export class AutomationService {
@@ -277,6 +278,22 @@ export class AutomationService {
       await this.processEmailAttachments(message, operation.id, config);
     }
 
+    // Process email thread for automated tasks and notes if enabled
+    if (config.autoCreateTasks !== 'disabled' || config.autoCreateNotes !== 'disabled') {
+      console.log(`[Automation] Processing email thread for tasks/notes automation (tasks: ${config.autoCreateTasks}, notes: ${config.autoCreateNotes})`);
+      try {
+        await processEmailThreadForAutomation(
+          message.id,
+          operation.id,
+          config.autoCreateTasks || 'disabled',
+          config.autoCreateNotes || 'disabled',
+          config.aiOptimizationLevel || 'high'
+        );
+      } catch (error) {
+        console.error('[Automation] Error processing email thread for tasks/notes:', error);
+      }
+    }
+
     await storage.createAutomationLog({
       ruleId: rule.id,
       emailMessageId: message.id,
@@ -288,6 +305,8 @@ export class AutomationService {
         operationName, 
         messageSubject: message.subject,
         assignedEmployees: defaultEmployees.length,
+        autoTasksEnabled: config.autoCreateTasks !== 'disabled',
+        autoNotesEnabled: config.autoCreateNotes !== 'disabled',
       },
     });
   }
