@@ -1437,12 +1437,13 @@ function FilesTab({ operationId }: { operationId: string }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "folders"] });
-      toast({ title: "Carpeta creada exitosamente" });
+      toast({ title: "Folder created successfully" });
       setIsCreateFolderOpen(false);
       setNewFolderName("");
     },
-    onError: () => {
-      toast({ title: "Error al crear carpeta", variant: "destructive" });
+    onError: (error: any) => {
+      console.error("Folder creation error:", error);
+      toast({ title: "Error creating folder", description: error?.message || "Unknown error", variant: "destructive" });
     },
   });
 
@@ -1579,16 +1580,16 @@ function FilesTab({ operationId }: { operationId: string }) {
       <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Crear Nueva Carpeta</DialogTitle>
+            <DialogTitle>Create New Folder</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="folder-name">Nombre de la Carpeta</Label>
+              <Label htmlFor="folder-name">Folder Name</Label>
               <Input
                 id="folder-name"
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="Ej: Pagos, Facturas, Fotos..."
+                placeholder="e.g: Payments, Invoices, Photos..."
                 data-testid="input-folder-name"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleCreateFolder();
@@ -1604,14 +1605,14 @@ function FilesTab({ operationId }: { operationId: string }) {
                 }}
                 data-testid="button-cancel-folder"
               >
-                Cancelar
+                Cancel
               </Button>
               <Button
                 onClick={handleCreateFolder}
                 disabled={!newFolderName.trim() || createFolderMutation.isPending}
                 data-testid="button-confirm-folder"
               >
-                {createFolderMutation.isPending ? "Creando..." : "Crear Carpeta"}
+                {createFolderMutation.isPending ? "Creating..." : "Create Folder"}
               </Button>
             </div>
           </div>
