@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import {
   ArrowLeft, Package, FileText, CheckSquare, Mail, Edit2, Trash2, Plus,
   Calendar, User as UserIcon, MapPin, Ship, Plane, Truck, DollarSign, FolderOpen,
-  Download, Paperclip, Upload
+  Download, Paperclip, Upload, Link
 } from "lucide-react";
 import { useState } from "react";
 import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage } from "@shared/schema";
@@ -347,7 +347,7 @@ function InformationTab({ operation, client, employees }: { operation: Operation
             </div>
           </div>
           <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
-            <Link2 className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <Link className="w-5 h-5 text-primary shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Número de Reserva/Tracking</Label>
               <p className="font-semibold text-base mt-1 font-mono" data-testid="text-tracking">{operation.bookingTracking || 'N/A'}</p>
