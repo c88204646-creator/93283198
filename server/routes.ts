@@ -2427,6 +2427,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Operation Analysis - AI-powered insights
+  app.get("/api/operations/:operationId/analysis", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const { operationAnalysisService } = await import("./operation-analysis-service");
+      
+      // Get or generate analysis
+      const analysis = await operationAnalysisService.getOrGenerateAnalysis(operationId);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Get operation analysis error:", error);
+      res.status(500).json({ 
+        message: "Failed to generate analysis",
+        error: error.message 
+      });
+    }
+  });
+
+  // Force refresh operation analysis
+  app.post("/api/operations/:operationId/analysis/refresh", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const { operationAnalysisService } = await import("./operation-analysis-service");
+      
+      // Delete existing analysis to force regeneration
+      const existing = await storage.getOperationAnalysis(operationId);
+      if (existing) {
+        await storage.deleteOperationAnalysis(existing.id);
+      }
+      
+      // Generate fresh analysis
+      const analysis = await operationAnalysisService.getOrGenerateAnalysis(operationId);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Refresh operation analysis error:", error);
+      res.status(500).json({ 
+        message: "Failed to refresh analysis",
+        error: error.message 
+      });
+    }
+  });
+
   // LiveChat routes
   app.post("/api/chat/conversations", requireAuth, async (req, res) => {
     try {
