@@ -257,28 +257,28 @@ export default function Calendar() {
   const weekDays = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
   return (
-    <div className="min-h-screen bg-background p-3 md:p-4" data-testid="page-calendar">
+    <div className="min-h-screen bg-background p-2 sm:p-3 md:p-4" data-testid="page-calendar">
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-3">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-primary/5 rounded-lg">
-              <CalendarIcon className="h-5 w-5 text-primary" />
+      <div className="max-w-7xl mx-auto mb-2 sm:mb-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 sm:p-2 bg-primary/5 rounded-lg">
+              <CalendarIcon className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl md:text-2xl font-semibold text-foreground" data-testid="text-page-title">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-semibold text-foreground" data-testid="text-page-title">
                 Calendario
               </h1>
-              <p className="text-xs text-muted-foreground" data-testid="text-page-description">
+              <p className="text-[10px] sm:text-xs text-muted-foreground" data-testid="text-page-description">
                 Organiza y gestiona tus eventos
               </p>
             </div>
           </div>
           <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto gap-2" size="sm" data-testid="button-create-event">
-                <Plus className="h-4 w-4" />
-                Nuevo Evento
+              <Button className="w-full sm:w-auto gap-1.5 sm:gap-2" size="sm" data-testid="button-create-event">
+                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm">Nuevo Evento</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" data-testid="dialog-event">
@@ -407,29 +407,29 @@ export default function Calendar() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-3">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-3">
         {/* Vista de calendario mensual */}
-        <Card className="lg:col-span-8 border">
-          <CardHeader className="pb-3 border-b p-3">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <CardTitle className="text-base md:text-lg font-semibold capitalize">
+        <Card className="lg:col-span-8 border shadow-sm">
+          <CardHeader className="pb-2 sm:pb-3 border-b p-2 sm:p-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3">
+              <CardTitle className="text-sm sm:text-base md:text-lg font-semibold capitalize">
                 {format(selectedMonth, "MMMM yyyy", { locale: es })}
               </CardTitle>
-              <div className="flex gap-1.5 w-full sm:w-auto">
+              <div className="flex gap-1 sm:gap-1.5 w-full sm:w-auto">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setSelectedMonth(subMonths(selectedMonth, 1))}
-                  className="flex-1 sm:flex-none h-8"
+                  className="flex-1 sm:flex-none h-7 sm:h-8 px-2"
                   data-testid="button-prev-month"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setSelectedMonth(new Date())}
-                  className="flex-1 sm:flex-none h-8 font-medium text-xs"
+                  className="flex-1 sm:flex-none h-7 sm:h-8 px-3 font-medium text-[10px] sm:text-xs"
                   data-testid="button-today"
                 >
                   Hoy
@@ -438,18 +438,18 @@ export default function Calendar() {
                   variant="outline"
                   size="sm"
                   onClick={() => setSelectedMonth(addMonths(selectedMonth, 1))}
-                  className="flex-1 sm:flex-none h-8"
+                  className="flex-1 sm:flex-none h-7 sm:h-8 px-2"
                   data-testid="button-next-month"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </Button>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-2 md:p-3">
-            <div className="grid grid-cols-7 gap-1">
+          <CardContent className="p-1.5 sm:p-2 md:p-3">
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
               {weekDays.map((day) => (
-                <div key={day} className="text-center font-semibold text-[10px] md:text-xs p-1.5 text-muted-foreground uppercase">
+                <div key={day} className="text-center font-semibold text-[9px] sm:text-[10px] md:text-xs p-1 sm:p-1.5 text-muted-foreground uppercase">
                   {day}
                 </div>
               ))}
@@ -464,9 +464,9 @@ export default function Calendar() {
                     key={idx}
                     onClick={() => setSelectedDate(day)}
                     className={`
-                      min-h-14 md:min-h-20 p-1 md:p-1.5 border rounded-lg text-left transition-all
+                      min-h-12 sm:min-h-14 md:min-h-20 p-0.5 sm:p-1 md:p-1.5 border rounded text-left transition-all
                       ${isSelected 
-                        ? "bg-primary text-primary-foreground border-primary" 
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm" 
                         : "hover:bg-accent/50 hover:border-accent"
                       }
                       ${!isCurrentMonth ? "text-muted-foreground/30 opacity-50" : ""}
@@ -474,14 +474,14 @@ export default function Calendar() {
                     `}
                     data-testid={`day-${format(day, "yyyy-MM-dd")}`}
                   >
-                    <div className={`font-semibold text-[10px] md:text-xs mb-0.5 ${isToday && !isSelected ? "text-primary" : ""}`}>
+                    <div className={`font-semibold text-[9px] sm:text-[10px] md:text-xs mb-0.5 ${isToday && !isSelected ? "text-primary" : ""}`}>
                       {format(day, "d")}
                     </div>
                     <div className="space-y-0.5">
                       {dayEvents.slice(0, 2).map((event) => (
                         <div
                           key={event.id}
-                          className={`text-[9px] md:text-[10px] truncate px-1 py-0.5 rounded font-medium ${
+                          className={`text-[8px] sm:text-[9px] md:text-[10px] truncate px-0.5 sm:px-1 py-0.5 rounded font-medium ${
                             event.isBirthday 
                               ? "bg-pink-500 text-white" 
                               : event.source === "google" 
@@ -494,7 +494,7 @@ export default function Calendar() {
                         </div>
                       ))}
                       {dayEvents.length > 2 && (
-                        <div className="text-[9px] md:text-[10px] text-muted-foreground font-medium px-1">
+                        <div className="text-[8px] sm:text-[9px] md:text-[10px] text-muted-foreground font-medium px-0.5 sm:px-1">
                           +{dayEvents.length - 2}
                         </div>
                       )}
@@ -507,19 +507,19 @@ export default function Calendar() {
         </Card>
 
         {/* Panel lateral con eventos del día */}
-        <Card className="lg:col-span-4 border">
-          <CardHeader className="pb-2 border-b p-3">
+        <Card className="lg:col-span-4 border shadow-sm">
+          <CardHeader className="pb-2 border-b p-2 sm:p-3">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-sm md:text-base capitalize font-semibold">
+                <CardTitle className="text-xs sm:text-sm md:text-base capitalize font-semibold">
                   {format(selectedDate, "EEEE", { locale: es })}
                 </CardTitle>
-                <CardDescription className="text-xs font-medium mt-0.5">
+                <CardDescription className="text-[10px] sm:text-xs font-medium mt-0.5">
                   {format(selectedDate, "d 'de' MMMM", { locale: es })}
                 </CardDescription>
               </div>
               <div className={`
-                px-2.5 py-1 rounded-md text-xs font-semibold
+                px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-semibold
                 ${selectedDayEvents.length > 0 
                   ? "bg-primary text-primary-foreground" 
                   : "bg-muted text-muted-foreground"
@@ -529,25 +529,25 @@ export default function Calendar() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2 p-2 max-h-[calc(100vh-240px)] overflow-y-auto">
+          <CardContent className="space-y-1.5 sm:space-y-2 p-1.5 sm:p-2 max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-240px)] overflow-y-auto">
             {isLoading ? (
-              <div className="text-center text-muted-foreground py-12">
-                <CalendarIcon className="h-12 w-12 mx-auto mb-3 animate-pulse text-primary/30" />
-                <p className="font-medium text-sm">Cargando...</p>
+              <div className="text-center text-muted-foreground py-8 sm:py-12">
+                <CalendarIcon className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-2 sm:mb-3 animate-pulse text-primary/30" />
+                <p className="font-medium text-xs sm:text-sm">Cargando...</p>
               </div>
             ) : selectedDayEvents.length === 0 ? (
-              <div className="text-center text-muted-foreground py-12">
-                <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-primary/5 flex items-center justify-center">
-                  <CalendarIcon className="h-7 w-7 text-primary/30" />
+              <div className="text-center text-muted-foreground py-8 sm:py-12">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-2 sm:mb-3 rounded-full bg-primary/5 flex items-center justify-center">
+                  <CalendarIcon className="h-6 w-6 sm:h-7 sm:w-7 text-primary/30" />
                 </div>
-                <p className="font-medium text-sm">No hay eventos</p>
-                <p className="text-xs mt-1">Este día está libre</p>
+                <p className="font-medium text-xs sm:text-sm">No hay eventos</p>
+                <p className="text-[10px] sm:text-xs mt-1">Este día está libre</p>
               </div>
             ) : (
               selectedDayEvents.map((event) => (
                 <Card 
                   key={event.id} 
-                  className="transition-all border-l-4"
+                  className="transition-all border-l-[3px] shadow-sm"
                   style={{
                     borderLeftColor: event.isBirthday 
                       ? "rgb(236 72 153)" 
@@ -557,12 +557,12 @@ export default function Calendar() {
                   }}
                   data-testid={`event-${event.id}`}
                 >
-                  <CardContent className="p-2.5 space-y-2">
-                    <div className="flex items-start justify-between gap-2">
+                  <CardContent className="p-2 sm:p-2.5 space-y-1.5 sm:space-y-2">
+                    <div className="flex items-start justify-between gap-1.5 sm:gap-2">
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm line-clamp-2">{event.title}</h4>
+                        <h4 className="font-semibold text-xs sm:text-sm line-clamp-2">{event.title}</h4>
                         {event.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 line-clamp-2">
                             {event.description}
                           </p>
                         )}
@@ -572,16 +572,16 @@ export default function Calendar() {
                         size="icon"
                         onClick={() => deleteEventMutation.mutate(event.id)}
                         disabled={deleteEventMutation.isPending}
-                        className="shrink-0 hover:bg-destructive/10 hover:text-destructive h-7 w-7 rounded-md"
+                        className="shrink-0 hover:bg-destructive/10 hover:text-destructive h-6 w-6 sm:h-7 sm:w-7 rounded"
                         data-testid={`button-delete-${event.id}`}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                       </Button>
                     </div>
 
-                    <div className="space-y-1.5 text-xs">
-                      <div className="flex items-center gap-2 text-muted-foreground bg-muted/50 rounded-md p-1.5">
-                        <Clock className="h-3.5 w-3.5 shrink-0" />
+                    <div className="space-y-1 sm:space-y-1.5 text-[10px] sm:text-xs">
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-muted-foreground bg-muted/50 rounded p-1 sm:p-1.5">
+                        <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0" />
                         <span className="font-medium">
                           {event.isAllDay ? (
                             "Todo el día"
@@ -594,20 +594,20 @@ export default function Calendar() {
                       </div>
 
                       {event.location && (
-                        <div className="flex items-start gap-2 text-muted-foreground bg-muted/50 rounded-md p-1.5">
-                          <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                          <span className="text-[11px] line-clamp-2">{event.location}</span>
+                        <div className="flex items-start gap-1.5 sm:gap-2 text-muted-foreground bg-muted/50 rounded p-1 sm:p-1.5">
+                          <MapPin className="h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 mt-0.5" />
+                          <span className="text-[9px] sm:text-[11px] line-clamp-2">{event.location}</span>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5 pt-2 border-t">
+                    <div className="flex flex-wrap gap-1 sm:gap-1.5 pt-1.5 sm:pt-2 border-t">
                       {event.isBirthday && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-pink-500/10 text-pink-700 dark:text-pink-300 font-medium border border-pink-500/20">
+                        <span className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded bg-pink-500/10 text-pink-700 dark:text-pink-300 font-medium border border-pink-500/20">
                           🎂 Cumpleaños
                         </span>
                       )}
-                      <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium border ${
+                      <span className={`text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded font-medium border ${
                         event.source === "google" 
                           ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20" 
                           : "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20"
