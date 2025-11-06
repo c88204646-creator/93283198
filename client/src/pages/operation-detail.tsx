@@ -213,7 +213,7 @@ export default function OperationDetail() {
             </div>
             
             <Button
-              onClick={() => navigate(`/operations`)}
+              onClick={() => navigate(`/operations/edit/${id}`)}
               data-testid="button-edit"
               className="shrink-0 w-full md:w-auto bg-primary/90 hover:bg-primary shadow-lg"
             >

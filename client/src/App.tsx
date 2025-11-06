@@ -107,6 +107,7 @@ function AppLayout() {
                 <Route path="/dashboard" component={DashboardPage} />
                 <Route path="/operations" component={OperationsPage} />
                 <Route path="/operations/create" component={OperationsCreatePage} />
+                <Route path="/operations/edit/:id" component={OperationsCreatePage} />
                 <Route path="/operations/:id" component={OperationDetailPage} />
                 <Route path="/operations/:operationId/files" component={OperationFilesPage} />
                 <Route path="/map" component={MapPage} />

@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { ArrowLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -174,6 +174,9 @@ function AddressAutocomplete({
 
 export default function OperationsCreatePage() {
   const [, setLocation] = useLocation();
+  const params = useParams();
+  const operationId = params.id;
+  const isEditing = !!operationId;
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [pickupLocation, setPickupLocation] = useState<[number, number] | null>(null);
   const [deliveryLocation, setDeliveryLocation] = useState<[number, number] | null>(null);
@@ -185,6 +188,11 @@ export default function OperationsCreatePage() {
 
   const { data: employees = [] } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
+  });
+
+  const { data: existingOperation, isLoading: isLoadingOperation } = useQuery({
+    queryKey: ["/api/operations", operationId],
+    enabled: isEditing,
   });
 
   const form = useForm<OperationFormData>({
@@ -220,6 +228,34 @@ export default function OperationsCreatePage() {
     },
   });
 
+  useEffect(() => {
+    if (existingOperation && isEditing) {
+      form.reset({
+        name: existingOperation.name || "",
+        description: existingOperation.description || "",
+        status: existingOperation.status || "planning",
+        priority: existingOperation.priority || "medium",
+        clientId: existingOperation.clientId || null,
+        startDate: existingOperation.startDate || null,
+        endDate: existingOperation.endDate || null,
+        projectCategory: existingOperation.projectCategory || "",
+        operationType: existingOperation.operationType || "",
+        shippingMode: existingOperation.shippingMode || "",
+        insurance: existingOperation.insurance || "",
+        projectCurrency: existingOperation.projectCurrency || "USD",
+        courier: existingOperation.courier || "",
+        pickUpAddress: existingOperation.pickUpAddress || "",
+        deliveryAddress: existingOperation.deliveryAddress || "",
+        bookingTracking: existingOperation.bookingTracking || "",
+        pickUpDate: existingOperation.pickUpDate || null,
+        etd: existingOperation.etd || null,
+        eta: existingOperation.eta || null,
+        mblAwb: existingOperation.mblAwb || "",
+        hblAwb: existingOperation.hblAwb || "",
+      });
+    }
+  }, [existingOperation, isEditing, form]);
+
   const createMutation = useMutation({
     mutationFn: (data: OperationFormData) => apiRequest("POST", "/api/operations", data),
     onSuccess: () => {
@@ -227,6 +263,17 @@ export default function OperationsCreatePage() {
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Operation created successfully" });
       setLocation("/operations");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: OperationFormData) => apiRequest("PATCH", `/api/operations/${operationId}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/operations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({ title: "Operation updated successfully" });
+      setLocation(`/operations/${operationId}`);
     },
   });
 
@@ -247,7 +294,11 @@ export default function OperationsCreatePage() {
       employeeIds: selectedEmployeeIds,
     };
 
-    createMutation.mutate(formattedData);
+    if (isEditing) {
+      updateMutation.mutate(formattedData);
+    } else {
+      createMutation.mutate(formattedData);
+    }
   };
 
   return (
@@ -262,8 +313,12 @@ export default function OperationsCreatePage() {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Nueva Operación</h1>
-          <p className="text-muted-foreground mt-1">Crea una nueva operación de carga y logística</p>
+          <h1 className="text-3xl font-bold text-foreground">
+            {isEditing ? "Editar Operación" : "Nueva Operación"}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {isEditing ? "Modifica los detalles de la operación" : "Crea una nueva operación de carga y logística"}
+          </p>
         </div>
       </div>
 

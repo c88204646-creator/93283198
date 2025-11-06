@@ -243,7 +243,7 @@ export class AutomationService {
     // Create operation with minimal data
     const operation = await storage.createOperation({
       name: operationName,
-      description: `Operación creada automáticamente desde correo: ${message.subject}\n\nDe: ${message.fromEmail} (${message.fromName})\nFecha: ${message.date}\n\nSnippet: ${message.snippet}`,
+      description: `Operation ${operationName} created from email: ${message.subject}`,
       status: 'planning',
       priority: 'medium',
       startDate: new Date(),
