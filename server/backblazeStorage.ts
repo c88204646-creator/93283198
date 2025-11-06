@@ -84,6 +84,15 @@ export class BackblazeStorage {
     return crypto.createHash('sha256').update(buffer).digest('hex');
   }
 
+  private sanitizeMetadata(value: string): string {
+    // Remove or replace characters that are invalid in HTTP headers
+    // S3 metadata must be US-ASCII and no control characters
+    return value
+      .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
+      .replace(/[^\x20-\x7E]/g, '?') // Replace non-ASCII with ?
+      .substring(0, 2000); // Limit length to avoid header size issues
+  }
+
   async checkFileExists(fileHash: string, folder: string): Promise<string | null> {
     this.ensureConfigured();
     try {
@@ -123,13 +132,13 @@ export class BackblazeStorage {
     const fileKey = `${folder}/${fileHash}`;
     const metadataHeaders: Record<string, string> = {};
 
-    if (metadata.originalName) metadataHeaders['original-name'] = metadata.originalName;
-    if (metadata.mimeType) metadataHeaders['mime-type'] = metadata.mimeType;
-    if (metadata.uploadedBy) metadataHeaders['uploaded-by'] = metadata.uploadedBy;
-    if (metadata.category) metadataHeaders['category'] = metadata.category;
-    if (metadata.source) metadataHeaders['source'] = metadata.source;
-    if (metadata.emailId) metadataHeaders['email-id'] = metadata.emailId;
-    if (metadata.attachmentId) metadataHeaders['attachment-id'] = metadata.attachmentId;
+    if (metadata.originalName) metadataHeaders['original-name'] = this.sanitizeMetadata(metadata.originalName);
+    if (metadata.mimeType) metadataHeaders['mime-type'] = this.sanitizeMetadata(metadata.mimeType);
+    if (metadata.uploadedBy) metadataHeaders['uploaded-by'] = this.sanitizeMetadata(metadata.uploadedBy);
+    if (metadata.category) metadataHeaders['category'] = this.sanitizeMetadata(metadata.category);
+    if (metadata.source) metadataHeaders['source'] = this.sanitizeMetadata(metadata.source);
+    if (metadata.emailId) metadataHeaders['email-id'] = this.sanitizeMetadata(metadata.emailId);
+    if (metadata.attachmentId) metadataHeaders['attachment-id'] = this.sanitizeMetadata(metadata.attachmentId);
 
     await this.client!.send(new PutObjectCommand({
       Bucket: this.bucketName!,
@@ -392,8 +401,58 @@ export class BackblazeStorage {
   }
 
   isAvailable(): boolean {
+    // Re-initialize if not configured (in case secrets were added after first import)
+    if (!this.isConfigured) {
+      this.initializeIfPossible();
+    }
     return this.isConfigured;
   }
 }
 
-export const backblazeStorage = new BackblazeStorage();
+// Singleton instance - lazy initialization
+let backblazeStorageInstance: BackblazeStorage | null = null;
+
+export const backblazeStorage = {
+  isAvailable(): boolean {
+    if (!backblazeStorageInstance) {
+      backblazeStorageInstance = new BackblazeStorage();
+    }
+    return backblazeStorageInstance.isAvailable();
+  },
+  async uploadEmailBody(emailId: string, bodyText: string | null, bodyHtml: string | null) {
+    if (!backblazeStorageInstance) {
+      backblazeStorageInstance = new BackblazeStorage();
+    }
+    return backblazeStorageInstance.uploadEmailBody(emailId, bodyText, bodyHtml);
+  },
+  async uploadEmailAttachment(data: Buffer, filename: string, mimeType: string) {
+    if (!backblazeStorageInstance) {
+      backblazeStorageInstance = new BackblazeStorage();
+    }
+    return backblazeStorageInstance.uploadEmailAttachment(data, filename, mimeType);
+  },
+  async uploadOperationFile(data: Buffer, filename: string, mimeType: string, uploadedBy: string) {
+    if (!backblazeStorageInstance) {
+      backblazeStorageInstance = new BackblazeStorage();
+    }
+    return backblazeStorageInstance.uploadOperationFile(data, filename, mimeType, uploadedBy);
+  },
+  async getSignedUrl(fileKey: string, expiresIn: number = 600) {
+    if (!backblazeStorageInstance) {
+      backblazeStorageInstance = new BackblazeStorage();
+    }
+    return backblazeStorageInstance.getSignedUrl(fileKey, expiresIn);
+  },
+  async getMultipleSignedUrls(fileKeys: string[], expiresIn: number = 600) {
+    if (!backblazeStorageInstance) {
+      backblazeStorageInstance = new BackblazeStorage();
+    }
+    return backblazeStorageInstance.getMultipleSignedUrls(fileKeys, expiresIn);
+  },
+  async downloadFile(fileKey: string): Promise<Buffer> {
+    if (!backblazeStorageInstance) {
+      backblazeStorageInstance = new BackblazeStorage();
+    }
+    return backblazeStorageInstance.downloadFile(fileKey);
+  },
+};
