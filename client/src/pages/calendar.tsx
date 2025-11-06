@@ -257,82 +257,82 @@ export default function Calendar() {
   const weekDays = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4 md:p-6 lg:p-8" data-testid="page-calendar">
+    <div className="min-h-screen bg-background p-3 md:p-4" data-testid="page-calendar">
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-6 lg:mb-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-2">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-primary/10 rounded-xl">
-              <CalendarIcon className="h-7 w-7 text-primary" />
+      <div className="max-w-7xl mx-auto mb-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-primary/5 rounded-lg">
+              <CalendarIcon className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent" data-testid="text-page-title">
+              <h1 className="text-xl md:text-2xl font-semibold text-foreground" data-testid="text-page-title">
                 Calendario
               </h1>
-              <p className="text-sm text-muted-foreground mt-0.5" data-testid="text-page-description">
+              <p className="text-xs text-muted-foreground" data-testid="text-page-description">
                 Organiza y gestiona tus eventos
               </p>
             </div>
           </div>
           <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
             <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto shadow-lg hover:shadow-xl transition-all duration-200 gap-2" size="lg" data-testid="button-create-event">
-                <Plus className="h-5 w-5" />
+              <Button className="w-full sm:w-auto gap-2" size="sm" data-testid="button-create-event">
+                <Plus className="h-4 w-4" />
                 Nuevo Evento
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto" data-testid="dialog-event">
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" data-testid="dialog-event">
               <DialogHeader>
-                <DialogTitle className="text-2xl flex items-center gap-2">
-                  <Sparkles className="h-6 w-6 text-primary" />
+                <DialogTitle className="text-lg flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
                   Crear Evento
                 </DialogTitle>
-                <DialogDescription className="text-base">
+                <DialogDescription className="text-sm">
                   Añade un nuevo evento a tu calendario
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-5 mt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title" className="text-sm font-semibold">Título del Evento *</Label>
+              <form onSubmit={handleSubmit} className="space-y-3 mt-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="title" className="text-xs font-medium">Título del Evento *</Label>
                   <Input
                     id="title"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="Ej: Reunión con cliente"
                     required
-                    className="text-base h-11"
+                    className="h-9"
                     data-testid="input-title"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="date" className="text-sm font-semibold">Fecha *</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="date" className="text-xs font-medium">Fecha *</Label>
                   <Input
                     id="date"
                     type="date"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                     required
-                    className="text-base h-11"
+                    className="h-9"
                     data-testid="input-date"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description" className="text-sm font-semibold">Descripción</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="description" className="text-xs font-medium">Descripción</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Añade detalles sobre el evento..."
-                    rows={3}
-                    className="resize-none text-base"
+                    rows={2}
+                    className="resize-none text-sm"
                     data-testid="input-description"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="location" className="text-sm font-semibold">Ubicación</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="location" className="text-xs font-medium">Ubicación</Label>
                   <AddressAutocomplete
                     value={formData.location}
                     onChange={(value) => setFormData({ ...formData, location: value })}
@@ -342,7 +342,7 @@ export default function Calendar() {
                 </div>
 
                 {locationCoords && (
-                  <div className="h-48 rounded-xl overflow-hidden border-2 border-border shadow-md">
+                  <div className="h-32 rounded-lg overflow-hidden border border-border">
                     <MapContainer
                       center={locationCoords}
                       zoom={15}
@@ -359,17 +359,17 @@ export default function Calendar() {
                 )}
 
                 {gmailAccounts.length > 0 && (
-                  <div className="space-y-2">
-                    <Label htmlFor="accountId" className="text-sm font-semibold">Sincronizar con Google Calendar</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="accountId" className="text-xs font-medium">Sincronizar con Google Calendar</Label>
                     <Select
                       value={formData.accountId}
                       onValueChange={(value) => setFormData({ ...formData, accountId: value })}
                     >
-                      <SelectTrigger data-testid="select-account" className="text-base h-11">
+                      <SelectTrigger data-testid="select-account" className="h-9">
                         <SelectValue placeholder="Evento local (no sincronizar)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="local">📌 Evento local (no sincronizar)</SelectItem>
+                        <SelectItem value="local">📌 Evento local</SelectItem>
                         {gmailAccounts.map((account: any) => (
                           <SelectItem key={account.id} value={account.id}>
                             📧 {account.email}
@@ -380,12 +380,13 @@ export default function Calendar() {
                   </div>
                 )}
 
-                <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t">
+                <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-3 border-t">
                   <Button 
                     type="button" 
                     variant="outline" 
                     onClick={() => setShowEventDialog(false)} 
-                    className="w-full sm:w-auto h-11"
+                    className="w-full sm:w-auto"
+                    size="sm"
                     data-testid="button-cancel"
                   >
                     Cancelar
@@ -393,7 +394,8 @@ export default function Calendar() {
                   <Button 
                     type="submit" 
                     disabled={createEventMutation.isPending}
-                    className="w-full sm:w-auto shadow-lg h-11"
+                    className="w-full sm:w-auto"
+                    size="sm"
                     data-testid="button-submit"
                   >
                     {createEventMutation.isPending ? "Creando..." : "Crear Evento"}
@@ -405,20 +407,20 @@ export default function Calendar() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-3">
         {/* Vista de calendario mensual */}
-        <Card className="lg:col-span-8 shadow-xl border-0 bg-card/95 backdrop-blur">
-          <CardHeader className="pb-4 border-b">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <CardTitle className="text-xl md:text-2xl font-bold capitalize bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+        <Card className="lg:col-span-8 border">
+          <CardHeader className="pb-3 border-b p-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <CardTitle className="text-base md:text-lg font-semibold capitalize">
                 {format(selectedMonth, "MMMM yyyy", { locale: es })}
               </CardTitle>
-              <div className="flex gap-2 w-full sm:w-auto">
+              <div className="flex gap-1.5 w-full sm:w-auto">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setSelectedMonth(subMonths(selectedMonth, 1))}
-                  className="flex-1 sm:flex-none h-10 hover:bg-accent/50"
+                  className="flex-1 sm:flex-none h-8"
                   data-testid="button-prev-month"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -427,7 +429,7 @@ export default function Calendar() {
                   variant="outline"
                   size="sm"
                   onClick={() => setSelectedMonth(new Date())}
-                  className="flex-1 sm:flex-none h-10 hover:bg-accent/50 font-semibold"
+                  className="flex-1 sm:flex-none h-8 font-medium text-xs"
                   data-testid="button-today"
                 >
                   Hoy
@@ -436,7 +438,7 @@ export default function Calendar() {
                   variant="outline"
                   size="sm"
                   onClick={() => setSelectedMonth(addMonths(selectedMonth, 1))}
-                  className="flex-1 sm:flex-none h-10 hover:bg-accent/50"
+                  className="flex-1 sm:flex-none h-8"
                   data-testid="button-next-month"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -444,10 +446,10 @@ export default function Calendar() {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-3 md:p-6">
-            <div className="grid grid-cols-7 gap-1.5 md:gap-2">
+          <CardContent className="p-2 md:p-3">
+            <div className="grid grid-cols-7 gap-1">
               {weekDays.map((day) => (
-                <div key={day} className="text-center font-bold text-xs md:text-sm p-2 text-muted-foreground uppercase tracking-wide">
+                <div key={day} className="text-center font-semibold text-[10px] md:text-xs p-1.5 text-muted-foreground uppercase">
                   {day}
                 </div>
               ))}
@@ -462,29 +464,29 @@ export default function Calendar() {
                     key={idx}
                     onClick={() => setSelectedDate(day)}
                     className={`
-                      min-h-16 md:min-h-24 lg:min-h-28 p-1.5 md:p-2.5 border-2 rounded-xl text-left transition-all duration-300
+                      min-h-14 md:min-h-20 p-1 md:p-1.5 border rounded-lg text-left transition-all
                       ${isSelected 
-                        ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-xl scale-105 border-primary ring-4 ring-primary/20" 
-                        : "hover:bg-accent/50 hover:shadow-lg hover:scale-102 hover:border-accent"
+                        ? "bg-primary text-primary-foreground border-primary" 
+                        : "hover:bg-accent/50 hover:border-accent"
                       }
-                      ${!isCurrentMonth ? "text-muted-foreground/40 opacity-40" : ""}
-                      ${isToday && !isSelected ? "border-primary/60 bg-primary/5 ring-2 ring-primary/10" : "border-border/50"}
+                      ${!isCurrentMonth ? "text-muted-foreground/30 opacity-50" : ""}
+                      ${isToday && !isSelected ? "border-primary bg-primary/5" : "border-border"}
                     `}
                     data-testid={`day-${format(day, "yyyy-MM-dd")}`}
                   >
-                    <div className={`font-bold text-xs md:text-sm lg:text-base mb-1 ${isToday && !isSelected ? "text-primary" : ""}`}>
+                    <div className={`font-semibold text-[10px] md:text-xs mb-0.5 ${isToday && !isSelected ? "text-primary" : ""}`}>
                       {format(day, "d")}
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       {dayEvents.slice(0, 2).map((event) => (
                         <div
                           key={event.id}
-                          className={`text-[10px] md:text-xs truncate px-1.5 py-0.5 rounded-md font-medium shadow-sm ${
+                          className={`text-[9px] md:text-[10px] truncate px-1 py-0.5 rounded font-medium ${
                             event.isBirthday 
-                              ? "bg-gradient-to-r from-pink-500 to-pink-600 text-white" 
+                              ? "bg-pink-500 text-white" 
                               : event.source === "google" 
-                                ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white" 
-                                : "bg-gradient-to-r from-green-500 to-green-600 text-white"
+                                ? "bg-blue-500 text-white" 
+                                : "bg-green-500 text-white"
                           }`}
                           title={event.title}
                         >
@@ -492,8 +494,8 @@ export default function Calendar() {
                         </div>
                       ))}
                       {dayEvents.length > 2 && (
-                        <div className="text-[10px] md:text-xs text-muted-foreground font-semibold px-1.5">
-                          +{dayEvents.length - 2} más
+                        <div className="text-[9px] md:text-[10px] text-muted-foreground font-medium px-1">
+                          +{dayEvents.length - 2}
                         </div>
                       )}
                     </div>
@@ -505,47 +507,47 @@ export default function Calendar() {
         </Card>
 
         {/* Panel lateral con eventos del día */}
-        <Card className="lg:col-span-4 shadow-xl border-0 bg-card/95 backdrop-blur">
-          <CardHeader className="pb-4 border-b bg-gradient-to-br from-muted/30 to-transparent">
+        <Card className="lg:col-span-4 border">
+          <CardHeader className="pb-2 border-b p-3">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg md:text-xl capitalize font-bold">
+                <CardTitle className="text-sm md:text-base capitalize font-semibold">
                   {format(selectedDate, "EEEE", { locale: es })}
                 </CardTitle>
-                <CardDescription className="text-base md:text-lg font-semibold mt-1 text-foreground/80">
+                <CardDescription className="text-xs font-medium mt-0.5">
                   {format(selectedDate, "d 'de' MMMM", { locale: es })}
                 </CardDescription>
               </div>
               <div className={`
-                px-4 py-2 rounded-full text-sm font-bold shadow-md
+                px-2.5 py-1 rounded-md text-xs font-semibold
                 ${selectedDayEvents.length > 0 
-                  ? "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground" 
+                  ? "bg-primary text-primary-foreground" 
                   : "bg-muted text-muted-foreground"
                 }
               `}>
-                {selectedDayEvents.length} {selectedDayEvents.length === 1 ? "evento" : "eventos"}
+                {selectedDayEvents.length}
               </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3 p-4 max-h-[calc(100vh-300px)] overflow-y-auto">
+          <CardContent className="space-y-2 p-2 max-h-[calc(100vh-240px)] overflow-y-auto">
             {isLoading ? (
-              <div className="text-center text-muted-foreground py-16">
-                <CalendarIcon className="h-16 w-16 mx-auto mb-4 animate-pulse text-primary/40" />
-                <p className="font-medium">Cargando eventos...</p>
+              <div className="text-center text-muted-foreground py-12">
+                <CalendarIcon className="h-12 w-12 mx-auto mb-3 animate-pulse text-primary/30" />
+                <p className="font-medium text-sm">Cargando...</p>
               </div>
             ) : selectedDayEvents.length === 0 ? (
-              <div className="text-center text-muted-foreground py-16">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-primary/5 flex items-center justify-center">
-                  <CalendarIcon className="h-10 w-10 text-primary/30" />
+              <div className="text-center text-muted-foreground py-12">
+                <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-primary/5 flex items-center justify-center">
+                  <CalendarIcon className="h-7 w-7 text-primary/30" />
                 </div>
-                <p className="font-semibold text-lg">No hay eventos</p>
-                <p className="text-sm mt-2">Este día está libre para nuevas actividades</p>
+                <p className="font-medium text-sm">No hay eventos</p>
+                <p className="text-xs mt-1">Este día está libre</p>
               </div>
             ) : (
               selectedDayEvents.map((event) => (
                 <Card 
                   key={event.id} 
-                  className="hover:shadow-lg transition-all duration-300 border-l-4 hover:scale-[1.02] bg-gradient-to-br from-card to-muted/10"
+                  className="transition-all border-l-4"
                   style={{
                     borderLeftColor: event.isBirthday 
                       ? "rgb(236 72 153)" 
@@ -555,12 +557,12 @@ export default function Calendar() {
                   }}
                   data-testid={`event-${event.id}`}
                 >
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-3">
+                  <CardContent className="p-2.5 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-base md:text-lg line-clamp-2 leading-tight">{event.title}</h4>
+                        <h4 className="font-semibold text-sm line-clamp-2">{event.title}</h4>
                         {event.description && (
-                          <p className="text-sm text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                             {event.description}
                           </p>
                         )}
@@ -570,16 +572,16 @@ export default function Calendar() {
                         size="icon"
                         onClick={() => deleteEventMutation.mutate(event.id)}
                         disabled={deleteEventMutation.isPending}
-                        className="shrink-0 hover:bg-destructive/20 hover:text-destructive h-9 w-9 rounded-lg"
+                        className="shrink-0 hover:bg-destructive/10 hover:text-destructive h-7 w-7 rounded-md"
                         data-testid={`button-delete-${event.id}`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
 
-                    <div className="space-y-2.5 text-sm">
-                      <div className="flex items-center gap-2.5 text-muted-foreground bg-muted/30 rounded-lg p-2">
-                        <Clock className="h-4 w-4 shrink-0 text-primary" />
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex items-center gap-2 text-muted-foreground bg-muted/50 rounded-md p-1.5">
+                        <Clock className="h-3.5 w-3.5 shrink-0" />
                         <span className="font-medium">
                           {event.isAllDay ? (
                             "Todo el día"
@@ -592,23 +594,23 @@ export default function Calendar() {
                       </div>
 
                       {event.location && (
-                        <div className="flex items-start gap-2.5 text-muted-foreground bg-muted/30 rounded-lg p-2">
-                          <MapPin className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
-                          <span className="text-xs line-clamp-2 leading-relaxed">{event.location}</span>
+                        <div className="flex items-start gap-2 text-muted-foreground bg-muted/50 rounded-md p-1.5">
+                          <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                          <span className="text-[11px] line-clamp-2">{event.location}</span>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap gap-2 pt-3 border-t border-border/50">
+                    <div className="flex flex-wrap gap-1.5 pt-2 border-t">
                       {event.isBirthday && (
-                        <span className="text-xs px-3 py-1.5 rounded-full bg-gradient-to-r from-pink-500/20 to-pink-600/20 text-pink-700 dark:text-pink-300 font-semibold border border-pink-500/30">
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-pink-500/10 text-pink-700 dark:text-pink-300 font-medium border border-pink-500/20">
                           🎂 Cumpleaños
                         </span>
                       )}
-                      <span className={`text-xs px-3 py-1.5 rounded-full font-semibold border ${
+                      <span className={`text-[10px] px-2 py-0.5 rounded-md font-medium border ${
                         event.source === "google" 
-                          ? "bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-700 dark:text-blue-300 border-blue-500/30" 
-                          : "bg-gradient-to-r from-green-500/20 to-green-600/20 text-green-700 dark:text-green-300 border-green-500/30"
+                          ? "bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/20" 
+                          : "bg-green-500/10 text-green-700 dark:text-green-300 border-green-500/20"
                       }`}>
                         {event.source === "google" ? "📧 Google" : "📌 Local"}
                       </span>
