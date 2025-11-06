@@ -1,7 +1,7 @@
 import { storage } from './storage';
 import type { AutomationConfig, AutomationRule, GmailMessage } from '@shared/schema';
 import { getAttachmentData } from './gmail-sync';
-import { ObjectStorageService } from './objectStorage';
+import { BackblazeStorage } from './backblazeStorage';
 import { processEmailThreadForAutomation } from './email-task-automation';
 
 // Automation service that processes emails and creates operations automatically
@@ -363,7 +363,7 @@ export class AutomationService {
         return;
       }
 
-      const objectStorageService = new ObjectStorageService();
+      const b2Storage = new BackblazeStorage();
 
       for (const attachment of attachments) {
         try {
@@ -382,29 +382,17 @@ export class AutomationService {
           // Convert base64 to buffer
           const buffer = Buffer.from(attachmentData, 'base64');
 
-          // Upload to object storage
-          const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-          
-          // Upload buffer directly (simplified - in production you'd use a proper upload method)
-          const response = await fetch(uploadURL, {
-            method: 'PUT',
-            body: buffer,
-            headers: {
-              'Content-Type': attachment.mimeType || 'application/octet-stream',
-            },
+          // Upload to Backblaze B2 (automatically handles deduplication)
+          const uploadResult = await b2Storage.uploadFile(buffer, 'operations/files', {
+            originalName: attachment.filename,
+            mimeType: attachment.mimeType,
+            uploadedBy: config.userId,
+            source: 'gmail_automation',
+            emailId: message.id,
+            attachmentId: attachment.id,
           });
 
-          if (!response.ok) {
-            throw new Error(`Failed to upload attachment: ${response.statusText}`);
-          }
-
-          const fileURL = uploadURL.split('?')[0];
-
-          // Set ACL policy
-          const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(fileURL, {
-            owner: config.userId,
-            visibility: 'private',
-          });
+          const objectPath = uploadResult.fileKey;
 
           // Categorize automatically
           const category = this.categorizeFile(attachment.filename, attachment.mimeType);

@@ -35,7 +35,7 @@ Design preference: Logistics-focused iconography and terminology.
 - **Automation Module**: Plugin-based system for entity creation from email patterns (e.g., Operations from emails), rule-based matching.
 - **AI-Powered Task & Note Automation**: Automatically analyzes email threads linked to operations and creates relevant tasks and notes using Gemini AI, with smart caching and deduplication for optimized API usage.
 - **Employee Birthday Tracking**: Automatic creation/update of birthday events in calendar, special UI indicators.
-- **File Management**: Backblaze B2 storage (primary), Replit Object Storage (legacy fallback), automatic attachment processing from emails with categorization, SHA-256 deduplication, hierarchical folder organization, ACL-based permissions, presigned URLs.
+- **File Management**: Backblaze B2 storage (exclusive), automatic attachment processing from emails with categorization, SHA-256 hash-based deduplication, hierarchical folder organization, metadata tracking, automatic file versioning.
 
 ## External Dependencies
 
@@ -77,8 +77,8 @@ Design preference: Logistics-focused iconography and terminology.
 - googleapis (for Gmail and Calendar API)
 
 ### Object Storage
-- **Backblaze B2** (Primary storage, S3-compatible API via `@aws-sdk/client-s3`) for email bodies, attachments, and operation files, with SHA-256 hash-based file deduplication.
-- **Replit Object Storage** (Legacy fallback, Google Cloud Storage-backed) for backward compatibility.
+- **Backblaze B2** (Exclusive storage solution, S3-compatible API via `@aws-sdk/client-s3`) for email bodies, attachments, and operation files, with SHA-256 hash-based automatic file deduplication.
+- Required environment variables: `B2_BUCKET_ID`, `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_ENDPOINT`
 
 ### Artificial Intelligence
 - Google Gemini AI (via `GEMINI_API_KEY`) for task and note automation.
