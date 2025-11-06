@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Zap, Settings, Activity, Trash2, Mail, Filter, CheckCircle, XCircle, AlertCircle, Package, FileText, Receipt, Users } from "lucide-react";
@@ -159,6 +160,15 @@ function ModuleConfigurationDialog({
   const [processAttachments, setProcessAttachments] = useState<boolean>(
     config?.processAttachments ?? false
   );
+  const [autoCreateTasks, setAutoCreateTasks] = useState<string>(
+    config?.autoCreateTasks || 'disabled'
+  );
+  const [autoCreateNotes, setAutoCreateNotes] = useState<string>(
+    config?.autoCreateNotes || 'disabled'
+  );
+  const [aiOptimizationLevel, setAiOptimizationLevel] = useState<string>(
+    config?.aiOptimizationLevel || 'high'
+  );
 
   const { data: employees = [] } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
@@ -173,6 +183,9 @@ function ModuleConfigurationDialog({
         selectedGmailAccounts: selectedAccounts,
         defaultEmployees: selectedEmployees,
         processAttachments: processAttachments,
+        autoCreateTasks,
+        autoCreateNotes,
+        aiOptimizationLevel,
       });
     },
     onSuccess: () => {
@@ -192,12 +205,15 @@ function ModuleConfigurationDialog({
   });
 
   const updateConfigMutation = useMutation({
-    mutationFn: async ({ isEnabled, accounts, employees, attachments }: { isEnabled?: boolean; accounts?: string[]; employees?: string[]; attachments?: boolean }) => {
+    mutationFn: async ({ isEnabled, accounts, employees, attachments, tasks, notes, optimization }: { isEnabled?: boolean; accounts?: string[]; employees?: string[]; attachments?: boolean; tasks?: string; notes?: string; optimization?: string }) => {
       return apiRequest("PATCH", `/api/automation/configs/${config!.id}`, {
         isEnabled,
         selectedGmailAccounts: accounts,
         defaultEmployees: employees,
         processAttachments: attachments,
+        autoCreateTasks: tasks,
+        autoCreateNotes: notes,
+        aiOptimizationLevel: optimization,
       });
     },
     onSuccess: () => {
@@ -231,7 +247,7 @@ function ModuleConfigurationDialog({
 
   const handleSaveSettings = () => {
     if (config) {
-      updateConfigMutation.mutate({ accounts: selectedAccounts, employees: selectedEmployees, attachments: processAttachments });
+      updateConfigMutation.mutate({ accounts: selectedAccounts, employees: selectedEmployees, attachments: processAttachments, tasks: autoCreateTasks, notes: autoCreateNotes, optimization: aiOptimizationLevel });
     } else {
       createConfigMutation.mutate();
     }
@@ -304,9 +320,15 @@ function ModuleConfigurationDialog({
               selectedAccounts={selectedAccounts}
               selectedEmployees={selectedEmployees}
               processAttachments={processAttachments}
+              autoCreateTasks={autoCreateTasks}
+              autoCreateNotes={autoCreateNotes}
+              aiOptimizationLevel={aiOptimizationLevel}
               onAccountsChange={setSelectedAccounts}
               onEmployeesChange={setSelectedEmployees}
               onProcessAttachmentsChange={setProcessAttachments}
+              onAutoCreateTasksChange={setAutoCreateTasks}
+              onAutoCreateNotesChange={setAutoCreateNotes}
+              onAiOptimizationLevelChange={setAiOptimizationLevel}
               onSave={handleSaveSettings}
               onDelete={() => {
                 if (confirm("¿Desactivar este módulo completamente?")) {
@@ -336,9 +358,15 @@ function SettingsTab({
   selectedAccounts,
   selectedEmployees,
   processAttachments,
+  autoCreateTasks,
+  autoCreateNotes,
+  aiOptimizationLevel,
   onAccountsChange,
   onEmployeesChange,
   onProcessAttachmentsChange,
+  onAutoCreateTasksChange,
+  onAutoCreateNotesChange,
+  onAiOptimizationLevelChange,
   onSave,
   onDelete,
   isSaving,
@@ -350,9 +378,15 @@ function SettingsTab({
   selectedAccounts: string[];
   selectedEmployees: string[];
   processAttachments: boolean;
+  autoCreateTasks: string;
+  autoCreateNotes: string;
+  aiOptimizationLevel: string;
   onAccountsChange: (accounts: string[]) => void;
   onEmployeesChange: (employees: string[]) => void;
   onProcessAttachmentsChange: (enabled: boolean) => void;
+  onAutoCreateTasksChange: (mode: string) => void;
+  onAutoCreateNotesChange: (mode: string) => void;
+  onAiOptimizationLevelChange: (level: string) => void;
   onSave: () => void;
   onDelete: () => void;
   isSaving: boolean;
@@ -451,7 +485,7 @@ function SettingsTab({
         )}
       </div>
 
-      <div className="border rounded-lg p-4">
+      <div className="border rounded-lg p-4 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
             <Label className="text-base font-semibold">Procesar Adjuntos de Email</Label>
@@ -465,6 +499,73 @@ function SettingsTab({
             onCheckedChange={onProcessAttachmentsChange}
             data-testid="switch-process-attachments"
           />
+        </div>
+
+        <div className="pt-4 border-t">
+          <Label className="text-base font-semibold mb-3 block">🤖 Automatización con Gemini AI</Label>
+          <p className="text-sm text-muted-foreground mb-4">
+            Utiliza inteligencia artificial para analizar cadenas de correos y crear automáticamente tareas y notas relevantes
+          </p>
+          
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Crear Tareas Automáticamente</Label>
+              <Select value={autoCreateTasks} onValueChange={onAutoCreateTasksChange}>
+                <SelectTrigger data-testid="select-auto-tasks">
+                  <SelectValue placeholder="Seleccionar modo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="disabled">🚫 Desactivado</SelectItem>
+                  <SelectItem value="basic">✅ Básico (sin AI)</SelectItem>
+                  <SelectItem value="smart_ai">🤖 Inteligente con AI</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {autoCreateTasks === 'smart_ai' && '✨ Usa Gemini AI para detectar tareas pendientes en correos'}
+                {autoCreateTasks === 'basic' && '📋 Extrae tareas de palabras clave simples'}
+                {autoCreateTasks === 'disabled' && 'No se crearán tareas automáticamente'}
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Crear Notas Automáticamente</Label>
+              <Select value={autoCreateNotes} onValueChange={onAutoCreateNotesChange}>
+                <SelectTrigger data-testid="select-auto-notes">
+                  <SelectValue placeholder="Seleccionar modo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="disabled">🚫 Desactivado</SelectItem>
+                  <SelectItem value="basic">✅ Básico (sin AI)</SelectItem>
+                  <SelectItem value="smart_ai">🤖 Inteligente con AI</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {autoCreateNotes === 'smart_ai' && '✨ Usa Gemini AI para extraer información importante'}
+                {autoCreateNotes === 'basic' && '📝 Crea resúmenes simples de correos'}
+                {autoCreateNotes === 'disabled' && 'No se crearán notas automáticamente'}
+              </p>
+            </div>
+          </div>
+
+          {(autoCreateTasks === 'smart_ai' || autoCreateNotes === 'smart_ai') && (
+            <div className="mt-4 p-3 bg-primary/5 rounded-lg">
+              <Label className="text-sm font-medium mb-2 block">Nivel de Optimización de API</Label>
+              <Select value={aiOptimizationLevel} onValueChange={onAiOptimizationLevelChange}>
+                <SelectTrigger data-testid="select-ai-optimization">
+                  <SelectValue placeholder="Seleccionar nivel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="high">🔋 Alto (80% reducción de uso)</SelectItem>
+                  <SelectItem value="medium">⚡ Medio (50% reducción de uso)</SelectItem>
+                  <SelectItem value="low">💨 Bajo (20% reducción de uso)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-2">
+                💡 <strong>Recomendado: Alto</strong> - Reduce significativamente el consumo de API mediante caché inteligente,
+                deduplicación y análisis diferencial sin afectar la calidad
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
