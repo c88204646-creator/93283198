@@ -17,7 +17,7 @@ import {
   ArrowLeft, Package, FileText, CheckSquare, Mail, Edit2, Trash2, Plus,
   Calendar, User as UserIcon, MapPin, Ship, Plane, Truck, DollarSign, FolderOpen,
   Download, Paperclip, Upload, Link, FileIcon, Image, ExternalLink, Eye, MoreVertical,
-  Grid3x3, List, Zap, File, ChevronLeft, ChevronRight, FileArchive, FileSpreadsheet, Clock
+  Grid3x3, List, Zap, File, ChevronLeft, ChevronRight, FileArchive, FileSpreadsheet, Clock, X
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import DOMPurify from 'isomorphic-dompurify';
