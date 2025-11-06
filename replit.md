@@ -26,13 +26,13 @@ Design preference: Logistics-focused iconography and terminology.
 - **Core Tables**: `users`, `employees`, `clients`, `operations`, `invoices`, `proposals`, `expenses`, `leads`.
 - **Integration Tables**: `customFields`, `customFieldValues`, `gmailAccounts`, `gmailMessages`, `calendarEvents`.
 - **File Management Tables**: `operationFolders`, `operationFiles`, `gmailAttachments`.
-- **Automation Tables**: `automationConfigs`, `automationRules`, `automationLogs`.
+- **Automation Tables**: `automationConfigs` (with `customFolderNames` JSONB field for user-configurable folder names), `automationRules`, `automationLogs`.
 - **Patterns**: UUID primary keys, foreign key relationships, timestamp tracking, status enums, JSONB for metadata, B2 storage keys, SHA-256 file hashes.
 
 ### Core Features
 - **Gmail Integration**: OAuth 2.0, background sync (messages, calendar events), multi-account support, UI for message/calendar viewing, email bodies and attachments stored in Backblaze B2 with automatic deduplication.
 - **Spam Filtering**: Intelligent email filtering that blocks spam while preserving important business communications.
-- **Automation Module**: Plugin-based system for entity creation from email patterns (e.g., Operations from emails), rule-based matching.
+- **Automation Module**: Plugin-based system for entity creation from email patterns (e.g., Operations from emails), rule-based matching, custom folder name configuration for automatic file categorization.
 - **AI-Powered Task & Note Automation**: Automatically analyzes email threads linked to operations and creates relevant tasks and notes using Gemini AI, with smart caching and deduplication for optimized API usage.
 - **Employee Birthday Tracking**: Automatic creation/update of birthday events in calendar, special UI indicators.
 - **File Management**: Backblaze B2 storage (exclusive), automatic attachment processing from emails with categorization, SHA-256 hash-based deduplication, hierarchical folder organization, metadata tracking, automatic file versioning.

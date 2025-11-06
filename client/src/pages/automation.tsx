@@ -1011,7 +1011,7 @@ function LogsTab({ configId }: { configId: string }) {
                     )}
                     {log.details && (
                       <p className="text-xs text-muted-foreground">
-                        {JSON.stringify(log.details)}
+                        {JSON.stringify(log.details as any)}
                       </p>
                     )}
                   </div>
