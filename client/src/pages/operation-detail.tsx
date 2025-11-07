@@ -520,10 +520,7 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
 
   const createNoteMutation = useMutation({
     mutationFn: async (content: string) => {
-      return apiRequest(`/api/operations/${operationId}/notes`, {
-        method: 'POST',
-        body: { content },
-      });
+      return apiRequest('POST', `/api/operations/${operationId}/notes`, { content });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/notes`] });
@@ -537,10 +534,7 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
 
   const updateNoteMutation = useMutation({
     mutationFn: async ({ noteId, content }: { noteId: string; content: string }) => {
-      return apiRequest(`/api/operations/${operationId}/notes/${noteId}`, {
-        method: 'PATCH',
-        body: { content },
-      });
+      return apiRequest('PATCH', `/api/operations/${operationId}/notes/${noteId}`, { content });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/notes`] });
@@ -554,9 +548,7 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
 
   const deleteNoteMutation = useMutation({
     mutationFn: async (noteId: string) => {
-      return apiRequest(`/api/operations/${operationId}/notes/${noteId}`, {
-        method: 'DELETE',
-      });
+      return apiRequest('DELETE', `/api/operations/${operationId}/notes/${noteId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/notes`] });
@@ -721,10 +713,7 @@ function TasksTab({ operationId, tasks, employees, users }: {
 
   const createTaskMutation = useMutation({
     mutationFn: async (taskData: typeof newTask) => {
-      return apiRequest(`/api/operations/${operationId}/tasks`, {
-        method: 'POST',
-        body: taskData,
-      });
+      return apiRequest('POST', `/api/operations/${operationId}/tasks`, taskData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/tasks`] });
@@ -746,10 +735,7 @@ function TasksTab({ operationId, tasks, employees, users }: {
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, updates }: { taskId: string; updates: Partial<OperationTask> }) => {
-      return apiRequest(`/api/operations/${operationId}/tasks/${taskId}`, {
-        method: 'PATCH',
-        body: updates,
-      });
+      return apiRequest('PATCH', `/api/operations/${operationId}/tasks/${taskId}`, updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/tasks`] });
@@ -762,9 +748,7 @@ function TasksTab({ operationId, tasks, employees, users }: {
 
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
-      return apiRequest(`/api/operations/${operationId}/tasks/${taskId}`, {
-        method: 'DELETE',
-      });
+      return apiRequest('DELETE', `/api/operations/${operationId}/tasks/${taskId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/tasks`] });
