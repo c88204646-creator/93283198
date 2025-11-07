@@ -10,6 +10,7 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -226,6 +227,73 @@ function TaskCard({
   );
 }
 
+function DroppableColumn({
+  column,
+  tasks,
+  employees,
+  users,
+  onEditTask,
+  onDeleteTask,
+}: {
+  column: KanbanColumn;
+  tasks: OperationTask[];
+  employees: Employee[];
+  users: User[];
+  onEditTask: (task: OperationTask) => void;
+  onDeleteTask: (taskId: string) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: column.id,
+  });
+
+  const Icon = column.icon;
+
+  return (
+    <div className="flex flex-col w-80 min-h-[500px]">
+      {/* Column Header */}
+      <div className={`${column.bgColor} ${column.color} rounded-t-lg p-3 flex items-center justify-between`}>
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4" />
+          <span className="font-semibold text-sm">{column.title}</span>
+        </div>
+        <Badge variant="secondary" className="bg-white/20">
+          {tasks.length}
+        </Badge>
+      </div>
+
+      {/* Droppable Column Area */}
+      <div
+        ref={setNodeRef}
+        className={`flex-1 bg-muted/30 rounded-b-lg p-3 overflow-y-auto transition-colors ${
+          isOver ? "bg-primary/10 ring-2 ring-primary" : ""
+        }`}
+        style={{ minHeight: "200px" }}
+        data-testid={`kanban-column-${column.id}`}
+      >
+        <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          {tasks.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground">
+              <Icon className="w-8 h-8 mb-2 opacity-30" />
+              <p className="text-xs">No hay tareas</p>
+            </div>
+          ) : (
+            tasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                employees={employees}
+                users={users}
+                onEdit={() => onEditTask(task)}
+                onDelete={() => onDeleteTask(task.id)}
+              />
+            ))
+          )}
+        </SortableContext>
+      </div>
+    </div>
+  );
+}
+
 export function TaskKanban({
   operationId,
   tasks,
@@ -275,12 +343,12 @@ export function TaskKanban({
     const activeTask = tasks.find((t) => t.id === active.id);
     if (!activeTask) return;
 
-    // Check if dropped on a column
-    const overColumn = KANBAN_COLUMNS.find((col) => over.id === col.id);
-    if (overColumn && activeTask.status !== overColumn.id) {
+    const targetStatus = over.id as KanbanStatus;
+    
+    if (KANBAN_COLUMNS.find((col) => col.id === targetStatus) && activeTask.status !== targetStatus) {
       updateTaskStatusMutation.mutate({
         taskId: activeTask.id,
-        status: overColumn.id,
+        status: targetStatus,
       });
     }
 
@@ -323,52 +391,17 @@ export function TaskKanban({
       >
         <div className="overflow-x-auto pb-4">
           <div className="flex gap-4 min-w-max">
-            {KANBAN_COLUMNS.map((column) => {
-              const columnTasks = getTasksByStatus(column.id);
-              const Icon = column.icon;
-
-              return (
-                <div key={column.id} className="flex flex-col w-80 min-h-[500px]">
-                  {/* Column Header */}
-                  <div className={`${column.bgColor} ${column.color} rounded-t-lg p-3 flex items-center justify-between`}>
-                    <div className="flex items-center gap-2">
-                      <Icon className="w-4 h-4" />
-                      <span className="font-semibold text-sm">{column.title}</span>
-                    </div>
-                    <Badge variant="secondary" className="bg-white/20">
-                      {columnTasks.length}
-                    </Badge>
-                  </div>
-
-                  {/* Droppable Column Area */}
-                  <div
-                    id={column.id}
-                    className="flex-1 bg-muted/30 rounded-b-lg p-3 overflow-y-auto"
-                    style={{ minHeight: "200px" }}
-                  >
-                    <SortableContext items={columnTasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-                      {columnTasks.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-32 text-center text-muted-foreground">
-                          <Icon className="w-8 h-8 mb-2 opacity-30" />
-                          <p className="text-xs">No hay tareas</p>
-                        </div>
-                      ) : (
-                        columnTasks.map((task) => (
-                          <TaskCard
-                            key={task.id}
-                            task={task}
-                            employees={employees}
-                            users={users}
-                            onEdit={() => onEditTask(task)}
-                            onDelete={() => onDeleteTask(task.id)}
-                          />
-                        ))
-                    )}
-                  </SortableContext>
-                </div>
-              </div>
-            );
-          })}
+            {KANBAN_COLUMNS.map((column) => (
+              <DroppableColumn
+                key={column.id}
+                column={column}
+                tasks={getTasksByStatus(column.id)}
+                employees={employees}
+                users={users}
+                onEditTask={onEditTask}
+                onDeleteTask={onDeleteTask}
+              />
+            ))}
           </div>
         </div>
 

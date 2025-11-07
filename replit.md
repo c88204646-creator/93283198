@@ -104,7 +104,7 @@ Design preference: Logistics-focused iconography and terminology.
 
 ### Recent Changes
 
-**November 7, 2025 - AI System Enhancements**
+**November 7, 2025 - AI System Enhancements & Kanban Board Fix**
 - **Enhanced AI Task/Note Generation**:
   - Improved prompts to generate professional, descriptive notes (minimum 100 characters) with full context
   - Implemented intelligent task deduplication to prevent creating similar tasks from email threads
@@ -113,6 +113,12 @@ Design preference: Logistics-focused iconography and terminology.
   - Implemented rate limiting (2s delay between calls) and retry logic with exponential backoff (3 attempts) to handle Gemini API 429 errors
   - Status updates: AI can now update existing task statuses (completed/overdue) based on email evidence
   - Tasks created with appropriate initial status (pending/overdue/completed) based on AI analysis
+- **Kanban Board Fix**:
+  - Fixed drag-and-drop task status persistence issue in TaskKanban component
+  - Implemented `useDroppable` hook to properly register columns as droppable areas
+  - Created dedicated `DroppableColumn` component for better drop zone detection
+  - Added visual feedback (border highlight) when dragging tasks over columns
+  - Task status now correctly updates and persists when dragged between columns
 - **System Improvements**:
   - Fixed Gmail sync stuck in "syncing" state by changing final status to "idle" instead of "completed"
   - Implemented periodic email linking (runs every 15 minutes after Gmail sync)
