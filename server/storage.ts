@@ -7,6 +7,7 @@ import {
   operationEmployees, gmailAccounts, gmailMessages, gmailAttachments, calendarEvents,
   automationConfigs, automationRules, automationLogs, operationNotes, operationTasks,
   operationFolders, operationFiles, operationAnalyses, bankAccountAnalyses, knowledgeBase, chatConversations, chatMessages,
+  financialSuggestions,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Employee, type InsertEmployee,
@@ -38,6 +39,7 @@ import {
   type KnowledgeBase, type InsertKnowledgeBase,
   type ChatConversation, type InsertChatConversation,
   type ChatMessage, type InsertChatMessage,
+  type FinancialSuggestion, type InsertFinancialSuggestion,
 } from "@shared/schema";
 
 export interface IStorage {
@@ -269,6 +271,16 @@ export interface IStorage {
   createChatMessage(conversationId: string, role: 'user' | 'assistant', content: string, metadata?: any): Promise<ChatMessage>;
   getChatMessages(conversationId: string, limit?: number): Promise<ChatMessage[]>;
   archiveChatConversation(conversationId: string): Promise<void>;
+
+  // Financial Suggestions methods
+  getFinancialSuggestions(operationId: string, status?: string): Promise<FinancialSuggestion[]>;
+  getAllPendingFinancialSuggestions(): Promise<FinancialSuggestion[]>;
+  getFinancialSuggestion(id: string): Promise<FinancialSuggestion | undefined>;
+  createFinancialSuggestion(suggestion: InsertFinancialSuggestion): Promise<FinancialSuggestion>;
+  updateFinancialSuggestion(id: string, updateData: Partial<InsertFinancialSuggestion>): Promise<FinancialSuggestion | undefined>;
+  approveFinancialSuggestion(id: string, userId: string): Promise<FinancialSuggestion | undefined>;
+  rejectFinancialSuggestion(id: string, userId: string, reason: string): Promise<FinancialSuggestion | undefined>;
+  deleteFinancialSuggestion(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1289,6 +1301,78 @@ export class DatabaseStorage implements IStorage {
     await db.update(chatConversations)
       .set({ status: 'archived' })
       .where(eq(chatConversations.id, conversationId));
+  }
+
+  // Financial Suggestions methods
+  async getFinancialSuggestions(operationId: string, status?: string): Promise<FinancialSuggestion[]> {
+    const conditions = [eq(financialSuggestions.operationId, operationId)];
+    if (status) {
+      conditions.push(eq(financialSuggestions.status, status));
+    }
+    return db.select()
+      .from(financialSuggestions)
+      .where(and(...conditions))
+      .orderBy(desc(financialSuggestions.createdAt));
+  }
+
+  async getAllPendingFinancialSuggestions(): Promise<FinancialSuggestion[]> {
+    return db.select()
+      .from(financialSuggestions)
+      .where(eq(financialSuggestions.status, 'pending'))
+      .orderBy(desc(financialSuggestions.createdAt));
+  }
+
+  async getFinancialSuggestion(id: string): Promise<FinancialSuggestion | undefined> {
+    const [suggestion] = await db.select()
+      .from(financialSuggestions)
+      .where(eq(financialSuggestions.id, id));
+    return suggestion;
+  }
+
+  async createFinancialSuggestion(suggestion: InsertFinancialSuggestion): Promise<FinancialSuggestion> {
+    const [newSuggestion] = await db.insert(financialSuggestions)
+      .values(suggestion)
+      .returning();
+    return newSuggestion;
+  }
+
+  async updateFinancialSuggestion(id: string, updateData: Partial<InsertFinancialSuggestion>): Promise<FinancialSuggestion | undefined> {
+    const [updated] = await db.update(financialSuggestions)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(financialSuggestions.id, id))
+      .returning();
+    return updated;
+  }
+
+  async approveFinancialSuggestion(id: string, userId: string): Promise<FinancialSuggestion | undefined> {
+    const [approved] = await db.update(financialSuggestions)
+      .set({
+        status: 'approved',
+        reviewedById: userId,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(financialSuggestions.id, id))
+      .returning();
+    return approved;
+  }
+
+  async rejectFinancialSuggestion(id: string, userId: string, reason: string): Promise<FinancialSuggestion | undefined> {
+    const [rejected] = await db.update(financialSuggestions)
+      .set({
+        status: 'rejected',
+        reviewedById: userId,
+        reviewedAt: new Date(),
+        rejectionReason: reason,
+        updatedAt: new Date(),
+      })
+      .where(eq(financialSuggestions.id, id))
+      .returning();
+    return rejected;
+  }
+
+  async deleteFinancialSuggestion(id: string): Promise<void> {
+    await db.delete(financialSuggestions).where(eq(financialSuggestions.id, id));
   }
 }
 

@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import pdf from "pdf-parse";
+import * as pdfParse from "pdf-parse";
 import type { InsertFinancialSuggestion } from "@shared/schema";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -22,7 +22,7 @@ export class FinancialDetectionService {
 
   async extractTextFromPDF(buffer: Buffer): Promise<string> {
     try {
-      const data = await pdf(buffer);
+      const data = await pdfParse(buffer);
       return data.text;
     } catch (error) {
       console.error("[Financial Detection] Error extracting text from PDF:", error);
