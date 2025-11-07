@@ -70,6 +70,8 @@ export class SmartGeminiService {
   private cacheTTL = 1000 * 60 * 30; // 30 minutos
   private optimizationLevel: 'high' | 'medium' | 'low' = 'high';
   private minConfidenceThreshold = 60; // Solo crear si confianza > 60%
+  private lastApiCallTime: number = 0;
+  private minDelayBetweenCalls: number = 2000; // 2 segundos entre llamadas
 
   constructor() {
     this.model = genAI.getGenerativeModel({ 
@@ -296,8 +298,64 @@ INSTRUCCIONES CRÍTICAS:
 7. Solo devuelve tareas/notas con confianza > ${this.minConfidenceThreshold}%`;
 
     try {
-      const result = await this.model.generateContent(prompt);
-      const text = result.response.text();
+      // Rate limiting: esperar el delay mínimo entre llamadas
+      const now = Date.now();
+      const timeSinceLastCall = now - this.lastApiCallTime;
+      if (timeSinceLastCall < this.minDelayBetweenCalls) {
+        const delayNeeded = this.minDelayBetweenCalls - timeSinceLastCall;
+        console.log(`[Smart Gemini] ⏳ Rate limiting: waiting ${delayNeeded}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delayNeeded));
+      }
+      
+      // Retry logic con exponential backoff
+      let lastError;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          this.lastApiCallTime = Date.now();
+          const result = await this.model.generateContent(prompt);
+          const text = result.response.text();
+          
+          // Si llegamos aquí, la llamada fue exitosa
+          return await this.processGeminiResponse(text, threadHash);
+          
+        } catch (error: any) {
+          lastError = error;
+          
+          // Si es error 429 (rate limit), esperar más tiempo
+          if (error.status === 429) {
+            const backoffDelay = Math.min(5000 * Math.pow(2, attempt - 1), 30000); // Max 30 segundos
+            console.log(`[Smart Gemini] ⚠️  Rate limited (429), retrying in ${backoffDelay}ms... (attempt ${attempt}/3)`);
+            if (attempt < 3) {
+              await new Promise(resolve => setTimeout(resolve, backoffDelay));
+              continue;
+            }
+          }
+          
+          // Si es otro error, no reintentar
+          throw error;
+        }
+      }
+      
+      // Si agotamos los reintentos, lanzar el último error
+      throw lastError;
+      
+    } catch (error) {
+      console.error('[Smart Gemini] ❌ Error calling Gemini:', error);
+      return {
+        tasks: [],
+        notes: [],
+        shouldSkip: true,
+        cacheKey: threadHash,
+        usedCache: false
+      };
+    }
+  }
+  
+  /**
+   * Procesa la respuesta de Gemini y extrae tareas/notas
+   */
+  private async processGeminiResponse(text: string, threadHash: string): Promise<AnalysisResult> {
+    try {
       
       // Limpiar markdown si existe
       const jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -333,14 +391,8 @@ INSTRUCCIONES CRÍTICAS:
       return analysisResult;
       
     } catch (error) {
-      console.error('[Smart Gemini] ❌ Error calling Gemini:', error);
-      return {
-        tasks: [],
-        notes: [],
-        shouldSkip: true,
-        cacheKey: threadHash,
-        usedCache: false
-      };
+      console.error('[Smart Gemini] ❌ Error processing Gemini response:', error);
+      throw error;
     }
   }
 

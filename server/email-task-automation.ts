@@ -130,7 +130,7 @@ export class EmailTaskAutomation {
               title: taskSuggestion.title,
               description: taskSuggestion.description,
               priority: taskSuggestion.priority,
-              status: 'pending',
+              status: taskSuggestion.suggestedStatus || 'pending',
               createdById: userId,
               order: existingTasks.length + totalTasksCreated,
               createdAutomatically: true,
@@ -184,9 +184,45 @@ export class EmailTaskAutomation {
           }
         }
       }
+      
+      // 7. Procesar actualizaciones de estatus si está habilitado
+      if (analysis.statusUpdates && analysis.statusUpdates.length > 0) {
+        for (const statusUpdate of analysis.statusUpdates) {
+          try {
+            // Buscar la tarea existente por título
+            const taskToUpdate = existingTasks.find(t => 
+              t.title.toLowerCase().includes(statusUpdate.taskTitle.toLowerCase().substring(0, 20)) ||
+              statusUpdate.taskTitle.toLowerCase().includes(t.title.toLowerCase().substring(0, 20))
+            );
+            
+            if (!taskToUpdate) {
+              console.log(`[Email Task Automation] ⚠️  Task not found for status update: ${statusUpdate.taskTitle}`);
+              continue;
+            }
+            
+            // Respetar tareas modificadas manualmente
+            if (taskToUpdate.modifiedManually) {
+              console.log(`[Email Task Automation] 🔒 Respecting manually modified task: ${taskToUpdate.title}`);
+              continue;
+            }
+            
+            // Actualizar estatus solo si cambió
+            if (taskToUpdate.status !== statusUpdate.newStatus) {
+              await storage.updateOperationTask(taskToUpdate.id, {
+                status: statusUpdate.newStatus,
+                aiSuggestion: `Auto-actualizado: ${statusUpdate.reasoning}`
+              });
+              console.log(`[Email Task Automation] ✅ Updated task status: "${taskToUpdate.title}" → ${statusUpdate.newStatus}`);
+            }
+            
+          } catch (error) {
+            console.error('[Email Task Automation] Error updating task status:', error);
+          }
+        }
+      }
     }
     
-    // 7. Limpiar caché antigua periódicamente
+    // 8. Limpiar caché antigua periódicamente
     smartGeminiService.clearOldCache();
     
     const stats = smartGeminiService.getStats();
