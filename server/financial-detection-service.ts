@@ -101,7 +101,7 @@ export class FinancialDetectionService {
 
   async extractTextFromPDF(buffer: Buffer): Promise<string> {
     try {
-      const data = await pdfParse(buffer);
+      const data = await (pdfParse as any)(buffer);
       return data.text;
     } catch (error) {
       console.error("[Financial Detection] Error extracting text from PDF:", error);

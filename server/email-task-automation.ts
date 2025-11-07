@@ -320,12 +320,12 @@ export class EmailTaskAutomation {
     for (const attachment of pdfAttachments) {
       try {
         // Descargar el archivo de B2
-        if (!attachment.b2FileKey) {
+        if (!attachment.b2Key) {
           console.log(`[Financial Detection] ⚠️  No B2 key for attachment ${attachment.filename}`);
           continue;
         }
 
-        const fileBuffer = await backblazeStorage.downloadFile(attachment.b2FileKey);
+        const fileBuffer = await backblazeStorage.downloadFile(attachment.b2Key);
         
         // Calcular hash del archivo para detección de duplicados
         const attachmentHash = this.financialDetectionService.calculateFileHash(fileBuffer);
@@ -352,7 +352,7 @@ export class EmailTaskAutomation {
         const { transactions: detectedTransactions, method } = await this.financialDetectionService.detectWithFallback(
           fileBuffer,
           attachment.filename,
-          attachment.b2FileKey,
+          attachment.b2Key,
           detectionType,
           operation ? {
             operationId: operation.id,

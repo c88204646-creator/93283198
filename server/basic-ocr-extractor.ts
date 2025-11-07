@@ -53,12 +53,23 @@ export class BasicOCRExtractor {
     ],
   };
 
-  async extractFromPDF(pdfPath: string): Promise<ExtractionResult> {
+  async extractFromPDF(pdfPathOrBuffer: string | Buffer): Promise<ExtractionResult> {
     try {
-      console.log('[OCR Extractor] Processing PDF:', path.basename(pdfPath));
-      
-      // Check if file exists
-      await fs.access(pdfPath);
+      let tempFilePath: string | null = null;
+      let pdfPath: string;
+
+      // If Buffer, write to temp file
+      if (Buffer.isBuffer(pdfPathOrBuffer)) {
+        tempFilePath = path.join('/tmp', `ocr-temp-${Date.now()}.pdf`);
+        await fs.writeFile(tempFilePath, pdfPathOrBuffer);
+        pdfPath = tempFilePath;
+        console.log('[OCR Extractor] Processing PDF from buffer');
+      } else {
+        pdfPath = pdfPathOrBuffer;
+        console.log('[OCR Extractor] Processing PDF:', path.basename(pdfPath));
+        // Check if file exists
+        await fs.access(pdfPath);
+      }
       
       // Read PDF and convert to text using Tesseract
       const { data: { text } } = await Tesseract.recognize(
@@ -86,6 +97,15 @@ export class BasicOCRExtractor {
         fields: Object.keys(extractedData).length,
       });
 
+      // Clean up temp file if created
+      if (tempFilePath) {
+        try {
+          await fs.unlink(tempFilePath);
+        } catch (cleanupError) {
+          console.warn('[OCR Extractor] Failed to cleanup temp file:', cleanupError);
+        }
+      }
+
       return {
         data: extractedData,
         confidence,
@@ -93,6 +113,14 @@ export class BasicOCRExtractor {
         rawText: text.substring(0, 500), // First 500 chars for debugging
       };
     } catch (error) {
+      // Clean up temp file if created
+      if (tempFilePath) {
+        try {
+          await fs.unlink(tempFilePath);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
       console.error('[OCR Extractor] Error:', error);
       throw error;
     }
