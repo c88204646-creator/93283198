@@ -258,7 +258,7 @@ export default function OperationDetail() {
 
         {/* Tabs mejorados */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 h-auto p-1 bg-muted/50 backdrop-blur-sm rounded-xl">
+          <TabsList className="grid w-full grid-cols-9 h-auto p-1 bg-muted/50 backdrop-blur-sm rounded-xl">
             <TabsTrigger 
               value="info" 
               data-testid="tab-info"
@@ -266,6 +266,14 @@ export default function OperationDetail() {
             >
               <Package className="w-4 h-4 mr-2" />
               <span className="font-medium">Información</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="client" 
+              data-testid="tab-client"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
+            >
+              <UserIcon className="w-4 h-4 mr-2" />
+              <span className="font-medium">Cliente</span>
             </TabsTrigger>
             <TabsTrigger 
               value="notes" 
@@ -282,6 +290,30 @@ export default function OperationDetail() {
             >
               <CheckSquare className="w-4 h-4 mr-2" />
               <span className="font-medium">Tareas</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="payments" 
+              data-testid="tab-payments"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
+            >
+              <DollarSign className="w-4 h-4 mr-2" />
+              <span className="font-medium">Pagos</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="invoices" 
+              data-testid="tab-invoices"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              <span className="font-medium">Facturas</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="expenses" 
+              data-testid="tab-expenses"
+              className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
+            >
+              <DollarSign className="w-4 h-4 mr-2" />
+              <span className="font-medium">Gastos</span>
             </TabsTrigger>
             <TabsTrigger 
               value="files" 
@@ -305,12 +337,28 @@ export default function OperationDetail() {
             <InformationTab operation={operation} client={client} employees={employees} />
           </TabsContent>
 
+          <TabsContent value="client" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
+            <ClientTab operation={operation} client={client} />
+          </TabsContent>
+
           <TabsContent value="notes" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
             <NotesTab operationId={id!} notes={notes} users={users} />
           </TabsContent>
 
           <TabsContent value="tasks" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
             <TasksTab operationId={id!} tasks={tasks} employees={employees} users={users} />
+          </TabsContent>
+
+          <TabsContent value="payments" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
+            <PaymentsTab operationId={id!} />
+          </TabsContent>
+
+          <TabsContent value="invoices" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
+            <InvoicesTab operationId={id!} />
+          </TabsContent>
+
+          <TabsContent value="expenses" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
+            <ExpensesTab operationId={id!} />
           </TabsContent>
 
           <TabsContent value="files" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
@@ -2280,5 +2328,149 @@ function FilesTab({ operationId }: { operationId: string }) {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// Client Tab - Muestra información del cliente (readonly, reutiliza UI del módulo de clientes)
+function ClientTab({ operation, client }: { operation: Operation; client?: Client }) {
+  if (!client) {
+    return (
+      <Card>
+        <CardContent className="text-center py-12">
+          <UserIcon className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+          <p className="text-muted-foreground">No hay cliente asignado a esta operación</p>
+          <p className="text-sm text-muted-foreground mt-2">Edita la operación para asignar un cliente</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="overflow-hidden border-primary/20">
+        <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent">
+          <CardTitle className="flex items-center gap-2">
+            <UserIcon className="w-5 h-5 text-primary" />
+            {client.name}
+          </CardTitle>
+          <CardDescription>Información del cliente</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <Label className="text-xs text-muted-foreground">Email</Label>
+              <p className="font-medium">{client.email}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Teléfono</Label>
+              <p className="font-medium">{client.phone || 'N/A'}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Dirección</Label>
+              <p className="font-medium">{client.address || 'N/A'}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Moneda</Label>
+              <p className="font-medium">{client.currency}</p>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Estado</Label>
+              <Badge className={
+                client.status === 'active' ? 'bg-green-100 text-green-800' :
+                client.status === 'inactive' ? 'bg-red-100 text-red-800' :
+                'bg-yellow-100 text-yellow-800'
+              }>
+                {client.status}
+              </Badge>
+            </div>
+            {client.notes && (
+              <div className="md:col-span-2">
+                <Label className="text-xs text-muted-foreground">Notas</Label>
+                <p className="font-medium text-sm">{client.notes}</p>
+              </div>
+            )}
+          </div>
+          <Separator className="my-4" />
+          <div className="text-sm text-muted-foreground">
+            <p>Para editar este cliente, ve al módulo de Clientes</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Payments Tab - Gestión de pagos
+function PaymentsTab({ operationId }: { operationId: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <DollarSign className="w-5 h-5 text-primary" />
+          Pagos de la Operación
+        </CardTitle>
+        <CardDescription>Gestiona los pagos vinculados a esta operación</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="text-center py-12">
+          <DollarSign className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+          <p className="text-muted-foreground mb-4">No hay pagos registrados</p>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Agregar Pago
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Invoices Tab - Gestión de facturas
+function InvoicesTab({ operationId }: { operationId: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="w-5 h-5 text-primary" />
+          Facturas de la Operación
+        </CardTitle>
+        <CardDescription>Gestiona las facturas vinculadas a esta operación</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="text-center py-12">
+          <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+          <p className="text-muted-foreground mb-4">No hay facturas registradas</p>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Crear Factura
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Expenses Tab - Gestión de gastos
+function ExpensesTab({ operationId }: { operationId: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <DollarSign className="w-5 h-5 text-primary" />
+          Gastos de la Operación
+        </CardTitle>
+        <CardDescription>Gestiona los gastos vinculados a esta operación</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="text-center py-12">
+          <DollarSign className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+          <p className="text-muted-foreground mb-4">No hay gastos registrados</p>
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Agregar Gasto
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

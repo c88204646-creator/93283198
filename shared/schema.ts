@@ -180,7 +180,8 @@ export const proposalItems = pgTable("proposal_items", {
 // Payments table
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  invoiceId: varchar("invoice_id").notNull().references(() => invoices.id, { onDelete: "cascade" }),
+  invoiceId: varchar("invoice_id").references(() => invoices.id, { onDelete: "cascade" }),
+  operationId: varchar("operation_id").references(() => operations.id, { onDelete: "set null" }),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
   paymentDate: timestamp("payment_date").notNull(),
   paymentMethod: text("payment_method").notNull(), // cash, transfer, check, card, other
