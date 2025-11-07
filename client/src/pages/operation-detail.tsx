@@ -223,11 +223,11 @@ export default function OperationDetail() {
 
               {/* Contenido principal */}
               <div className="flex-1 space-y-3 w-full min-w-0">
-                {/* Fila superior: Icono, Título y badges */}
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                {/* Fila superior: Icono, Título y badges - Compacto */}
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
                     {/* Icono logístico según tipo de operación */}
-                    <div className="shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 p-2.5 shadow-lg flex items-center justify-center">
+                    <div className="shrink-0 w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 p-2 shadow-md flex items-center justify-center">
                       {operation.operationType?.toLowerCase() === 'air' ? (
                         <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M3 18L9 12L3 6L4 5L13 11V3L14 2L16 4L18 6L16 7L14 9V17L4 19L3 18Z" fill="currentColor"/>
@@ -733,51 +733,52 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
   }, [notes]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-20rem)]">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {/* Formulario de nueva nota a la izquierda */}
       <div className="lg:col-span-1">
-        <Card className="border-primary/20 shadow-md hover:shadow-lg transition-shadow h-full">
-          <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Plus className="w-5 h-5 text-primary" />
+        <Card className="border-primary/20 shadow-md hover:shadow-lg transition-shadow">
+          <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Plus className="w-4 h-4 text-primary" />
               Nueva Nota
             </CardTitle>
-            <CardDescription>Agrega una nota o comentario importante</CardDescription>
+            <CardDescription className="text-xs">Agrega una nota o comentario importante</CardDescription>
           </CardHeader>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
+          <CardContent className="pt-4">
+            <div className="space-y-3">
               <div className="relative">
                 <Textarea
-                  placeholder="Escribe tu nota aquí... Puedes incluir detalles importantes, actualizaciones o recordatorios."
+                  placeholder="Escribe tu nota aquí..."
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
-                  rows={8}
+                  rows={6}
                   data-testid="input-new-note"
-                  className="resize-none focus:ring-2 focus:ring-primary/20 transition-all"
+                  className="resize-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
                 />
-                <div className="absolute bottom-3 right-3 text-xs text-muted-foreground">
+                <div className="absolute bottom-2 right-2 text-[10px] text-muted-foreground">
                   {newNote.length} caracteres
                 </div>
               </div>
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5" />
+              <div className="space-y-2">
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
                   La nota se guardará con la fecha y hora actual
                 </p>
                 <Button
                   onClick={handleCreateNote}
                   disabled={createNoteMutation.isPending || !newNote.trim()}
                   data-testid="button-create-note"
-                  className="w-full"
+                  className="w-full h-9"
+                  size="sm"
                 >
                   {createNoteMutation.isPending ? (
                     <>
-                      <Clock className="w-4 h-4 mr-2 animate-spin" />
+                      <Clock className="w-3.5 h-3.5 mr-2 animate-spin" />
                       Guardando...
                     </>
                   ) : (
                     <>
-                      <Plus className="w-4 h-4 mr-2" />
+                      <Plus className="w-3.5 h-3.5 mr-2" />
                       Agregar Nota
                     </>
                   )}
@@ -790,17 +791,17 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
 
       {/* Timeline de notas a la derecha con scroll */}
       <div className="lg:col-span-2">
-        <Card className="h-full flex flex-col">
-          <CardHeader className="bg-muted/30 border-b flex-shrink-0">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <FileText className="w-5 h-5 text-primary" />
+        <Card className="border-primary/20 shadow-md">
+          <CardHeader className="bg-muted/30 border-b pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="w-4 h-4 text-primary" />
               Timeline de Notas
             </CardTitle>
-            <CardDescription>{notes.length} nota{notes.length !== 1 ? 's' : ''} registrada{notes.length !== 1 ? 's' : ''}</CardDescription>
+            <CardDescription className="text-xs">{notes.length} nota{notes.length !== 1 ? 's' : ''} registrada{notes.length !== 1 ? 's' : ''}</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 overflow-hidden p-0">
-            <ScrollArea className="h-full">
-              <div className="p-6 space-y-6">
+          <CardContent className="p-0">
+            <ScrollArea className="h-[calc(100vh-24rem)]">
+              <div className="p-4 space-y-4">
                 {notes.length === 0 ? (
                   <div className="py-16 text-center">
                     <div className="w-20 h-20 rounded-full bg-muted/30 mx-auto mb-4 flex items-center justify-center">
@@ -814,20 +815,20 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
                 ) : (
                   <div className="space-y-8">
                     {Object.entries(groupedNotes).map(([dateGroup, groupNotes]) => (
-                      <div key={dateGroup} className="space-y-4">
-                        {/* Encabezado de fecha */}
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
-                            <Calendar className="w-4 h-4 text-primary" />
-                            <span className="text-sm font-semibold text-primary">{dateGroup}</span>
+                      <div key={dateGroup} className="space-y-3">
+                        {/* Encabezado de fecha - Compacto */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5 bg-primary/10 px-3 py-1 rounded-full">
+                            <Calendar className="w-3 h-3 text-primary" />
+                            <span className="text-xs font-semibold text-primary">{dateGroup}</span>
                           </div>
                           <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent"></div>
                         </div>
 
-                        {/* Timeline de notas del grupo */}
-                        <div className="relative pl-8 space-y-6">
+                        {/* Timeline de notas del grupo - Compacto */}
+                        <div className="relative pl-6 space-y-3">
                           {/* Línea vertical del timeline */}
-                          <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/40 via-primary/20 to-transparent"></div>
+                          <div className="absolute left-2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/40 via-primary/20 to-transparent"></div>
 
                           {groupNotes.map((note, index) => {
                             const user = users.find(u => u.id === note.userId);
@@ -836,61 +837,61 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
 
                             return (
                               <div key={note.id} className="relative group" data-testid={`card-note-${note.id}`}>
-                                {/* Punto del timeline */}
-                                <div className={`absolute -left-[30px] top-2 w-4 h-4 rounded-full border-2 ${
+                                {/* Punto del timeline - Más pequeño */}
+                                <div className={`absolute -left-[22px] top-1.5 w-3 h-3 rounded-full border-2 ${
                                   isAutomated 
-                                    ? 'bg-blue-500 border-blue-300 shadow-lg shadow-blue-500/50' 
-                                    : 'bg-primary border-primary/30 shadow-lg shadow-primary/30'
+                                    ? 'bg-blue-500 border-blue-300 shadow-md shadow-blue-500/50' 
+                                    : 'bg-primary border-primary/30 shadow-md shadow-primary/30'
                                 }`}>
                                   {isAutomated && (
                                     <div className="absolute inset-0 flex items-center justify-center">
-                                      <Zap className="w-2.5 h-2.5 text-white" />
+                                      <Zap className="w-2 h-2 text-white" />
                                     </div>
                                   )}
                                 </div>
 
-                                <Card className={`transition-all hover:shadow-md ${
+                                <Card className={`transition-all hover:shadow-sm ${
                                   isAutomated 
                                     ? 'border-blue-200 bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-950/20 dark:border-blue-800' 
                                     : 'border-border hover:border-primary/30'
                                 }`}>
-                                  <CardHeader className="pb-3">
-                                    <div className="flex items-start justify-between gap-4">
-                                      {/* Info del usuario y hora */}
-                                      <div className="flex items-center gap-3 flex-1">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                                  <CardHeader className="pb-2 pt-3 px-3">
+                                    <div className="flex items-start justify-between gap-3">
+                                      {/* Info del usuario y hora - Compacto */}
+                                      <div className="flex items-center gap-2 flex-1">
+                                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                                           isAutomated 
                                             ? 'bg-blue-500 text-white' 
                                             : 'bg-primary/10 text-primary'
                                         }`}>
                                           {isAutomated ? (
-                                            <Zap className="w-5 h-5" />
+                                            <Zap className="w-3.5 h-3.5" />
                                           ) : (
                                             (user?.username || 'U').charAt(0).toUpperCase()
                                           )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-2 mb-1">
-                                            <span className="font-semibold text-sm" data-testid={`text-note-user-${note.id}`}>
+                                          <div className="flex items-center gap-1.5 mb-0.5">
+                                            <span className="font-semibold text-xs truncate" data-testid={`text-note-user-${note.id}`}>
                                               {isAutomated ? 'Sistema Automático' : (user?.username || 'Usuario')}
                                             </span>
                                             {isAutomated && (
-                                              <Badge variant="outline" className="text-xs bg-blue-500/10 border-blue-500/20 text-blue-700 dark:text-blue-300">
-                                                <Zap className="w-3 h-3 mr-1" />
-                                                Automático
+                                              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-500/10 border-blue-500/20 text-blue-700 dark:text-blue-300">
+                                                <Zap className="w-2.5 h-2.5 mr-0.5" />
+                                                Auto
                                               </Badge>
                                             )}
                                           </div>
-                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <Clock className="w-3 h-3" />
+                                          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                            <Clock className="w-2.5 h-2.5" />
                                             {format(new Date(note.createdAt), "HH:mm 'hrs'", { locale: es })}
                                           </div>
                                         </div>
                                       </div>
 
-                                      {/* Botones de acción - Siempre visibles en hover del grupo */}
+                                      {/* Botones de acción - Compactos */}
                                       {!isEditing && !isAutomated && (
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                           <Button
                                             variant="ghost"
                                             size="sm"
@@ -899,9 +900,9 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
                                               startEdit(note);
                                             }}
                                             data-testid={`button-edit-note-${note.id}`}
-                                            className="h-8 w-8 p-0"
+                                            className="h-6 w-6 p-0"
                                           >
-                                            <Edit2 className="w-3.5 h-3.5" />
+                                            <Edit2 className="w-3 h-3" />
                                           </Button>
                                           <Button
                                             variant="ghost"
@@ -911,30 +912,31 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
                                               handleDeleteNote(note.id);
                                             }}
                                             data-testid={`button-delete-note-${note.id}`}
-                                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                                           >
-                                            <Trash2 className="w-3.5 h-3.5" />
+                                            <Trash2 className="w-3 h-3" />
                                           </Button>
                                         </div>
                                       )}
                                     </div>
                                   </CardHeader>
-                                  <CardContent>
+                                  <CardContent className="px-3 pb-3">
                                     {isEditing ? (
-                                      <div className="space-y-3">
+                                      <div className="space-y-2">
                                         <Textarea
                                           value={editContent}
                                           onChange={(e) => setEditContent(e.target.value)}
-                                          rows={4}
+                                          rows={3}
                                           data-testid={`input-edit-note-${note.id}`}
-                                          className="resize-none"
+                                          className="resize-none text-xs"
                                         />
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-1.5">
                                           <Button
                                             size="sm"
                                             onClick={() => handleUpdateNote(note.id)}
                                             disabled={updateNoteMutation.isPending}
                                             data-testid={`button-save-note-${note.id}`}
+                                            className="h-7 text-xs"
                                           >
                                             {updateNoteMutation.isPending ? 'Guardando...' : 'Guardar'}
                                           </Button>
@@ -943,20 +945,21 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
                                             variant="outline"
                                             onClick={cancelEdit}
                                             data-testid={`button-cancel-note-${note.id}`}
+                                            className="h-7 text-xs"
                                           >
                                             Cancelar
                                           </Button>
                                         </div>
                                       </div>
                                     ) : (
-                                      <div className="space-y-3">
-                                        <p className="whitespace-pre-wrap leading-relaxed text-sm" data-testid={`text-note-content-${note.id}`}>
+                                      <div className="space-y-2">
+                                        <p className="whitespace-pre-wrap leading-relaxed text-xs" data-testid={`text-note-content-${note.id}`}>
                                           {note.content}
                                         </p>
                                         {isAutomated && note.aiConfidence && (
-                                          <div className="flex items-center gap-2 pt-2 border-t text-xs text-muted-foreground">
+                                          <div className="flex items-center gap-1.5 pt-1.5 border-t text-[10px] text-muted-foreground">
                                             <span>Confianza IA:</span>
-                                            <div className="flex-1 max-w-[200px] h-2 bg-muted rounded-full overflow-hidden">
+                                            <div className="flex-1 max-w-[150px] h-1.5 bg-muted rounded-full overflow-hidden">
                                               <div 
                                                 className="h-full bg-blue-500 transition-all" 
                                                 style={{ width: `${note.aiConfidence}%` }}
