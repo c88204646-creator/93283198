@@ -102,7 +102,7 @@ export class FinancialDetectionService {
   async extractTextFromPDF(buffer: Buffer): Promise<string> {
     try {
       const require = createRequire(import.meta.url);
-      const pdfParse = require('pdf-parse');
+      const pdfParse = require('pdf-parse/lib/pdf-parse.js');
       
       const data = await pdfParse(buffer);
       return data.text;
