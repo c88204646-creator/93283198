@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import * as pdfParse from "pdf-parse";
 import { createHash } from "crypto";
 import type { InsertFinancialSuggestion } from "@shared/schema";
 import { db } from "./db";
@@ -7,6 +6,7 @@ import { financialSuggestions } from "@shared/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { CircuitBreaker } from "./circuit-breaker";
 import { BasicOCRExtractor } from "./basic-ocr-extractor";
+import { createRequire } from 'module';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const circuitBreaker = new CircuitBreaker("gemini-financial-detection");
@@ -101,7 +101,28 @@ export class FinancialDetectionService {
 
   async extractTextFromPDF(buffer: Buffer): Promise<string> {
     try {
-      const data = await (pdfParse as any)(buffer);
+      // pdf-parse exports its parser as a namespace module
+      // We need to import and access the actual function
+      const pdfParseModule: any = await import('pdf-parse');
+      
+      // Debug: see what's in the module
+      console.log("[Financial Detection] DEBUG Module keys:", Object.keys(pdfParseModule).slice(0, 15));
+      console.log("[Financial Detection] DEBUG PDFParse type:", typeof pdfParseModule.PDFParse);
+      
+      // The actual parser function is the default export when using CommonJS,
+      // but when imported as ESM it becomes a callable object
+      // Try different ways to access it
+      const pdfParse = pdfParseModule.default || pdfParseModule.PDFParse || pdfParseModule;
+      
+      // If it's still not a function, we need to call it differently
+      if (typeof pdfParse !== 'function') {
+        // pdf-parse might be exporting a namespace, try to access the main function
+        console.error("[Financial Detection] DEBUG pdfParse type:", typeof pdfParse);
+        console.error("[Financial Detection] DEBUG Available keys:", Object.keys(pdfParse || {}).slice(0, 20));
+        throw new Error("Could not find pdf-parse function in module");
+      }
+      
+      const data = await pdfParse(buffer);
       return data.text;
     } catch (error) {
       console.error("[Financial Detection] Error extracting text from PDF:", error);
@@ -213,44 +234,24 @@ Return empty array [] if no transactions detected.`;
   }
 
   /**
-   * OCR fallback - Uses BasicOCRExtractor when Gemini fails
-   * Returns transactions with lower confidence (usually 50-65%)
+   * OCR fallback - Currently disabled for PDFs as Tesseract cannot read PDF files directly
+   * Would require pdf-to-image conversion library (pdf2pic, pdf-poppler) which is not installed
+   * Returns empty array to allow system to continue gracefully
    */
   async detectWithOCRFallback(
     pdfBuffer: Buffer,
     operationContext?: { operationId: string; operationName: string; clientName?: string }
   ): Promise<DetectedTransaction[]> {
-    console.log("[Financial Detection] Using OCR fallback for PDF processing");
+    console.log("[Financial Detection] ⚠️ OCR fallback not available for PDFs (requires pdf-to-image conversion)");
+    console.log("[Financial Detection] Skipping OCR fallback - will rely on Gemini AI for PDF text extraction");
     
-    try {
-      const ocrResult = await ocrExtractor.extractFromPDF(pdfBuffer);
-      
-      if (!ocrResult.success || !ocrResult.amount) {
-        console.log("[Financial Detection] OCR could not extract transaction data");
-        return [];
-      }
-
-      // Convert OCR result to DetectedTransaction format
-      const transaction: DetectedTransaction = {
-        type: ocrResult.type || "expense",
-        amount: ocrResult.amount,
-        currency: ocrResult.currency || "MXN",
-        date: ocrResult.date || new Date(),
-        description: ocrResult.description || "Transacción detectada por OCR",
-        reference: ocrResult.reference,
-        confidence: ocrResult.confidence,
-        reasoning: `Extracted via OCR (Tesseract). Confidence: ${ocrResult.confidence}%`,
-        category: ocrResult.type === "expense" ? "other" : undefined,
-        paymentMethod: ocrResult.type === "payment" ? "transfer" : undefined,
-      };
-
-      console.log(`[Financial Detection] OCR extracted transaction: ${transaction.currency} ${transaction.amount} (${transaction.confidence}% confidence)`);
-      
-      return [transaction];
-    } catch (error) {
-      console.error("[Financial Detection] Error in OCR fallback:", error);
-      return [];
-    }
+    // OCR fallback is disabled for PDFs because:
+    // 1. Tesseract only reads images, not PDFs
+    // 2. Would need additional libraries (pdf2pic, pdf-poppler) to convert PDF → image
+    // 3. These libraries are not installed in the current environment
+    // 
+    // Future enhancement: Install pdf2pic and convert PDF pages to images before OCR
+    return [];
   }
 
   /**
