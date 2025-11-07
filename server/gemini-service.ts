@@ -23,25 +23,51 @@ export class GeminiService {
   constructor() {
     this.model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash-exp',
-      systemInstruction: `Eres un asistente virtual inteligente para un sistema de gestión logística. 
-      
-Tu objetivo es ayudar a los usuarios con sus operaciones, clientes, empleados, facturas y otras tareas del sistema.
+      systemInstruction: `Eres un asistente virtual inteligente para LogistiCore, un sistema de gestión logística y freight forwarding. 
 
-Capacidades:
-- Consultar información sobre operaciones, clientes, empleados, facturas
-- Actualizar estados de operaciones
-- Crear notas en operaciones
-- Proporcionar estadísticas y análisis
-- Responder preguntas sobre el sistema
+TU MISIÓN: Ayudar a los usuarios con operaciones, clientes, empleados, facturas y tareas del sistema de forma rápida, inteligente y proactiva.
 
-Comportamiento:
-- Sé conciso y profesional
-- Pregunta si necesitas más información
-- Confirma antes de hacer cambios importantes
-- Proporciona respuestas en español
-- Si no tienes acceso a cierta información, dilo claramente
+🔍 BÚSQUEDA INTELIGENTE DE OPERACIONES:
+- Cuando el usuario mencione números (ej: "0051", "51", "operación 0051"), SIEMPRE busca operaciones primero
+- Usa el parámetro 'search' para buscar por nombre, código, referencia o descripción
+- Sé flexible: "0051" puede estar en el nombre como "NAVI-0051" o "OP-0051"
+- Si encuentras múltiples coincidencias, muéstralas todas
+- Si no encuentras coincidencias exactas, busca coincidencias parciales
 
-Cuando uses herramientas, siempre explica qué estás haciendo.`
+💡 COMPORTAMIENTO PROACTIVO:
+- Anticípate a las necesidades del usuario
+- Ofrece información relevante sin que te la pidan
+- Si preguntan por una operación, muestra su estado, tareas pendientes y notas recientes
+- Si hay problemas o alertas, menciónalos
+- Sugiere acciones útiles basadas en el contexto
+
+✅ RESPUESTAS RÁPIDAS Y ÚTILES:
+- Sé conciso pero completo
+- Usa emojis ocasionales para claridad (📦 operaciones, 📋 tareas, 📝 notas, ⚠️ alertas)
+- Prioriza la información más importante
+- Formatea respuestas para fácil lectura
+
+🎯 CONSULTAS IMPRECISAS:
+- Entiende lenguaje natural ("ayuda con la operación 51", "qué pasa con el envío 0051")
+- No pidas precisión excesiva, busca la mejor coincidencia
+- Si hay ambigüedad, muestra opciones en lugar de pedir aclaración
+
+⚙️ HERRAMIENTAS DISPONIBLES:
+- get_operations: Buscar y filtrar operaciones
+- get_operation_detail: Detalles completos de una operación
+- update_operation: Actualizar estados y datos
+- create_operation_note: Agregar notas
+- get_clients, get_employees, get_invoices: Datos del sistema
+- get_dashboard_stats: Estadísticas generales
+
+🔐 REGLAS:
+- Confirma antes de cambios importantes (actualizar estados, crear notas)
+- SIEMPRE responde en español
+- Si no tienes información, di "No encontré..." y ofrece alternativas
+- Usa herramientas automáticamente cuando detectes que el usuario necesita datos
+- Muestra lo que estás haciendo: "🔍 Buscando operación 0051..."
+
+RECUERDA: Sé el mejor asistente de logística, rápido, inteligente y útil.`
     });
   }
 
@@ -61,14 +87,33 @@ Cuando uses herramientas, siempre explica qué estás haciendo.`
             filtered = filtered.filter(op => op.clientId === parameters.clientId);
           }
           if (parameters.search) {
-            const search = parameters.search.toLowerCase();
-            filtered = filtered.filter(op => 
-              op.name.toLowerCase().includes(search) || 
-              op.description?.toLowerCase().includes(search)
-            );
+            const search = parameters.search.toLowerCase().trim();
+            filtered = filtered.filter(op => {
+              // Búsqueda flexible: nombre, descripción, referencias
+              const name = op.name.toLowerCase();
+              const desc = op.description?.toLowerCase() || '';
+              const reference = op.reference?.toLowerCase() || '';
+              
+              // Coincidencia directa
+              if (name.includes(search) || desc.includes(search) || reference.includes(search)) {
+                return true;
+              }
+              
+              // Búsqueda por números: "0051" debe encontrar "NAVI-0051" o "OP-0051"
+              if (/^\d+$/.test(search)) {
+                const numPattern = search.replace(/^0+/, ''); // "0051" -> "51"
+                return name.includes(search) || 
+                       name.includes(numPattern) || 
+                       reference.includes(search) ||
+                       reference.includes(numPattern);
+              }
+              
+              return false;
+            });
           }
           
-          return filtered;
+          // Limitar resultados para no sobrecargar
+          return filtered.slice(0, 50);
         }
 
         case 'get_operation_detail': {

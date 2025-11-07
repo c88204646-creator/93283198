@@ -41,11 +41,50 @@ export function LiveChat() {
   const sendMessageMutation = useMutation({
     mutationFn: (content: string) => 
       apiRequest('POST', `/api/chat/conversations/${currentConversationId}/messages`, { content }),
+    onMutate: async (content: string) => {
+      // Optimistic update: Mostrar el mensaje del usuario inmediatamente
+      await queryClient.cancelQueries({ 
+        queryKey: ['/api/chat/conversations', currentConversationId, 'messages'] 
+      });
+      
+      const previousMessages = queryClient.getQueryData<any[]>([
+        '/api/chat/conversations', 
+        currentConversationId, 
+        'messages'
+      ]);
+      
+      const optimisticMessage = {
+        id: `temp-${Date.now()}`,
+        conversationId: currentConversationId,
+        role: 'user',
+        content,
+        createdAt: new Date(),
+      };
+      
+      queryClient.setQueryData(
+        ['/api/chat/conversations', currentConversationId, 'messages'],
+        [...(previousMessages || []), optimisticMessage]
+      );
+      
+      setInputMessage('');
+      
+      return { previousMessages };
+    },
     onSuccess: () => {
+      // Actualizar con los mensajes reales del servidor
       queryClient.invalidateQueries({ 
         queryKey: ['/api/chat/conversations', currentConversationId, 'messages'] 
       });
-      setInputMessage('');
+    },
+    onError: (err, content, context: any) => {
+      // Revertir el optimistic update si falla
+      if (context?.previousMessages) {
+        queryClient.setQueryData(
+          ['/api/chat/conversations', currentConversationId, 'messages'],
+          context.previousMessages
+        );
+      }
+      setInputMessage(content);
     },
   });
 
