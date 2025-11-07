@@ -95,32 +95,59 @@ export function LiveChat() {
 
   if (!isOpen) {
     return (
-      <Button
+      <button
         onClick={() => setIsOpen(true)}
-        className={cn(
-          "fixed shadow-2xl z-[9999] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-transform hover:scale-110",
-          isMobile 
-            ? "bottom-6 right-6 h-16 w-16 rounded-full" 
-            : "bottom-8 right-8 h-20 w-20 rounded-full"
-        )}
-        size="icon"
+        style={{
+          position: 'fixed',
+          bottom: isMobile ? '24px' : '32px',
+          right: isMobile ? '24px' : '32px',
+          width: isMobile ? '64px' : '80px',
+          height: isMobile ? '64px' : '80px',
+          borderRadius: '50%',
+          border: 'none',
+          cursor: 'pointer',
+          zIndex: 9999,
+          boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+          background: 'linear-gradient(135deg, #2563eb 0%, #9333ea 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'all 0.3s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.1)';
+          e.currentTarget.style.background = 'linear-gradient(135deg, #1d4ed8 0%, #7e22ce 100%)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1)';
+          e.currentTarget.style.background = 'linear-gradient(135deg, #2563eb 0%, #9333ea 100%)';
+        }}
       >
-        <MessageCircle className={isMobile ? "h-7 w-7" : "h-9 w-9"} />
-      </Button>
+        <MessageCircle className="text-white" size={isMobile ? 28 : 36} />
+      </button>
     );
   }
 
   return (
-    <Card className={cn(
-      "fixed z-[9999] shadow-2xl transition-all duration-300 overflow-hidden flex flex-col rounded-2xl",
-      isMobile 
-        ? isMinimized 
-          ? "bottom-6 right-6 left-6 h-16" 
-          : "bottom-6 right-6 left-6 h-[500px]"
-        : isMinimized 
-          ? "bottom-8 right-8 h-16 w-[380px]" 
-          : "bottom-8 right-8 h-[540px] w-[400px]"
-    )}>
+    <div 
+      style={{
+        position: 'fixed',
+        bottom: isMobile ? '24px' : '32px',
+        right: isMobile ? '24px' : '32px',
+        left: isMobile ? '24px' : 'auto',
+        width: isMobile ? 'auto' : '400px',
+        height: isMinimized ? '64px' : (isMobile ? '500px' : '540px'),
+        zIndex: 9999,
+        boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+        borderRadius: '16px',
+        overflow: 'hidden',
+        transition: 'all 0.3s ease',
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: 'hsl(var(--card))',
+        border: '1px solid hsl(var(--border))',
+      }}
+    >
       {/* Header */}
       <div className={cn(
         "flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 text-white shrink-0",
@@ -322,6 +349,6 @@ export function LiveChat() {
           </div>
         </>
       )}
-    </Card>
+    </div>
   );
 }
