@@ -34,19 +34,25 @@ async function syncAllGmailAccounts() {
         }
 
         console.log(`[Gmail Auto-Sync] Syncing account: ${account.email}`);
-        gmailSync.startSync(account.id).catch(err => {
-          console.error(`[Gmail Auto-Sync] Error syncing account ${account.email}:`, err);
-        });
+        await gmailSync.startSync(account.id);
 
         // Pequeña pausa entre cuentas para evitar rate limiting
         await new Promise(resolve => setTimeout(resolve, 1000));
 
       } catch (error) {
-        console.error(`[Gmail Auto-Sync] Error processing account ${account.email}:`, error);
+        console.error(`[Gmail Auto-Sync] Error syncing account ${account.email}:`, error);
       }
     }
 
     console.log('[Gmail Auto-Sync] Sync cycle completed');
+
+    // Link messages to operations after sync
+    try {
+      console.log('[Gmail Auto-Sync] Linking messages to operations...');
+      await storage.linkMessagesToOperations();
+    } catch (error) {
+      console.error('[Gmail Auto-Sync] Error linking messages:', error);
+    }
 
   } catch (error) {
     console.error('[Gmail Auto-Sync] Error in sync cycle:', error);

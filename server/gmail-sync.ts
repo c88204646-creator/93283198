@@ -378,7 +378,7 @@ export async function startSync(accountId: string) {
     } while (pageToken);
 
     await storage.updateGmailAccount(accountId, {
-      syncStatus: 'completed',
+      syncStatus: 'idle',
       lastSyncDate: new Date(),
       errorMessage: null,
     });
