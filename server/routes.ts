@@ -2380,6 +2380,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin endpoint to clean all existing tasks and notes
+  app.post("/api/admin/clean-tasks-and-notes", requireAdmin, async (req, res) => {
+    try {
+      const { TextCleaner } = await import("./text-cleaner");
+      
+      // Get all operations
+      const operations = await storage.getAllOperations();
+      
+      let tasksUpdated = 0;
+      let notesUpdated = 0;
+      let tasksSkipped = 0;
+      let notesSkipped = 0;
+      
+      console.log(`[Admin Clean] Starting cleanup of tasks and notes for ${operations.length} operations`);
+      
+      for (const operation of operations) {
+        // Clean tasks for this operation
+        const tasks = await storage.getOperationTasks(operation.id);
+        
+        for (const task of tasks) {
+          // Skip if manually modified
+          if (task.modifiedManually) {
+            tasksSkipped++;
+            continue;
+          }
+          
+          const originalTitle = task.title;
+          const originalDescription = task.description;
+          
+          const cleanedTitle = TextCleaner.cleanTaskTitle(task.title);
+          const cleanedDescription = task.description 
+            ? TextCleaner.cleanTaskDescription(task.description)
+            : null;
+          
+          // Only update if something changed
+          if (cleanedTitle !== originalTitle || cleanedDescription !== originalDescription) {
+            await storage.updateOperationTask(task.id, {
+              title: cleanedTitle,
+              description: cleanedDescription,
+            });
+            tasksUpdated++;
+            console.log(`[Admin Clean] Task updated: "${originalTitle}" -> "${cleanedTitle}"`);
+          } else {
+            tasksSkipped++;
+          }
+        }
+        
+        // Clean notes for this operation
+        const notes = await storage.getOperationNotes(operation.id);
+        
+        for (const note of notes) {
+          const originalContent = note.content;
+          const cleanedContent = TextCleaner.cleanNoteContent(note.content);
+          
+          // Only update if something changed
+          if (cleanedContent !== originalContent) {
+            await storage.updateOperationNote(note.id, {
+              content: cleanedContent,
+            });
+            notesUpdated++;
+            console.log(`[Admin Clean] Note updated: "${originalContent}" -> "${cleanedContent}"`);
+          } else {
+            notesSkipped++;
+          }
+        }
+      }
+      
+      console.log(`[Admin Clean] Cleanup completed: ${tasksUpdated} tasks updated, ${tasksSkipped} tasks skipped, ${notesUpdated} notes updated, ${notesSkipped} notes skipped`);
+      
+      res.json({
+        success: true,
+        tasksUpdated,
+        tasksSkipped,
+        notesUpdated,
+        notesSkipped,
+        totalOperations: operations.length
+      });
+    } catch (error) {
+      console.error("Clean tasks and notes error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Object Storage Routes (Referenced from javascript_object_storage integration)
   app.get("/objects/:objectPath(*)", requireAuth, async (req, res) => {
     const userId = req.session.userId;
