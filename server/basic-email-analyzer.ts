@@ -197,16 +197,45 @@ export class BasicEmailAnalyzer {
       if (ref) title += ` ${ref}`;
       if (date && !ref) title += ` para ${date}`;
       
-      // Descripción: extraer lo relevante (sin saludos ni conversación)
-      let description = message.snippet
-        .replace(/^(buen[ao]s?\s+(dia|tarde|noche)|hola|hello|dear|estimad[ao]|saludos|regards|atentamente).*/gi, '')
+      // Descripción: TRANSFORMAR conversación a contenido profesional
+      let description = message.snippet;
+      
+      // 1. Eliminar saludos
+      description = description.replace(/(^|\s)(buen[ao]s?\s+(dia|tarde|noche|dias)|hola|hello|hi|dear|estimad[ao])\s+[a-z]+(\s|,|:)/gi, ' ');
+      
+      // 2. Transformar frases conversacionales
+      description = description
+        .replace(/ya\s+(solicite|solicité|envie|envié)/gi, 'Solicitado')
+        .replace(/en\s+cuanto\s+(la|lo|los|las)\s+(tenga|reciba)/gi, 'Pendiente')
+        .replace(/te\s+(la|lo|los|las)\s+(comparto|envio|envío|mando)/gi, 'para enviar')
         .replace(/quedo\s+atent[ao].*/gi, '')
-        .replace(/quedamos?\s+a\s+la\s+orden.*/gi, '')
+        .replace(/quedamos?\s+(a\s+la\s+orden|al\s+pendiente).*/gi, '')
+        .replace(/\/\s*I[''']ll?\s+pending.*/gi, '')
+        .replace(/saludos.*/gi, '')
+        .replace(/regards.*/gi, '')
+        .replace(/atentamente.*/gi, '');
+      
+      // 3. Convertir abreviaciones
+      description = description
+        .replace(/\bal\s+AA\b/gi, 'al agente aduanal')
+        .replace(/\bAA\b/gi, 'Agente aduanal');
+      
+      // 4. Limpiar y capitalizar
+      description = description
+        .replace(/\s+/g, ' ')
         .trim()
         .slice(0, 100);
       
-      if (description.length < 20) {
+      if (description.length > 0) {
+        description = description.charAt(0).toUpperCase() + description.slice(1);
+      }
+      
+      // Si queda muy corto o solo saludos, generar descripción genérica
+      if (description.length < 20 || description.match(/^(buen|hola|hello|dear)/i)) {
         description = `Acción de ${actionTypes.join(' y ')} requerida`;
+        if (ref || date) {
+          description += ` - ${ref || date}`;
+        }
       }
 
       tasks.push({
@@ -258,23 +287,55 @@ export class BasicEmailAnalyzer {
       return null;
     }
 
-    // Limpiar texto de saludos y conversaciones informales
-    let cleanContent = message.snippet
-      .replace(/^(buen[ao]s?\s+(dia|tarde|noche|dias)|hola|hello|dear|estimad[ao]|saludos|regards).*/gi, '')
+    // TRANSFORMAR conversación informal a contenido profesional
+    let cleanContent = message.snippet;
+    
+    // 1. Eliminar saludos completos (al inicio o en medio)
+    cleanContent = cleanContent.replace(/(^|\s)(buen[ao]s?\s+(dia|tarde|noche|dias)|hola|hello|hi|dear|estimad[ao])\s+[a-z]+(\s|,|:)/gi, ' ');
+    
+    // 2. Eliminar frases conversacionales comunes
+    cleanContent = cleanContent
+      .replace(/ya\s+(solicite|solicité|envie|envié|mande|mandé)/gi, 'Solicitado')
+      .replace(/en\s+cuanto\s+(la|lo|los|las)\s+(tenga|reciba|tengamos|recibamos)/gi, 'Pendiente de recibir')
+      .replace(/te\s+(la|lo|los|las)\s+(comparto|envio|envío|mando)/gi, 'para compartir')
       .replace(/quedo\s+atent[ao].*/gi, '')
-      .replace(/quedamos?\s+a\s+la\s+orden.*/gi, '')
+      .replace(/quedamos?\s+(a\s+la\s+orden|al\s+pendiente).*/gi, '')
       .replace(/\/\s*I[''']ll?\s+pending.*/gi, '')
       .replace(/best\s+regards.*/gi, '')
       .replace(/atentamente.*/gi, '')
+      .replace(/saludos.*/gi, '')
+      .replace(/regards.*/gi, '');
+    
+    // 3. Convertir referencias informales a formales
+    cleanContent = cleanContent
+      .replace(/\bal\s+AA\b/gi, 'al agente aduanal')
+      .replace(/\bAA\b/gi, 'Agente aduanal');
+    
+    // 4. Limpiar espacios múltiples y puntuación
+    cleanContent = cleanContent
+      .replace(/\s+/g, ' ')
+      .replace(/\s+,/g, ',')
+      .replace(/\s+\./g, '.')
       .trim();
+    
+    // 5. Capitalizar primera letra
+    if (cleanContent.length > 0) {
+      cleanContent = cleanContent.charAt(0).toUpperCase() + cleanContent.slice(1);
+    }
 
-    // Si después de limpiar queda muy poco, generar nota estructurada
-    if (cleanContent.length < 30) {
+    // Si después de limpiar queda muy poco o solo quedaron saludos, generar nota estructurada
+    if (cleanContent.length < 30 || cleanContent.match(/^(buen|hola|hello|dear|estimad)/i)) {
       const parts = [];
       if (trackingNumbers.length > 0) parts.push(`Ref: ${trackingNumbers[0]}`);
       if (dates.length > 0) parts.push(`Fecha: ${dates[0]}`);
       if (amounts.length > 0) parts.push(`Monto: ${amounts[0]}`);
-      cleanContent = `Comunicación registrada. ${parts.join('. ')}`;
+      
+      if (parts.length > 0) {
+        cleanContent = `Comunicación registrada. ${parts.join('. ')}.`;
+      } else {
+        // No hay información suficiente para crear nota
+        return null;
+      }
     }
 
     // Limitar a 150 caracteres
