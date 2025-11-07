@@ -99,31 +99,31 @@ export function LiveChat() {
         onClick={() => setIsOpen(true)}
         style={{
           position: 'fixed',
-          bottom: isMobile ? '24px' : '32px',
-          right: isMobile ? '24px' : '32px',
-          width: isMobile ? '64px' : '80px',
-          height: isMobile ? '64px' : '80px',
+          bottom: '24px',
+          right: '24px',
+          width: '56px',
+          height: '56px',
           borderRadius: '50%',
           border: 'none',
           cursor: 'pointer',
           zIndex: 9999,
-          boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
-          background: 'linear-gradient(135deg, #2563eb 0%, #9333ea 100%)',
+          boxShadow: '0 4px 12px rgba(37, 99, 235, 0.4)',
+          background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          transition: 'all 0.3s ease',
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'scale(1.1)';
-          e.currentTarget.style.background = 'linear-gradient(135deg, #1d4ed8 0%, #7e22ce 100%)';
+          e.currentTarget.style.transform = 'scale(1.05)';
+          e.currentTarget.style.boxShadow = '0 6px 16px rgba(37, 99, 235, 0.5)';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.background = 'linear-gradient(135deg, #2563eb 0%, #9333ea 100%)';
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.4)';
         }}
       >
-        <MessageCircle className="text-white" size={isMobile ? 28 : 36} />
+        <MessageCircle className="text-white" size={24} strokeWidth={2} />
       </button>
     );
   }
@@ -132,16 +132,16 @@ export function LiveChat() {
     <div 
       style={{
         position: 'fixed',
-        bottom: isMobile ? '24px' : '32px',
-        right: isMobile ? '24px' : '32px',
+        bottom: '24px',
+        right: '24px',
         left: isMobile ? '24px' : 'auto',
-        width: isMobile ? 'auto' : '400px',
-        height: isMinimized ? '64px' : (isMobile ? '500px' : '540px'),
+        width: isMobile ? 'auto' : '380px',
+        height: isMinimized ? '56px' : (isMobile ? '480px' : '520px'),
         zIndex: 9999,
-        boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
         borderRadius: '16px',
         overflow: 'hidden',
-        transition: 'all 0.3s ease',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: 'hsl(var(--card))',
