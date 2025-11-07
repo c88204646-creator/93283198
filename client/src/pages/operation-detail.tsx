@@ -160,7 +160,7 @@ export default function OperationDetail() {
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-4 md:p-8 shadow-xl backdrop-blur-sm">
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -ml-24 -mb-24" />
-          
+
           <div className="relative flex flex-col md:flex-row items-start gap-4 md:gap-6">
             <Button
               variant="outline"
@@ -171,7 +171,7 @@ export default function OperationDetail() {
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            
+
             <div className="flex-1 space-y-4 w-full">
               <div className="flex items-start gap-2 md:gap-4 flex-wrap">
                 <div className="flex items-center gap-2 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
@@ -193,7 +193,7 @@ export default function OperationDetail() {
                   </Badge>
                 )}
               </div>
-              
+
               <div>
                 <h1 className="text-2xl md:text-4xl font-bold tracking-tight mb-2" data-testid="text-operation-name">
                   {operation.name}
@@ -204,7 +204,7 @@ export default function OperationDetail() {
                   </p>
                 )}
               </div>
-              
+
               {client && (
                 <div className="flex items-center gap-2 text-sm md:text-base text-muted-foreground">
                   <UserIcon className="w-4 h-4" />
@@ -213,7 +213,7 @@ export default function OperationDetail() {
                 </div>
               )}
             </div>
-            
+
             <Button
               onClick={() => navigate(`/operations/edit/${id}`)}
               data-testid="button-edit"
@@ -981,7 +981,7 @@ function EmailsTab({ operationId, operation }: {
   operation: Operation;
 }) {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
-  
+
   // Use optimized endpoint to get messages directly linked to this operation
   const { data: relatedEmails = [], isLoading: isLoadingMessages } = useQuery<GmailMessage[]>({
     queryKey: ['/api/operations', operationId, 'messages'],
@@ -1062,7 +1062,7 @@ function EmailsTab({ operationId, operation }: {
         try {
           const response = await fetch(emailContent.htmlBodyUrl);
           let html = await response.text();
-          
+
           // Replace CID references with signed URLs for inline images
           if (emailContent.attachments) {
             emailContent.attachments.forEach((attachment: any) => {
@@ -1072,14 +1072,14 @@ function EmailsTab({ operationId, operation }: {
               }
             });
           }
-          
+
           // Sanitize HTML before rendering
           const cleanHtml = DOMPurify.sanitize(html, {
             ADD_TAGS: ['style'],
             ADD_ATTR: ['target', 'style', 'class'],
             ALLOW_DATA_ATTR: true,
           });
-          
+
           setHtmlBodyContent(cleanHtml);
         } catch (error) {
           console.error('Error loading HTML body:', error);
@@ -1136,7 +1136,7 @@ function EmailsTab({ operationId, operation }: {
             Correos Vinculados ({relatedEmails.length})
           </h3>
         </div>
-        
+
         <ScrollArea className="flex-1">
           <div className="p-1">
             {Object.entries(groupedEmails).map(([dateGroup, emails]) => (
@@ -1158,35 +1158,37 @@ function EmailsTab({ operationId, operation }: {
                             : 'hover:bg-accent'
                         }`}
                       >
-                        <div className="flex items-start gap-2">
-                          {/* Avatar más pequeño */}
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                            isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/15 text-primary'
+                        <div className="flex items-start gap-1.5 min-w-0 w-full">
+                          <div className={`flex items-center justify-center w-6 h-6 rounded-full shrink-0 text-[10px] font-medium ${
+                            isSelected 
+                              ? 'bg-primary/20 text-primary' 
+                              : 'bg-muted text-muted-foreground'
                           }`}>
-                            {(email.fromName || email.fromEmail).charAt(0).toUpperCase()}
+                            {email.fromEmail?.[0]?.toUpperCase() || 'U'}
                           </div>
-                          
+
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline justify-between gap-1 mb-0.5">
-                              <p className={`text-xs font-semibold truncate ${isSelected ? 'text-primary-foreground' : 'text-foreground'}`}>
-                                {email.fromName || email.fromEmail.split('@')[0]}
+                            <div className="flex items-center justify-between gap-1 mb-0.5">
+                              <p className={`text-[10px] font-medium truncate max-w-[140px] ${isSelected ? 'opacity-95' : 'text-foreground'}`}>
+                                {email.fromEmail.split('@')[0]}
                               </p>
-                              <span className={`text-[10px] flex-shrink-0 ${isSelected ? 'opacity-90' : 'text-muted-foreground'}`}>
+                              <time className={`text-[8px] shrink-0 ${isSelected ? 'opacity-70' : 'text-muted-foreground'}`}>
                                 {format(new Date(email.date), 'HH:mm')}
-                              </span>
+                              </time>
                             </div>
-                            
-                            <p className={`text-xs font-medium truncate mb-1 ${isSelected ? 'opacity-95' : 'text-foreground'}`}>
+
+                            <p className={`text-[10px] font-medium truncate mb-0.5 ${isSelected ? 'opacity-95' : 'text-foreground'}`}>
                               {email.subject || '(Sin asunto)'}
                             </p>
-                            
-                            <p className={`text-[11px] line-clamp-1 ${isSelected ? 'opacity-75' : 'text-muted-foreground'}`}>
-                              {email.snippet}
-                            </p>
-                            
-                            {email.hasAttachments && (
-                              <Paperclip className={`w-3 h-3 mt-1 ${isSelected ? 'opacity-70' : 'text-muted-foreground'}`} />
-                            )}
+
+                            <div className="flex items-center gap-1">
+                              <p className={`text-[9px] line-clamp-1 flex-1 min-w-0 ${isSelected ? 'opacity-75' : 'text-muted-foreground'}`}>
+                                {email.snippet}
+                              </p>
+                              {email.hasAttachments && (
+                                <Paperclip className={`w-2.5 h-2.5 shrink-0 ${isSelected ? 'opacity-70' : 'text-muted-foreground'}`} />
+                              )}
+                            </div>
                           </div>
                         </div>
                       </button>
@@ -1228,7 +1230,7 @@ function EmailsTab({ operationId, operation }: {
                   Volver
                 </Button>
               )}
-              
+
               <h2 className="text-lg font-bold mb-3" data-testid="text-email-subject">
                 {selectedMessage.subject || '(Sin asunto)'}
               </h2>
@@ -1322,11 +1324,11 @@ function EmailsTab({ operationId, operation }: {
                         // Siempre mostrar adjuntos que no son inline, y también los inline si no hay otros
                         const shouldShow = !attachment.isInline || emailContent.attachments.filter((a: any) => !a.isInline).length === 0;
                         if (!shouldShow) return null;
-                        
+
                         const Icon = getFileIcon(attachment.mimeType);
                         const isImage = attachment.mimeType.startsWith('image/');
                         const isPdf = attachment.mimeType === 'application/pdf';
-                        
+
                         return (
                           <div 
                             key={attachment.id || index} 
@@ -1348,7 +1350,7 @@ function EmailsTab({ operationId, operation }: {
                                 <Icon className="w-7 h-7 text-primary" />
                               </div>
                             )}
-                            
+
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium truncate mb-1" title={attachment.filename}>
                                 {attachment.filename}
@@ -1364,7 +1366,7 @@ function EmailsTab({ operationId, operation }: {
                                 )}
                               </div>
                             </div>
-                            
+
                             <div className="flex gap-1 flex-shrink-0">
                               {(isImage || isPdf) && attachment.signedUrl && (
                                 <Button
@@ -1438,12 +1440,12 @@ function FilesTab({ operationId }: { operationId: string }) {
       );
       if (!response.ok) throw new Error("Error al cargar archivos");
       const data = await response.json();
-      
+
       // Fetch preview URLs for images and PDFs
       const previewableFileIds = data
         .filter((f: any) => f.mimeType.startsWith("image/") || f.mimeType.includes("pdf"))
         .map((f: any) => f.id);
-      
+
       if (previewableFileIds.length > 0) {
         try {
           const urlResponse = await fetch(`/api/operations/${operationId}/files/preview-urls`, {
@@ -1459,7 +1461,7 @@ function FilesTab({ operationId }: { operationId: string }) {
           console.error("Failed to fetch preview URLs:", error);
         }
       }
-      
+
       return data;
     },
   });
@@ -1476,7 +1478,7 @@ function FilesTab({ operationId }: { operationId: string }) {
         size: result.size,
         folderId: selectedFolder === "all" ? null : selectedFolder,
       });
-      
+
       queryClient.invalidateQueries({ queryKey: ["/api/operations", operationId, "files"] });
       setIsUploadOpen(false);
       toast({ title: "File uploaded successfully" });
@@ -1768,7 +1770,7 @@ function FilesTab({ operationId }: { operationId: string }) {
                   ) : (
                     <FileIconComponent className="w-12 h-12 text-muted-foreground/30" />
                   )}
-                  
+
                   {/* Automated Badge - Small circular icon */}
                   {isAutomated && (
                     <div className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shadow-md" title="Automated file">
