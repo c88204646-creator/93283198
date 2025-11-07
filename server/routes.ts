@@ -240,6 +240,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/clients/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const cacheKey = `clients:${id}`;
+      let client = queryCache.get<any>(cacheKey);
+
+      if (!client) {
+        const allClients = await storage.getAllClients();
+        client = allClients.find(c => c.id === id);
+        if (client) {
+          queryCache.set(cacheKey, client, 5 * 60 * 1000); // 5 min cache
+        }
+      }
+
+      if (!client) {
+        return res.status(404).json({ message: "Client not found" });
+      }
+
+      res.json(client);
+    } catch (error) {
+      console.error("Get client error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.post("/api/clients", requireAuth, async (req, res) => {
     try {
       const data = insertClientSchema.parse(req.body);
