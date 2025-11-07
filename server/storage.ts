@@ -6,7 +6,7 @@ import {
   invoiceItems, proposalItems, payments, bankAccounts, customFields, customFieldValues,
   operationEmployees, gmailAccounts, gmailMessages, gmailAttachments, calendarEvents,
   automationConfigs, automationRules, automationLogs, operationNotes, operationTasks,
-  operationFolders, operationFiles, operationAnalyses, knowledgeBase, chatConversations, chatMessages,
+  operationFolders, operationFiles, operationAnalyses, bankAccountAnalyses, knowledgeBase, chatConversations, chatMessages,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Employee, type InsertEmployee,
@@ -34,6 +34,7 @@ import {
   type OperationFolder, type InsertOperationFolder,
   type OperationFile, type InsertOperationFile,
   type OperationAnalysis, type InsertOperationAnalysis,
+  type BankAccountAnalysis, type InsertBankAccountAnalysis,
   type KnowledgeBase, type InsertKnowledgeBase,
   type ChatConversation, type InsertChatConversation,
   type ChatMessage, type InsertChatMessage,
@@ -114,6 +115,7 @@ export interface IStorage {
   // Payments
   getPayments(invoiceId: string): Promise<Payment[]>;
   getPaymentsByOperation(operationId: string): Promise<Payment[]>;
+  getPaymentsByBankAccount(bankAccountId: string): Promise<Payment[]>;
   getPayment(id: string): Promise<Payment | undefined>;
   createPayment(payment: InsertPayment): Promise<Payment>;
   updatePayment(id: string, payment: Partial<InsertPayment>): Promise<Payment | undefined>;
@@ -122,6 +124,7 @@ export interface IStorage {
   // Expenses
   getAllExpenses(): Promise<Expense[]>;
   getExpensesByOperation(operationId: string): Promise<Expense[]>;
+  getExpensesByBankAccount(bankAccountId: string): Promise<Expense[]>;
   getExpense(id: string): Promise<Expense | undefined>;
   createExpense(expense: InsertExpense): Promise<Expense>;
   updateExpense(id: string, expense: Partial<InsertExpense>): Promise<Expense | undefined>;
@@ -252,6 +255,12 @@ export interface IStorage {
   createOperationAnalysis(analysis: InsertOperationAnalysis): Promise<OperationAnalysis>;
   updateOperationAnalysis(id: string, analysis: Partial<InsertOperationAnalysis>): Promise<OperationAnalysis | undefined>;
   deleteOperationAnalysis(id: string): Promise<void>;
+
+  // Bank Account Analysis
+  getBankAccountAnalysis(bankAccountId: string): Promise<BankAccountAnalysis | undefined>;
+  createBankAccountAnalysis(analysis: InsertBankAccountAnalysis): Promise<BankAccountAnalysis>;
+  updateBankAccountAnalysis(id: string, analysis: Partial<InsertBankAccountAnalysis>): Promise<BankAccountAnalysis | undefined>;
+  deleteBankAccountAnalysis(id: string): Promise<void>;
 
   // LiveChat methods
   createChatConversation(userId: string): Promise<ChatConversation>;
@@ -475,6 +484,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(expenses).where(eq(expenses.operationId, operationId)).orderBy(desc(expenses.createdAt));
   }
 
+  async getExpensesByBankAccount(bankAccountId: string): Promise<Expense[]> {
+    return await db.select().from(expenses).where(eq(expenses.bankAccountId, bankAccountId)).orderBy(desc(expenses.date));
+  }
+
   async countExpenses(): Promise<number> {
     const result = await db.select({ value: count() }).from(expenses);
     return Number(result[0]?.value ?? 0);
@@ -669,6 +682,10 @@ export class DatabaseStorage implements IStorage {
 
   async getPaymentsByOperation(operationId: string): Promise<Payment[]> {
     return await db.select().from(payments).where(eq(payments.operationId, operationId)).orderBy(desc(payments.paymentDate));
+  }
+
+  async getPaymentsByBankAccount(bankAccountId: string): Promise<Payment[]> {
+    return await db.select().from(payments).where(eq(payments.bankAccountId, bankAccountId)).orderBy(desc(payments.paymentDate));
   }
 
   async getPayment(id: string): Promise<Payment | undefined> {
@@ -1193,6 +1210,32 @@ export class DatabaseStorage implements IStorage {
 
   async deleteOperationAnalysis(id: string): Promise<void> {
     await db.delete(operationAnalyses).where(eq(operationAnalyses.id, id));
+  }
+
+  // Bank Account Analysis
+  async getBankAccountAnalysis(bankAccountId: string): Promise<BankAccountAnalysis | undefined> {
+    const [analysis] = await db.select().from(bankAccountAnalyses)
+      .where(eq(bankAccountAnalyses.bankAccountId, bankAccountId))
+      .orderBy(desc(bankAccountAnalyses.createdAt))
+      .limit(1);
+    return analysis || undefined;
+  }
+
+  async createBankAccountAnalysis(insertAnalysis: InsertBankAccountAnalysis): Promise<BankAccountAnalysis> {
+    const [analysis] = await db.insert(bankAccountAnalyses).values(insertAnalysis).returning();
+    return analysis;
+  }
+
+  async updateBankAccountAnalysis(id: string, updateData: Partial<InsertBankAccountAnalysis>): Promise<BankAccountAnalysis | undefined> {
+    const [analysis] = await db.update(bankAccountAnalyses)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(bankAccountAnalyses.id, id))
+      .returning();
+    return analysis || undefined;
+  }
+
+  async deleteBankAccountAnalysis(id: string): Promise<void> {
+    await db.delete(bankAccountAnalyses).where(eq(bankAccountAnalyses.id, id));
   }
 
   // LiveChat methods

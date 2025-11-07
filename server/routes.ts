@@ -993,6 +993,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get bank account by ID
+  app.get("/api/bank-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const account = await storage.getBankAccount(id);
+      
+      if (!account) {
+        return res.status(404).json({ message: "Bank account not found" });
+      }
+      
+      res.json(account);
+    } catch (error) {
+      console.error("Get bank account error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get payments by bank account
+  app.get("/api/bank-accounts/:id/payments", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const payments = await storage.getPaymentsByBankAccount(id);
+      res.json(payments);
+    } catch (error) {
+      console.error("Get payments by bank account error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get expenses by bank account
+  app.get("/api/bank-accounts/:id/expenses", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const expenses = await storage.getExpensesByBankAccount(id);
+      res.json(expenses);
+    } catch (error) {
+      console.error("Get expenses by bank account error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get financial analysis for bank account (AI-powered)
+  app.get("/api/bank-accounts/:id/analysis", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { financialAnalysisService } = await import('./financial-analysis-service');
+      
+      // Get account
+      const account = await storage.getBankAccount(id);
+      if (!account) {
+        return res.status(404).json({ message: "Bank account not found" });
+      }
+
+      // Check if there's a recent analysis
+      const existingAnalysis = await storage.getBankAccountAnalysis(id);
+      if (existingAnalysis && existingAnalysis.status === 'ready') {
+        const age = Date.now() - new Date(existingAnalysis.expiresAt).getTime();
+        if (age < 0) {
+          // Cache still valid
+          return res.json(existingAnalysis);
+        }
+      }
+
+      // Get payments and expenses for last 3 months
+      const periodEnd = new Date();
+      const periodStart = new Date();
+      periodStart.setMonth(periodStart.getMonth() - 3);
+
+      const payments = await storage.getPaymentsByBankAccount(id);
+      const expenses = await storage.getExpensesByBankAccount(id);
+
+      // Filter by period
+      const paymentsInPeriod = payments.filter(p => {
+        const date = new Date(p.paymentDate);
+        return date >= periodStart && date <= periodEnd;
+      });
+      const expensesInPeriod = expenses.filter(e => {
+        const date = new Date(e.date);
+        return date >= periodStart && date <= periodEnd;
+      });
+
+      // Generate analysis
+      const result = await financialAnalysisService.analyzeAccount({
+        account,
+        payments: paymentsInPeriod,
+        expenses: expensesInPeriod,
+        periodStart,
+        periodEnd,
+      });
+
+      // Return the latest analysis
+      const analysis = await storage.getBankAccountAnalysis(id);
+      res.json(analysis);
+    } catch (error) {
+      console.error("Get bank account analysis error:", error);
+      res.status(500).json({ message: "Internal server error", error: String(error) });
+    }
+  });
+
+  // Invalidate analysis cache (force regeneration)
+  app.post("/api/bank-accounts/:id/analysis/refresh", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { financialAnalysisService } = await import('./financial-analysis-service');
+      
+      await financialAnalysisService.invalidateCache(id);
+      res.json({ message: "Analysis cache invalidated, will regenerate on next request" });
+    } catch (error) {
+      console.error("Invalidate analysis cache error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Expense Routes
   app.get("/api/expenses", requireAuth, async (req, res) => {
     try {

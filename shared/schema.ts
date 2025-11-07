@@ -465,10 +465,29 @@ export const operationAnalyses = pgTable("operation_analyses", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-// Knowledge Base table (learning system to reduce AI usage)
+// Bank Account Analysis table (AI-generated financial insights)
+export const bankAccountAnalyses = pgTable("bank_account_analyses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bankAccountId: varchar("bank_account_id").notNull().references(() => bankAccounts.id, { onDelete: "cascade" }),
+  analysis: text("analysis").notNull(), // AI-generated financial analysis text
+  paymentsAnalyzed: integer("payments_analyzed").notNull().default(0), // Number of payments included
+  expensesAnalyzed: integer("expenses_analyzed").notNull().default(0), // Number of expenses included
+  periodStart: timestamp("period_start").notNull(), // Analysis period start
+  periodEnd: timestamp("period_end").notNull(), // Analysis period end
+  status: text("status").notNull().default("generating"), // generating, ready, error
+  errorMessage: text("error_message"), // Error details if status is error
+  generatedAt: timestamp("generated_at").notNull().defaultNow(),
+  expiresAt: timestamp("expires_at").notNull(), // Cache expiration time (refresh when data changes significantly)
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Knowledge Base table (learning system to reduce AI usage for both operations and bank accounts)
 export const knowledgeBase = pgTable("knowledge_base", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: varchar("type").notNull().default("operation"), // 'operation' or 'bank_account'
   b2Key: varchar("b2_key").notNull(), // JSON document in Backblaze with full analysis data
+  // For operations:
   operationType: varchar("operation_type"), // air, sea, land, multimodal
   projectCategory: varchar("project_category"), // import, export, domestic, etc.
   shippingMode: varchar("shipping_mode"), // FCL, LCL, air freight, etc.
@@ -476,7 +495,12 @@ export const knowledgeBase = pgTable("knowledge_base", {
   emailCount: integer("email_count").notNull().default(0), // Number of emails in analyzed operation
   taskCount: integer("task_count").notNull().default(0), // Number of tasks
   fileCount: integer("file_count").notNull().default(0), // Number of files
-  tags: text("tags").array(), // Keywords for matching (e.g., "customs", "documentation", "delay")
+  // For bank accounts:
+  accountType: varchar("account_type"), // checking, savings, investment
+  currency: varchar("currency"), // MXN, USD, EUR, CAD
+  transactionCount: integer("transaction_count").notNull().default(0), // Number of transactions analyzed
+  // Common fields:
+  tags: text("tags").array(), // Keywords for matching (e.g., "customs", "high-expenses", "positive-trend")
   usageCount: integer("usage_count").notNull().default(1), // How many times this knowledge was reused
   qualityScore: integer("quality_score").notNull().default(5), // 1-10, improves with usage
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -728,6 +752,13 @@ export const operationAnalysesRelations = relations(operationAnalyses, ({ one })
   }),
 }));
 
+export const bankAccountAnalysesRelations = relations(bankAccountAnalyses, ({ one }) => ({
+  bankAccount: one(bankAccounts, {
+    fields: [bankAccountAnalyses.bankAccountId],
+    references: [bankAccounts.id],
+  }),
+}));
+
 export const chatConversationsRelations = relations(chatConversations, ({ one, many }) => ({
   user: one(users, {
     fields: [chatConversations.userId],
@@ -784,6 +815,7 @@ export const insertOperationTaskSchema = createInsertSchema(operationTasks).omit
 export const insertOperationFolderSchema = createInsertSchema(operationFolders).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertOperationFileSchema = createInsertSchema(operationFiles).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertOperationAnalysisSchema = createInsertSchema(operationAnalyses).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertBankAccountAnalysisSchema = createInsertSchema(bankAccountAnalyses).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertChatConversationSchema = createInsertSchema(chatConversations).omit({ id: true, createdAt: true });
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
 
@@ -868,6 +900,9 @@ export type OperationFile = typeof operationFiles.$inferSelect;
 
 export type InsertOperationAnalysis = z.infer<typeof insertOperationAnalysisSchema>;
 export type OperationAnalysis = typeof operationAnalyses.$inferSelect;
+
+export type InsertBankAccountAnalysis = z.infer<typeof insertBankAccountAnalysisSchema>;
+export type BankAccountAnalysis = typeof bankAccountAnalyses.$inferSelect;
 
 export const insertKnowledgeBaseSchema = createInsertSchema(knowledgeBase).omit({
   id: true,
