@@ -84,9 +84,9 @@ export default function ClientDetailPage() {
   const totalInvoices = invoices.length;
   const paidInvoices = invoices.filter(inv => inv.status === 'paid').length;
   const pendingInvoices = invoices.filter(inv => inv.status === 'pending').length;
-  const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + parseFloat(inv.totalAmount), 0);
-  const paidAmount = invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + parseFloat(inv.totalAmount), 0);
-  const pendingAmount = invoices.filter(inv => inv.status === 'pending').reduce((sum, inv) => sum + parseFloat(inv.totalAmount), 0);
+  const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + parseFloat(inv.total), 0);
+  const paidAmount = invoices.filter(inv => inv.status === 'paid').reduce((sum, inv) => sum + parseFloat(inv.total), 0);
+  const pendingAmount = invoices.filter(inv => inv.status === 'pending').reduce((sum, inv) => sum + parseFloat(inv.total), 0);
 
   const totalProposals = proposals.length;
   const acceptedProposals = proposals.filter(prop => prop.status === 'accepted').length;
@@ -385,7 +385,7 @@ export default function ClientDetailPage() {
               <TableBody>
                 {operations.slice(0, 10).map((operation) => (
                   <TableRow key={operation.id} data-testid={`row-operation-${operation.id}`}>
-                    <TableCell className="font-medium">{operation.referenceNumber}</TableCell>
+                    <TableCell className="font-medium">{operation.name}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
                         {operation.operationType === 'import' ? 'Importación' : 'Exportación'}

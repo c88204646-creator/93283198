@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Plus, Edit, Trash2, MapPin } from "lucide-react";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
 import L from "leaflet";
@@ -182,6 +183,7 @@ const statusColors = {
 type ClientFormData = z.infer<typeof insertClientSchema>;
 
 export default function ClientsPage() {
+  const [, navigate] = useLocation();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [locationCoords, setLocationCoords] = useState<[number, number] | null>(null);
@@ -422,10 +424,10 @@ export default function ClientsPage() {
                     name="currency"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Currency</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <FormLabel>Currency {editingClient && <span className="text-xs text-muted-foreground">(No editable)</span>}</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={!!editingClient}>
                           <FormControl>
-                            <SelectTrigger data-testid="select-currency">
+                            <SelectTrigger data-testid="select-currency" disabled={!!editingClient}>
                               <SelectValue />
                             </SelectTrigger>
                           </FormControl>
@@ -435,6 +437,11 @@ export default function ClientsPage() {
                             <SelectItem value="ARS">ARS - Argentine Peso</SelectItem>
                           </SelectContent>
                         </Select>
+                        {editingClient && (
+                          <p className="text-xs text-muted-foreground">
+                            La divisa no puede modificarse una vez creado el cliente para evitar conflictos con facturas y pagos vinculados.
+                          </p>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}
@@ -503,6 +510,7 @@ export default function ClientsPage() {
         searchPlaceholder="Search clients..."
         isLoading={isLoading}
         emptyMessage="No clients found. Create your first client to get started."
+        onRowClick={(client) => navigate(`/clients/${client.id}`)}
       />
     </div>
   );

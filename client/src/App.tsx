@@ -17,6 +17,7 @@ import OperationsCreatePage from "./pages/operations-create";
 import OperationDetailPage from "./pages/operation-detail";
 import MapPage from "./pages/map";
 import ClientsPage from "./pages/clients";
+import ClientDetailPage from "./pages/client-detail";
 import EmployeesPage from "./pages/employees";
 import InvoicesPage from "./pages/invoices";
 import ProposalsPage from "./pages/proposals";
@@ -113,6 +114,7 @@ function AppLayout() {
                 <Route path="/operations/:id" component={OperationDetailPage} />
                 <Route path="/operations/:operationId/files" component={OperationFilesPage} />
                 <Route path="/map" component={MapPage} />
+                <Route path="/clients/:id" component={ClientDetailPage} />
                 <Route path="/clients" component={ClientsPage} />
                 <Route path="/employees" component={EmployeesPage} />
                 <Route path="/invoices" component={InvoicesPage} />
