@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Plus, Edit, Trash2, DollarSign, Building2, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ import type { z } from "zod";
 type BankAccountFormData = z.infer<typeof insertBankAccountSchema>;
 
 export default function BankAccountsPage() {
+  const [, navigate] = useLocation();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
   const { toast } = useToast();
@@ -274,7 +276,12 @@ export default function BankAccountsPage() {
               </TableHeader>
               <TableBody>
                 {accounts.map((account) => (
-                  <TableRow key={account.id} data-testid={`row-account-${account.id}`}>
+                  <TableRow 
+                    key={account.id} 
+                    data-testid={`row-account-${account.id}`}
+                    onClick={() => navigate(`/bank-accounts/${account.id}`)}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  >
                     <TableCell className="font-medium">{account.name}</TableCell>
                     <TableCell>{account.bankName || 'N/A'}</TableCell>
                     <TableCell className="font-mono text-sm">{account.accountNumber}</TableCell>
