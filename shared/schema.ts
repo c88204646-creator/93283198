@@ -582,6 +582,39 @@ export const financialSuggestions = pgTable("financial_suggestions", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Processing Queue table - PDFs pending processing when AI fails
+export const processingQueue = pgTable("processing_queue", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operationId: varchar("operation_id").references(() => operations.id, { onDelete: "cascade" }),
+  gmailMessageId: varchar("gmail_message_id").references(() => gmailMessages.id, { onDelete: "cascade" }),
+  gmailAttachmentId: varchar("gmail_attachment_id").references(() => gmailAttachments.id, { onDelete: "set null" }),
+  
+  // File information
+  filePath: text("file_path").notNull(), // Path to PDF in Backblaze B2
+  fileName: text("file_name").notNull(),
+  fileHash: text("file_hash"), // SHA-256 hash for deduplication
+  
+  // Processing metadata
+  type: text("type").notNull(), // 'payment' or 'expense'
+  status: text("status").notNull().default("pending"), // pending, processing, completed, failed
+  fallbackLevel: integer("fallback_level").notNull().default(1), // 1=Gemini, 2=OCR, 3=Manual
+  
+  // Retry tracking
+  attempts: integer("attempts").notNull().default(0),
+  lastAttempt: timestamp("last_attempt"),
+  lastError: text("last_error"),
+  
+  // Results from OCR fallback (if applicable)
+  ocrResult: jsonb("ocr_result"), // Extracted data from OCR
+  ocrConfidence: decimal("ocr_confidence", { precision: 5, scale: 2 }), // OCR confidence score
+  
+  // Related suggestion (if created)
+  financialSuggestionId: varchar("financial_suggestion_id").references(() => financialSuggestions.id, { onDelete: "set null" }),
+  
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one }) => ({
   employee: one(employees, {
@@ -903,6 +936,7 @@ export const insertBankAccountAnalysisSchema = createInsertSchema(bankAccountAna
 export const insertChatConversationSchema = createInsertSchema(chatConversations).omit({ id: true, createdAt: true });
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
 export const insertFinancialSuggestionSchema = createInsertSchema(financialSuggestions).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertProcessingQueueSchema = createInsertSchema(processingQueue).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -1005,3 +1039,6 @@ export type ChatMessage = typeof chatMessages.$inferSelect;
 
 export type InsertFinancialSuggestion = z.infer<typeof insertFinancialSuggestionSchema>;
 export type FinancialSuggestion = typeof financialSuggestions.$inferSelect;
+
+export type InsertProcessingQueue = z.infer<typeof insertProcessingQueueSchema>;
+export type ProcessingQueue = typeof processingQueue.$inferSelect;
