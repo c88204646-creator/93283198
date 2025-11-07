@@ -56,7 +56,7 @@ export function OperationAnalysisComponent({ operationId }: OperationAnalysisPro
             <div className="p-1 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 shadow-md">
               <Brain className="w-3.5 h-3.5 text-white" />
             </div>
-            <h3 className="font-semibold text-xs bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Asistente IA</h3>
+            <h3 className="font-semibold text-xs bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Resumen de Operación</h3>
           </div>
         </div>
         <div className="flex items-center justify-center py-8">
@@ -76,7 +76,7 @@ export function OperationAnalysisComponent({ operationId }: OperationAnalysisPro
             <div className="p-1 rounded-full bg-gradient-to-br from-orange-500 to-red-600 shadow-md">
               <AlertCircle className="w-3.5 h-3.5 text-white" />
             </div>
-            <h3 className="font-semibold text-xs bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Asistente IA</h3>
+            <h3 className="font-semibold text-xs bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Resumen de Operación</h3>
           </div>
         </div>
         <div className="p-3 space-y-2">
@@ -137,7 +137,7 @@ export function OperationAnalysisComponent({ operationId }: OperationAnalysisPro
             <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-white dark:border-gray-900"></div>
           </div>
           <div>
-            <h3 className="font-semibold text-xs bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Asistente IA</h3>
+            <h3 className="font-semibold text-xs bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Resumen de Operación</h3>
             <p className="text-[9px] text-muted-foreground flex items-center gap-1">
               <Mail className="w-2 h-2" />
               {analysis.emailsAnalyzed} {analysis.emailsAnalyzed === 1 ? 'email analizado' : 'emails analizados'}
