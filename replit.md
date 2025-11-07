@@ -9,7 +9,15 @@ Industry focus: Freight forwarding and logistics operations.
 Design preference: Logistics-focused iconography and terminology.
 
 ## Recent Updates (November 7, 2025)
-1. **LiveChat Personal Assistant - Optimizado y Mejorado**: Chat completamente funcional con respuestas rápidas e inteligentes:
+1. **Integrated Financial Management Tabs**: Added 4 new tabs to operation detail page for comprehensive financial tracking:
+   - **Payments Tab**: Manage payments linked directly to operations via `operationId` foreign key
+   - **Invoices Tab**: Track invoices associated with specific operations
+   - **Expenses Tab**: Monitor operation-specific expenses and costs
+   - **Client Tab**: Read-only preview of client information reusing UI from main clients module
+   - Modified `payments` table schema to include `operationId` column for direct operation linking
+   - Tab layout expanded to 9 columns to accommodate new financial modules
+   - All tabs follow consistent UI/UX patterns with empty states and action buttons
+2. **LiveChat Personal Assistant - Optimizado y Mejorado**: Chat completamente funcional con respuestas rápidas e inteligentes:
    - **Optimistic Updates**: Mensajes del usuario aparecen INSTANTÁNEAMENTE antes de esperar respuesta del servidor
    - **Búsqueda Inteligente de Operaciones**: Entiende referencias imprecisas ("operación 0051", "51", "NAVI-0051")
    - **Asistente Proactivo**: AI anticipa necesidades y ofrece información relevante automáticamente
