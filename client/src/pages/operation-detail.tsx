@@ -178,57 +178,120 @@ export default function OperationDetail() {
           </span>
         </nav>
 
-        {/* Header profesional compacto */}
-        <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-white via-slate-50/50 to-blue-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 border border-slate-200/80 dark:border-slate-700/60 shadow-md">
-          {/* Patrón de fondo sutil */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
+        {/* Header profesional mejorado con iconos SVG logísticos */}
+        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-950/30 border border-slate-200 dark:border-slate-700 shadow-xl">
+          {/* Patrón de fondo con iconos logísticos */}
+          <div className="absolute inset-0 opacity-[0.03] dark:opacity-[0.05]">
+            <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="logistics-pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
+                  <path d="M10,30 L20,30 L20,40 L30,40 L30,30 L40,30 L40,50 L10,50 Z M45,35 L55,35 L50,45 Z M15,60 L25,60 L20,70 Z" 
+                        fill="currentColor" opacity="0.15"/>
+                  <circle cx="70" cy="35" r="8" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.2"/>
+                  <path d="M65,60 Q70,55 75,60 Q80,65 85,60" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.15"/>
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#logistics-pattern)"/>
+            </svg>
+          </div>
           
-          {/* Acento superior */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500" />
+          {/* Barra de acento superior con gradiente animado */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 via-purple-500 to-blue-500 bg-[length:200%_100%] animate-[gradient_8s_ease-in-out_infinite]" />
+          
+          {/* Elementos decorativos flotantes */}
+          <div className="absolute top-4 right-8 opacity-10 dark:opacity-5">
+            <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 30 L35 30 L35 45 L50 45 L50 30 L65 30 L65 60 L20 60 Z" fill="currentColor" opacity="0.4"/>
+              <circle cx="27" cy="57" r="3" fill="currentColor"/>
+              <circle cx="58" cy="57" r="3" fill="currentColor"/>
+              <path d="M40 20 L50 35 L30 35 Z" fill="currentColor" opacity="0.6"/>
+            </svg>
+          </div>
 
-          <div className="relative p-4 md:p-5">
+          <div className="relative p-5 md:p-6">
             <div className="flex flex-col md:flex-row items-start gap-4">
-              {/* Botón de retorno compacto */}
+              {/* Botón de retorno mejorado */}
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => navigate('/operations')}
                 data-testid="button-back"
-                className="shrink-0 h-8 w-8 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm hover:bg-white dark:hover:bg-slate-800 border-slate-300/60 dark:border-slate-600/60"
+                className="shrink-0 h-9 w-9 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md hover:bg-white dark:hover:bg-slate-800 border-slate-300 dark:border-slate-600 shadow-sm hover:shadow-md transition-all group"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
               </Button>
 
               {/* Contenido principal */}
               <div className="flex-1 space-y-3 w-full min-w-0">
-                {/* Fila superior: Título y badges */}
+                {/* Fila superior: Icono, Título y badges */}
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50 truncate" data-testid="text-operation-name">
-                      {operation.name}
-                    </h1>
-                    {client && (
-                      <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-600 dark:text-slate-400">
-                        <UserIcon className="w-3 h-3" />
-                        <span>{client.name}</span>
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    {/* Icono logístico según tipo de operación */}
+                    <div className="shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-600 dark:to-indigo-700 p-2.5 shadow-lg flex items-center justify-center">
+                      {operation.operationType?.toLowerCase() === 'air' ? (
+                        <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M3 18L9 12L3 6L4 5L13 11V3L14 2L16 4L18 6L16 7L14 9V17L4 19L3 18Z" fill="currentColor"/>
+                          <path d="M18 14L21 11L20 10L17 13L18 14Z" fill="currentColor" opacity="0.7"/>
+                        </svg>
+                      ) : operation.operationType?.toLowerCase() === 'fcl' || operation.operationType?.toLowerCase() === 'lcl' || operation.operationType?.toLowerCase() === 'sea' ? (
+                        <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M4 6H20L19 11H5L4 6Z" fill="currentColor"/>
+                          <path d="M5 11H19L18 16H6L5 11Z" fill="currentColor" opacity="0.8"/>
+                          <path d="M6 16H18V18H6V16Z" fill="currentColor" opacity="0.6"/>
+                          <circle cx="8" cy="18" r="1.5" fill="currentColor"/>
+                          <circle cx="16" cy="18" r="1.5" fill="currentColor"/>
+                        </svg>
+                      ) : (
+                        <svg className="w-full h-full text-white" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M4 8H14L16 6H20V16H4V8Z" fill="currentColor"/>
+                          <path d="M6 10H12V14H6V10Z" fill="currentColor" opacity="0.5"/>
+                          <circle cx="7" cy="16" r="1.5" fill="currentColor"/>
+                          <circle cx="17" cy="16" r="1.5" fill="currentColor"/>
+                        </svg>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50 truncate" data-testid="text-operation-name">
+                          {operation.name}
+                        </h1>
                       </div>
-                    )}
+                      {client && (
+                        <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md">
+                            <UserIcon className="w-3 h-3" />
+                            <span className="font-medium">{client.name}</span>
+                          </div>
+                          {operation.bookingTracking && (
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md">
+                              <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2 4H14L13 8H3L2 4Z M3 8H13L12 12H4L3 8Z" fill="currentColor" opacity="0.7"/>
+                              </svg>
+                              <span className="font-mono text-[10px]">{operation.bookingTracking}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
-                  {/* Badges organizados */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <div className="flex items-center gap-1.5 bg-blue-500/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-md border border-blue-500/20">
+                  {/* Badges organizados con iconos */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 dark:from-blue-500/20 dark:to-indigo-500/20 text-blue-700 dark:text-blue-300 px-3 py-1.5 rounded-lg border border-blue-500/20 shadow-sm">
                       {getOperationTypeIcon(operation.operationType)}
-                      <span className="text-xs font-semibold uppercase">{operation.operationType}</span>
+                      <span className="text-xs font-bold uppercase tracking-wide">{operation.operationType}</span>
                     </div>
-                    <Badge className={`${getStatusColor(operation.status)} text-xs px-2.5 py-1`} data-testid="badge-status">
+                    <Badge className={`${getStatusColor(operation.status)} text-xs px-3 py-1.5 shadow-sm border-0 font-semibold`} data-testid="badge-status">
+                      <span className="mr-1.5">●</span>
                       {operation.status === 'planning' ? 'Planificación' : 
                        operation.status === 'in-progress' ? 'En Progreso' : 
                        operation.status === 'completed' ? 'Completado' : 
                        'Cancelado'}
                     </Badge>
                     {operation.priority && (
-                      <Badge className={`${getPriorityColor(operation.priority)} text-xs px-2.5 py-1`} data-testid="badge-priority">
+                      <Badge className={`${getPriorityColor(operation.priority)} text-xs px-3 py-1.5 shadow-sm border-0 font-semibold`} data-testid="badge-priority">
+                        {operation.priority === 'urgent' && <span className="mr-1">⚡</span>}
                         {operation.priority === 'low' ? 'Baja' : 
                          operation.priority === 'medium' ? 'Media' : 
                          operation.priority === 'high' ? 'Alta' : 
@@ -238,25 +301,26 @@ export default function OperationDetail() {
                   </div>
                 </div>
 
-                {/* Descripción compacta */}
+                {/* Descripción con mejor diseño */}
                 {operation.description && (
-                  <div className="relative">
-                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed" data-testid="text-description">
+                  <div className="relative pl-15">
+                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500/50 to-transparent rounded-full" />
+                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed pl-3" data-testid="text-description">
                       {operation.description}
                     </p>
                   </div>
                 )}
               </div>
 
-              {/* Botón de edición compacto */}
+              {/* Botón de edición mejorado */}
               <Button
                 onClick={() => navigate(`/operations/edit/${id}`)}
                 data-testid="button-edit"
                 size="sm"
-                className="shrink-0 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md transition-all"
+                className="shrink-0 w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all group"
               >
-                <Edit2 className="w-3.5 h-3.5 mr-1.5" />
-                <span className="text-xs font-medium">Editar</span>
+                <Edit2 className="w-3.5 h-3.5 mr-2 transition-transform group-hover:rotate-12" />
+                <span className="text-xs font-semibold">Editar Operación</span>
               </Button>
             </div>
           </div>
