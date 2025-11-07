@@ -169,6 +169,12 @@ function ModuleConfigurationDialog({
   const [aiOptimizationLevel, setAiOptimizationLevel] = useState<string>(
     config?.aiOptimizationLevel || 'high'
   );
+  const [autoDetectPayments, setAutoDetectPayments] = useState<boolean>(
+    config?.autoDetectPayments || false
+  );
+  const [autoDetectExpenses, setAutoDetectExpenses] = useState<boolean>(
+    config?.autoDetectExpenses || false
+  );
   const [customFolderNames, setCustomFolderNames] = useState<Record<string, string>>(
     (config?.customFolderNames as Record<string, string>) || {}
   );
@@ -189,6 +195,8 @@ function ModuleConfigurationDialog({
         autoCreateTasks,
         autoCreateNotes,
         aiOptimizationLevel,
+        autoDetectPayments,
+        autoDetectExpenses,
         customFolderNames: sanitizedNames,
       });
     },
@@ -209,7 +217,7 @@ function ModuleConfigurationDialog({
   });
 
   const updateConfigMutation = useMutation({
-    mutationFn: async ({ isEnabled, accounts, employees, attachments, tasks, notes, optimization, folderNames }: { isEnabled?: boolean; accounts?: string[]; employees?: string[]; attachments?: boolean; tasks?: string; notes?: string; optimization?: string; folderNames?: Record<string, string> }) => {
+    mutationFn: async ({ isEnabled, accounts, employees, attachments, tasks, notes, optimization, detectPayments, detectExpenses, folderNames }: { isEnabled?: boolean; accounts?: string[]; employees?: string[]; attachments?: boolean; tasks?: string; notes?: string; optimization?: string; detectPayments?: boolean; detectExpenses?: boolean; folderNames?: Record<string, string> }) => {
       return apiRequest("PATCH", `/api/automation/configs/${config!.id}`, {
         isEnabled,
         selectedGmailAccounts: accounts,
@@ -218,6 +226,8 @@ function ModuleConfigurationDialog({
         autoCreateTasks: tasks,
         autoCreateNotes: notes,
         aiOptimizationLevel: optimization,
+        autoDetectPayments: detectPayments,
+        autoDetectExpenses: detectExpenses,
         customFolderNames: folderNames,
       });
     },
@@ -259,7 +269,7 @@ function ModuleConfigurationDialog({
     );
     
     if (config) {
-      updateConfigMutation.mutate({ accounts: selectedAccounts, employees: selectedEmployees, attachments: processAttachments, tasks: autoCreateTasks, notes: autoCreateNotes, optimization: aiOptimizationLevel, folderNames: sanitizedFolderNames });
+      updateConfigMutation.mutate({ accounts: selectedAccounts, employees: selectedEmployees, attachments: processAttachments, tasks: autoCreateTasks, notes: autoCreateNotes, optimization: aiOptimizationLevel, detectPayments: autoDetectPayments, detectExpenses: autoDetectExpenses, folderNames: sanitizedFolderNames });
     } else {
       createConfigMutation.mutate(sanitizedFolderNames);
     }
@@ -335,12 +345,16 @@ function ModuleConfigurationDialog({
               autoCreateTasks={autoCreateTasks}
               autoCreateNotes={autoCreateNotes}
               aiOptimizationLevel={aiOptimizationLevel}
+              autoDetectPayments={autoDetectPayments}
+              autoDetectExpenses={autoDetectExpenses}
               onAccountsChange={setSelectedAccounts}
               onEmployeesChange={setSelectedEmployees}
               onProcessAttachmentsChange={setProcessAttachments}
               onAutoCreateTasksChange={setAutoCreateTasks}
               onAutoCreateNotesChange={setAutoCreateNotes}
               onAiOptimizationLevelChange={setAiOptimizationLevel}
+              onAutoDetectPaymentsChange={setAutoDetectPayments}
+              onAutoDetectExpensesChange={setAutoDetectExpenses}
               customFolderNames={customFolderNames}
               onCustomFolderNamesChange={setCustomFolderNames}
               onSave={handleSaveSettings}
@@ -375,6 +389,8 @@ function SettingsTab({
   autoCreateTasks,
   autoCreateNotes,
   aiOptimizationLevel,
+  autoDetectPayments,
+  autoDetectExpenses,
   customFolderNames,
   onAccountsChange,
   onEmployeesChange,
@@ -382,6 +398,8 @@ function SettingsTab({
   onAutoCreateTasksChange,
   onAutoCreateNotesChange,
   onAiOptimizationLevelChange,
+  onAutoDetectPaymentsChange,
+  onAutoDetectExpensesChange,
   onCustomFolderNamesChange,
   onSave,
   onDelete,
@@ -397,6 +415,8 @@ function SettingsTab({
   autoCreateTasks: string;
   autoCreateNotes: string;
   aiOptimizationLevel: string;
+  autoDetectPayments: boolean;
+  autoDetectExpenses: boolean;
   customFolderNames: Record<string, string>;
   onAccountsChange: (accounts: string[]) => void;
   onEmployeesChange: (employees: string[]) => void;
@@ -404,6 +424,8 @@ function SettingsTab({
   onAutoCreateTasksChange: (mode: string) => void;
   onAutoCreateNotesChange: (mode: string) => void;
   onAiOptimizationLevelChange: (level: string) => void;
+  onAutoDetectPaymentsChange: (enabled: boolean) => void;
+  onAutoDetectExpensesChange: (enabled: boolean) => void;
   onCustomFolderNamesChange: (names: Record<string, string>) => void;
   onSave: () => void;
   onDelete: () => void;
@@ -629,6 +651,50 @@ function SettingsTab({
               </p>
             </div>
           )}
+
+          <div className="mt-6 p-4 bg-green-500/5 border border-green-500/20 rounded-lg">
+            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              💰 AI Financial Detection (NEW)
+              <Badge variant="outline" className="text-xs">Beta</Badge>
+            </h4>
+            <p className="text-xs text-muted-foreground mb-4">
+              Automatically detects payments and expenses from PDF attachments in emails using AI
+            </p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">Auto-detect Payments</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Detect when clients send payment receipts or confirmation emails
+                  </p>
+                </div>
+                <Switch
+                  checked={autoDetectPayments}
+                  onCheckedChange={onAutoDetectPaymentsChange}
+                  data-testid="switch-auto-detect-payments"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">Auto-detect Expenses</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Detect when company makes payments (invoices, receipts, transfers)
+                  </p>
+                </div>
+                <Switch
+                  checked={autoDetectExpenses}
+                  onCheckedChange={onAutoDetectExpensesChange}
+                  data-testid="switch-auto-detect-expenses"
+                />
+              </div>
+              {(autoDetectPayments || autoDetectExpenses) && (
+                <div className="mt-3 p-3 bg-blue-500/5 rounded-md text-xs text-muted-foreground">
+                  ℹ️ Detected transactions will require your approval before being added to the system.
+                  You'll see notifications in the header when new transactions are detected.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

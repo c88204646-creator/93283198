@@ -26,8 +26,8 @@ Design preference: Logistics-focused iconography and terminology.
 - **Core Tables**: `users`, `employees`, `clients`, `operations`, `invoices`, `proposals`, `expenses`, `leads`, `bank_accounts`, `chat_conversations`, `chat_messages`, `operationTasks`.
 - **Integration Tables**: `customFields`, `customFieldValues`, `gmailAccounts`, `gmailMessages`, `calendarEvents`.
 - **File Management Tables**: `operationFolders`, `operationFiles`, `gmailAttachments`.
-- **Automation Tables**: `automationConfigs` (with `customFolderNames` JSONB), `automationRules`, `automationLogs`.
-- **AI Tables**: `operationAnalyses`, `bankAccountAnalyses`, `knowledgeBase` (supports both 'operation' and 'bank_account' analysis types).
+- **Automation Tables**: `automationConfigs` (with `customFolderNames` JSONB, `autoDetectPayments`, `autoDetectExpenses` flags), `automationRules`, `automationLogs`.
+- **AI Tables**: `operationAnalyses`, `bankAccountAnalyses`, `knowledgeBase` (supports both 'operation' and 'bank_account' analysis types), `financial_suggestions` (AI-detected transactions pending approval).
 - **Patterns**: UUID primary keys, foreign key relationships, timestamp tracking, status enums, JSONB for metadata, B2 storage keys, SHA-256 file hashes.
 
 #### Core Features
@@ -104,7 +104,19 @@ Design preference: Logistics-focused iconography and terminology.
 
 ### Recent Changes
 
-**November 7, 2025 - AI System Enhancements & Kanban Board Fix**
+**November 7, 2025 - AI Financial Detection System & Enhanced Automation**
+- **AI-Powered Financial Transaction Detection** (NEW):
+  - Automated detection of payments (from clients) and expenses (company payments) from email attachments using Gemini AI
+  - PDF text extraction with pdf-parse library for analyzing invoices, receipts, and financial documents
+  - Creates financial suggestions requiring user approval before creating actual payment/expense records
+  - Confidence scoring (70% minimum threshold) ensures high-quality suggestions
+  - Real-time notification system in header showing pending suggestions with badge counter
+  - Detailed approval workflow with AI reasoning display, rejection capability with notes
+  - Automatic deduplication prevents processing the same attachment multiple times
+  - Configurable per automation config with `autoDetectPayments` and `autoDetectExpenses` flags
+  - Integrated with automation service - processes automatically in background every 15 minutes
+  - New `financial_suggestions` table tracks all detected transactions and their approval status
+  - Financial Detection API endpoints: GET pending, GET by operation, approve, reject
 - **Enhanced AI Task/Note Generation**:
   - Improved prompts to generate professional, descriptive notes (minimum 100 characters) with full context
   - Implemented intelligent task deduplication to prevent creating similar tasks from email threads
@@ -125,3 +137,5 @@ Design preference: Logistics-focused iconography and terminology.
   - Added automated processing of existing operations for AI-powered task/note creation
   - Fixed processEmailThreadForAutomation to use first enabled automation config instead of searching for specific module name
   - Fixed client assignment issue by transforming empty strings to null in insertOperationSchema
+  - Created FinancialDetectionService for analyzing email attachments and detecting transactions
+  - Added FinancialSuggestionsNotification component in app header for user approval workflow
