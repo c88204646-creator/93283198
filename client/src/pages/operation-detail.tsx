@@ -156,72 +156,102 @@ export default function OperationDetail() {
           </span>
         </nav>
 
-        {/* Header mejorado con gradiente */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 p-4 md:p-8 shadow-xl backdrop-blur-sm">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -ml-24 -mb-24" />
+        {/* Header mejorado con diseño logístico profesional */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 border border-slate-200/60 dark:border-slate-700/60 shadow-2xl">
+          {/* Iconos de fondo decorativos - Tema logístico */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.03] dark:opacity-[0.05]">
+            <Package className="absolute top-8 right-16 w-32 h-32 text-blue-600 rotate-12" />
+            <Ship className="absolute bottom-12 left-20 w-40 h-40 text-blue-600 -rotate-6" />
+            <Plane className="absolute top-1/2 right-1/4 w-28 h-28 text-blue-600 rotate-45" />
+            <Truck className="absolute bottom-8 right-12 w-24 h-24 text-blue-600 -rotate-12" />
+            <MapPin className="absolute top-16 left-1/3 w-20 h-20 text-blue-600" />
+          </div>
 
-          <div className="relative flex flex-col md:flex-row items-start gap-4 md:gap-6">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => navigate('/operations')}
-              data-testid="button-back"
-              className="shrink-0 bg-background/50 backdrop-blur-sm hover:bg-background/80 transition-all"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
+          {/* Patrón de cuadrícula sutil */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
-            <div className="flex-1 space-y-4 w-full">
-              <div className="flex items-start gap-2 md:gap-4 flex-wrap">
-                <div className="flex items-center gap-2 bg-background/50 backdrop-blur-sm px-3 py-1.5 rounded-full">
-                  {getOperationTypeIcon(operation.operationType)}
-                  <span className="text-sm font-medium">{operation.operationType}</span>
-                </div>
-                <Badge className={`${getStatusColor(operation.status)} text-xs md:text-sm px-2 md:px-3 py-1`} data-testid="badge-status">
-                  {operation.status === 'planning' ? 'Planificación' : 
-                   operation.status === 'in-progress' ? 'En Progreso' : 
-                   operation.status === 'completed' ? 'Completado' : 
-                   'Cancelado'}
-                </Badge>
-                {operation.priority && (
-                  <Badge className={`${getPriorityColor(operation.priority)} text-xs md:text-sm px-2 md:px-3 py-1`} data-testid="badge-priority">
-                    {operation.priority === 'low' ? 'Baja' : 
-                     operation.priority === 'medium' ? 'Media' : 
-                     operation.priority === 'high' ? 'Alta' : 
-                     'Urgente'}
+          <div className="relative p-6 md:p-8">
+            <div className="flex flex-col md:flex-row items-start gap-6">
+              {/* Botón de retorno */}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => navigate('/operations')}
+                data-testid="button-back"
+                className="shrink-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm hover:bg-white dark:hover:bg-slate-800 border-slate-300 dark:border-slate-600 shadow-sm"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+
+              {/* Contenido principal */}
+              <div className="flex-1 space-y-5 w-full min-w-0">
+                {/* Badges superiores */}
+                <div className="flex items-start gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg shadow-md">
+                    {getOperationTypeIcon(operation.operationType)}
+                    <span className="text-sm font-semibold uppercase tracking-wide">{operation.operationType}</span>
+                  </div>
+                  <Badge className={`${getStatusColor(operation.status)} text-sm px-4 py-2 shadow-sm`} data-testid="badge-status">
+                    {operation.status === 'planning' ? 'Planificación' : 
+                     operation.status === 'in-progress' ? 'En Progreso' : 
+                     operation.status === 'completed' ? 'Completado' : 
+                     'Cancelado'}
                   </Badge>
-                )}
-              </div>
-
-              <div>
-                <h1 className="text-2xl md:text-4xl font-bold tracking-tight mb-2" data-testid="text-operation-name">
-                  {operation.name}
-                </h1>
-                {operation.description && (
-                  <p className="text-muted-foreground text-sm md:text-lg max-w-3xl" data-testid="text-description">
-                    {operation.description}
-                  </p>
-                )}
-              </div>
-
-              {client && (
-                <div className="flex items-center gap-2 text-sm md:text-base text-muted-foreground">
-                  <UserIcon className="w-4 h-4" />
-                  <span className="font-medium">Cliente:</span>
-                  <span className="truncate">{client.name}</span>
+                  {operation.priority && (
+                    <Badge className={`${getPriorityColor(operation.priority)} text-sm px-4 py-2 shadow-sm`} data-testid="badge-priority">
+                      {operation.priority === 'low' ? 'Baja' : 
+                       operation.priority === 'medium' ? 'Media' : 
+                       operation.priority === 'high' ? 'Alta' : 
+                       'Urgente'}
+                    </Badge>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <Button
-              onClick={() => navigate(`/operations/edit/${id}`)}
-              data-testid="button-edit"
-              className="shrink-0 w-full md:w-auto bg-primary/90 hover:bg-primary shadow-lg"
-            >
-              <Edit2 className="w-4 h-4 mr-2" />
-              Editar Operación
-            </Button>
+                {/* Título de operación */}
+                <div className="space-y-3">
+                  <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-50" data-testid="text-operation-name">
+                    {operation.name}
+                  </h1>
+                  
+                  {/* Descripción con scroll */}
+                  {operation.description && (
+                    <div className="relative">
+                      <ScrollArea className="max-h-24 pr-4">
+                        <p className="text-sm md:text-base text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-wrap" data-testid="text-description">
+                          {operation.description}
+                        </p>
+                      </ScrollArea>
+                      {operation.description.length > 200 && (
+                        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-50 via-slate-50/80 to-transparent dark:from-slate-900 dark:via-slate-900/80 pointer-events-none" />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Información del cliente */}
+                {client && (
+                  <div className="inline-flex items-center gap-3 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                      <UserIcon className="w-4 h-4 text-white" />
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">Cliente:</span>
+                      <span className="text-slate-900 dark:text-slate-100 font-medium">{client.name}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Botón de edición */}
+              <Button
+                onClick={() => navigate(`/operations/edit/${id}`)}
+                data-testid="button-edit"
+                className="shrink-0 w-full md:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+              >
+                <Edit2 className="w-4 h-4 mr-2" />
+                Editar Operación
+              </Button>
+            </div>
           </div>
         </div>
 
