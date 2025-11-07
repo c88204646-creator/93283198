@@ -2567,6 +2567,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ADMIN: Seed knowledge base with professional logistics feedback
+  app.post("/api/admin/seed-knowledge", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { seedKnowledgeBase } = await import('./seed-knowledge-base');
+      await seedKnowledgeBase();
+      res.json({ message: "Knowledge base populated successfully with professional logistics templates!" });
+    } catch (error: any) {
+      console.error("Seed knowledge base error:", error);
+      res.status(500).json({ message: error?.message || "Error seeding knowledge base" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
