@@ -33,10 +33,16 @@ Design preference: Logistics-focused iconography and terminology.
 #### Core Features
 - **Integrated Financial Management**: Comprehensive banking module (accounts, transactions), payments linked to invoices and bank accounts, expenses linked to bank accounts, clickable accounts with detailed financial dashboards.
 - **Client Management**: Clickable client rows with detailed dashboards, currency field locked after creation to prevent conflicts with linked invoices/payments, comprehensive client operation statistics.
-- **Gmail Integration**: OAuth 2.0, background sync (messages, calendar events), multi-account support, email bodies and attachments stored in Backblaze B2 with deduplication, intelligent spam filtering.
+- **Gmail Integration**: OAuth 2.0, automatic background sync every 15 minutes (messages, calendar events), multi-account support, email bodies and attachments stored in Backblaze B2 with deduplication, intelligent spam filtering, automatic message-to-operation linking after each sync.
 - **AI-Powered Assistance**:
     - **LiveChat Personal Assistant**: Optimistic updates, smart operation search by various references, proactive assistance, flexible search.
-    - **AI Task & Note Automation**: Automatically creates tasks and notes from email threads using Gemini AI, with smart caching and deduplication.
+    - **AI Task & Note Automation**: 
+        - Automatically creates tasks and notes from email threads using Gemini AI
+        - Real-time processing for new operations with linked emails
+        - Periodic processing of existing operations (runs every 15 minutes with Gmail sync)
+        - Smart caching with multi-level deduplication (per-thread cache + knowledge base)
+        - Confidence-based filtering (70% minimum threshold)
+        - Support for different optimization levels (high, medium, low)
     - **AI Financial Analysis**: Expert financial analysis for bank accounts using Gemini AI with progressive learning. Provides insights on cash flow, expense categorization, red flags, optimization opportunities, and actionable recommendations. Uses knowledge base to reduce API calls.
     - **AI Knowledge Base System**: Progressive learning system reusing successful analyses from a knowledge base (stored in B2) to reduce Gemini API calls. Now supports both operation and bank account analysis types.
 - **Kanban Task Board System**: Drag-and-drop task management with configurable status columns, manual override of AI-generated tasks.
@@ -70,3 +76,32 @@ Design preference: Logistics-focused iconography and terminology.
 
 #### Artificial Intelligence
 - Google Gemini AI (via `GEMINI_API_KEY`) for task and note automation.
+
+### Background Services
+
+#### Automatic Gmail Sync (15-minute interval)
+- Syncs all enabled Gmail accounts
+- Processes new messages and calendar events
+- Links messages to operations after each sync cycle
+- Handles rate limiting and error recovery
+- Updates sync status: idle → syncing → idle
+
+#### Automatic Calendar Sync (5-minute interval)
+- Syncs calendar events from all Gmail accounts
+- Updates existing events and creates new ones
+
+#### Automation Service (15-minute interval)
+- Processes existing operations for AI task/note creation
+- Handles unprocessed messages according to automation rules
+- Processes attachments and creates folders automatically
+- Runs email thread analysis for operations with linked emails
+- Updates lastProcessedAt timestamp for processed configs
+
+### Recent Changes
+
+**November 7, 2025**
+- Fixed Gmail sync stuck in "syncing" state by changing final status to "idle" instead of "completed"
+- Implemented periodic email linking (runs every 15 minutes after Gmail sync)
+- Added automated processing of existing operations for AI-powered task/note creation
+- Fixed processEmailThreadForAutomation to use first enabled automation config instead of searching for specific module name
+- Fixed client assignment issue by transforming empty strings to null in insertOperationSchema
