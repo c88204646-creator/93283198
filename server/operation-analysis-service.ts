@@ -14,7 +14,7 @@ export class OperationAnalysisService {
   
   constructor() {
     this.model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash', // Using flash for cost efficiency
+      model: 'gemini-2.0-flash-exp', // Using latest flash model
       systemInstruction: `You are an expert logistics and freight forwarding assistant. 
       
 Your role is to analyze shipment operations and provide professional, actionable feedback.

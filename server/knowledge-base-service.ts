@@ -168,9 +168,21 @@ export class KnowledgeBaseService {
         return null;
       }
 
-      // Download knowledge document from B2
-      const docBuffer = await backblazeStorage.downloadFile(knowledge.b2Key);
-      const knowledgeDoc: KnowledgeDocument = JSON.parse(docBuffer.toString('utf-8'));
+      // Load knowledge documents from local file
+      const fs = await import('fs');
+      const path = await import('path');
+      const docsPath = path.join(process.cwd(), 'server', 'knowledge-documents.json');
+      const docsContent = fs.readFileSync(docsPath, 'utf-8');
+      const allDocs = JSON.parse(docsContent);
+
+      // Get the specific document by b2Key (which is the key in our JSON)
+      const docKey = knowledge.b2Key.split('/').pop()?.replace('.json', '') || '';
+      const knowledgeDoc: KnowledgeDocument = allDocs[docKey];
+
+      if (!knowledgeDoc) {
+        console.error(`[Knowledge] Document not found for key: ${docKey}`);
+        return null;
+      }
 
       // Adapt the analysis to the new operation
       const adaptedAnalysis = this.adaptAnalysis(knowledgeDoc.analysisText, operation);

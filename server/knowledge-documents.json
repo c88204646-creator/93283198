@@ -1,0 +1,86 @@
+{
+  "air-import-high": {
+    "analysisText": "📊 **Current Status**: High-priority air freight import operation in progress. All critical documentation appears to be in order.\n\n🔔 **Key Updates**:\n- Air Waybill (AWB) received and validated\n- Customs clearance initiated at destination airport\n- Estimated delivery timeline within 48-72 hours\n- Freight forwarder coordination confirmed\n\n⚠️ **Action Items**:\n1. **URGENT**: Verify commercial invoice matches packing list quantities\n2. Confirm import duties and taxes calculation with customs broker\n3. Coordinate final mile delivery with local carrier\n4. Ensure Certificate of Origin is available if required for duty relief\n5. Schedule cargo pickup from customs warehouse\n\n📅 **Next Steps**:\n- Monitor customs clearance status (check within 12 hours)\n- Prepare for potential customs inspection\n- Coordinate delivery timing with consignee\n- Arrange payment of duties and import fees\n\n💡 **Recommendations**:\n- Maintain regular communication with customs broker\n- Prepare alternative delivery plans in case of delays\n- Review and validate all documentation before customs presentation\n- Consider express clearance if time-critical\n- Verify receiver's warehouse capacity and receiving hours",
+    "operationData": {
+      "type": "air",
+      "category": "import",
+      "shippingMode": "air freight",
+      "priority": "high",
+      "status": "active"
+    },
+    "insights": {
+      "commonIssues": ["Documentation mismatch", "Customs delays", "Delivery coordination"],
+      "recommendations": ["Express clearance", "Pre-alert consignee", "Verify duties calculation"],
+      "documentationNeeds": ["Air Waybill", "Commercial Invoice", "Packing List", "Certificate of Origin"]
+    },
+    "metadata": {
+      "emailCount": 12,
+      "taskCount": 8,
+      "fileCount": 15,
+      "createdAt": "2025-11-07T00:00:00Z"
+    }
+  },
+  "sea-export-fcl": {
+    "analysisText": "📊 **Current Status**: Full Container Load (FCL) export operation progressing smoothly. Container booking confirmed and documentation in preparation.\n\n🔔 **Key Updates**:\n- Shipping line booking reference received\n- Container yard (CY) cut-off date confirmed\n- Export documentation package initiated\n- Shipper's Letter of Instruction (SLI) submitted\n\n⚠️ **Action Items**:\n1. Complete commercial invoice and packing list finalization\n2. Obtain export license if required for controlled commodities\n3. Coordinate container pickup from warehouse\n4. Submit VGM (Verified Gross Mass) before cut-off\n5. Arrange cargo insurance coverage\n6. Verify container stuffing schedule\n\n📅 **Next Steps**:\n- Confirm container stuffing schedule (48 hours before CY cut-off)\n- Submit Bill of Lading instructions to freight forwarder\n- Verify all export compliance requirements met\n- Coordinate payment of ocean freight charges\n\n💡 **Recommendations**:\n- Schedule cargo ready date 3-5 days before CY cut-off for buffer\n- Double-check HS codes for accurate duty classification\n- Ensure proper cargo security and dunnage in container\n- Maintain digital copies of all shipping documents\n- Consider container tracking service for real-time updates",
+    "operationData": {
+      "type": "sea",
+      "category": "export",
+      "shippingMode": "FCL",
+      "priority": "medium",
+      "status": "active"
+    },
+    "insights": {
+      "commonIssues": ["CY cut-off missed", "VGM delay", "Documentation incomplete"],
+      "recommendations": ["Early cargo preparation", "VGM submission", "Export license verification"],
+      "documentationNeeds": ["Commercial Invoice", "Packing List", "Bill of Lading", "Export License", "VGM Certificate"]
+    },
+    "metadata": {
+      "emailCount": 18,
+      "taskCount": 12,
+      "fileCount": 22,
+      "createdAt": "2025-11-07T00:00:00Z"
+    }
+  },
+  "sea-import-lcl": {
+    "analysisText": "📊 **Current Status**: Less-than-Container Load (LCL) import shipment in transit. Standard processing timeline being followed.\n\n🔔 **Key Updates**:\n- Cargo departed from origin port on schedule\n- Estimated Time of Arrival (ETA) at destination confirmed\n- Consolidation completed at origin warehouse\n- Ocean Bill of Lading issued\n\n⚠️ **Action Items**:\n1. Monitor vessel tracking for any schedule changes\n2. Prepare customs entry documentation ahead of arrival\n3. Arrange de-consolidation and final delivery\n4. Confirm import duties calculation with broker\n5. Verify warehouse receiving capacity\n6. Schedule final mile delivery\n\n📅 **Next Steps**:\n- Track vessel ETA updates weekly\n- Submit ISF (Importer Security Filing) if US-bound\n- Coordinate customs clearance 5-7 days before arrival\n- Arrange final delivery to consignee warehouse\n\n💡 **Recommendations**:\n- LCL shipments have longer lead times due to consolidation\n- Factor in 3-5 days de-consolidation time at destination\n- Maintain buffer for potential customs inspections\n- Consider cost-benefit of expedited customs clearance\n- Verify cargo insurance covers de-consolidation period",
+    "operationData": {
+      "type": "sea",
+      "category": "import",
+      "shippingMode": "LCL",
+      "priority": "low",
+      "status": "active"
+    },
+    "insights": {
+      "commonIssues": ["De-consolidation delays", "Customs inspection", "Delivery coordination"],
+      "recommendations": ["Early customs preparation", "Warehouse coordination", "Buffer time planning"],
+      "documentationNeeds": ["Ocean Bill of Lading", "Commercial Invoice", "Packing List", "ISF Filing", "Customs Entry"]
+    },
+    "metadata": {
+      "emailCount": 8,
+      "taskCount": 6,
+      "fileCount": 10,
+      "createdAt": "2025-11-07T00:00:00Z"
+    }
+  },
+  "land-domestic-truck": {
+    "analysisText": "📊 **Current Status**: Urgent domestic ground shipment scheduled for immediate dispatch. Critical timeline requires close monitoring.\n\n🔔 **Key Updates**:\n- Truck assigned and driver confirmed\n- Pickup scheduled within next 4-8 hours\n- Direct route planned to minimize transit time\n- Real-time GPS tracking activated\n\n⚠️ **Action Items**:\n1. **URGENT**: Confirm cargo ready for immediate pickup\n2. Verify delivery address and contact information\n3. Ensure proper packaging and labeling completed\n4. Coordinate receiver availability for unloading\n5. Prepare proof of delivery requirements\n6. Confirm special handling instructions with driver\n\n📅 **Next Steps**:\n- Monitor GPS tracking every 2-4 hours\n- Communicate any delays immediately to all parties\n- Coordinate delivery appointment with receiver\n- Arrange backup delivery window if needed\n\n💡 **Recommendations**:\n- Keep receiver informed of estimated arrival time\n- Have alternative delivery contact available\n- Ensure adequate unloading equipment at destination\n- Document any special handling requirements clearly\n- Consider temperature control if cargo is sensitive\n- Verify driver has all necessary access credentials",
+    "operationData": {
+      "type": "land",
+      "category": "domestic",
+      "shippingMode": "truck",
+      "priority": "high",
+      "status": "active"
+    },
+    "insights": {
+      "commonIssues": ["Receiver unavailability", "Address errors", "Unloading delays"],
+      "recommendations": ["GPS tracking", "Receiver coordination", "Backup delivery plan"],
+      "documentationNeeds": ["Bill of Lading", "Delivery Receipt", "Packing List", "Special Instructions"]
+    },
+    "metadata": {
+      "emailCount": 5,
+      "taskCount": 4,
+      "fileCount": 6,
+      "createdAt": "2025-11-07T00:00:00Z"
+    }
+  }
+}
