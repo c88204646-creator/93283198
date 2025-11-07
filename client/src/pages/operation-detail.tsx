@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import DOMPurify from 'isomorphic-dompurify';
-import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage, Payment, InsertPayment, Invoice, Expense, InsertExpense } from "@shared/schema";
+import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage, Payment, InsertPayment, Invoice, Expense, InsertExpense, BankAccount } from "@shared/schema";
 import { insertPaymentSchema, insertExpenseSchema } from "@shared/schema";
 import { FileUploader } from "@/components/FileUploader";
 import { OperationAnalysisComponent } from "@/components/OperationAnalysis";
@@ -2613,28 +2613,47 @@ function PaymentFormDialog({
   onSave: (data: InsertPayment) => void;
   isPending: boolean;
 }) {
+  // Fetch invoices for dropdown
+  const { data: invoices = [] } = useQuery<Invoice[]>({
+    queryKey: ['/api/invoices'],
+  });
+
+  // Fetch bank accounts for dropdown
+  const { data: bankAccounts = [] } = useQuery<BankAccount[]>({
+    queryKey: ['/api/bank-accounts'],
+  });
+
   const form = useForm<InsertPayment>({
     resolver: zodResolver(insertPaymentSchema),
     defaultValues: payment ? {
       invoiceId: payment.invoiceId || undefined,
       operationId: payment.operationId || undefined,
+      bankAccountId: payment.bankAccountId || undefined,
+      currency: payment.currency || 'MXN',
       amount: payment.amount,
       paymentDate: payment.paymentDate,
       paymentMethod: payment.paymentMethod,
       reference: payment.reference || undefined,
       notes: payment.notes || undefined,
     } : {
+      currency: 'MXN',
       amount: "0.00",
       paymentDate: new Date(),
       paymentMethod: "transfer",
     },
   });
 
+  // Watch bankAccountId to validate currency
+  const selectedBankAccountId = form.watch('bankAccountId');
+  const selectedBankAccount = bankAccounts.find(acc => acc.id === selectedBankAccountId);
+
   useEffect(() => {
     if (payment) {
       form.reset({
         invoiceId: payment.invoiceId || undefined,
         operationId: payment.operationId || undefined,
+        bankAccountId: payment.bankAccountId || undefined,
+        currency: payment.currency || 'MXN',
         amount: payment.amount,
         paymentDate: payment.paymentDate,
         paymentMethod: payment.paymentMethod,
@@ -2643,6 +2662,7 @@ function PaymentFormDialog({
       });
     } else {
       form.reset({
+        currency: 'MXN',
         amount: "0.00",
         paymentDate: new Date(),
         paymentMethod: "transfer",
@@ -2651,6 +2671,13 @@ function PaymentFormDialog({
   }, [payment, form]);
 
   const handleSubmit = (data: InsertPayment) => {
+    // Validate currency matches bank account
+    if (selectedBankAccount && data.currency !== selectedBankAccount.currency) {
+      form.setError('currency', {
+        message: `La divisa del pago debe coincidir con la de la cuenta bancaria (${selectedBankAccount.currency})`,
+      });
+      return;
+    }
     onSave(data);
   };
 
@@ -2668,10 +2695,95 @@ function PaymentFormDialog({
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <FormField
               control={form.control}
+              name="invoiceId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Factura *</FormLabel>
+                  <FormControl>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      {...field}
+                      value={field.value || ''}
+                      data-testid="select-invoice"
+                    >
+                      <option value="">Seleccionar factura...</option>
+                      {invoices.map((invoice) => (
+                        <option key={invoice.id} value={invoice.id}>
+                          {invoice.invoiceNumber} - ${parseFloat(invoice.totalAmount).toFixed(2)}
+                        </option>
+                      ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="bankAccountId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cuenta Bancaria *</FormLabel>
+                  <FormControl>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      {...field}
+                      value={field.value || ''}
+                      data-testid="select-bank-account"
+                    >
+                      <option value="">Seleccionar cuenta...</option>
+                      {bankAccounts.filter(acc => acc.isActive).map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.name} ({account.currency}) - ${parseFloat(account.currentBalance).toFixed(2)}
+                        </option>
+                      ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                  {selectedBankAccount && (
+                    <p className="text-xs text-muted-foreground">
+                      Divisa de la cuenta: {selectedBankAccount.currency}
+                    </p>
+                  )}
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="currency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Divisa *</FormLabel>
+                  <FormControl>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      {...field}
+                      data-testid="select-currency"
+                    >
+                      <option value="MXN">MXN - Peso Mexicano</option>
+                      <option value="USD">USD - Dólar Estadounidense</option>
+                      <option value="EUR">EUR - Euro</option>
+                      <option value="CAD">CAD - Dólar Canadiense</option>
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                  {selectedBankAccount && field.value !== selectedBankAccount.currency && (
+                    <p className="text-xs text-destructive">
+                      ⚠️ La divisa no coincide con la de la cuenta bancaria
+                    </p>
+                  )}
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Monto</FormLabel>
+                  <FormLabel>Monto *</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -3153,11 +3265,18 @@ function ExpenseFormDialog({
   onSave: (data: InsertExpense) => void;
   isPending: boolean;
 }) {
+  // Fetch bank accounts for dropdown
+  const { data: bankAccounts = [] } = useQuery<BankAccount[]>({
+    queryKey: ['/api/bank-accounts'],
+  });
+
   const form = useForm<InsertExpense>({
     resolver: zodResolver(insertExpenseSchema),
     defaultValues: expense ? {
       operationId: expense.operationId || undefined,
       employeeId: expense.employeeId,
+      bankAccountId: expense.bankAccountId || undefined,
+      currency: expense.currency || 'MXN',
       category: expense.category,
       amount: expense.amount,
       description: expense.description,
@@ -3165,6 +3284,7 @@ function ExpenseFormDialog({
       status: expense.status,
       receiptUrl: expense.receiptUrl || undefined,
     } : {
+      currency: 'MXN',
       amount: "0.00",
       date: new Date(),
       category: "other",
@@ -3173,11 +3293,17 @@ function ExpenseFormDialog({
     },
   });
 
+  // Watch bankAccountId to validate currency
+  const selectedBankAccountId = form.watch('bankAccountId');
+  const selectedBankAccount = bankAccounts.find(acc => acc.id === selectedBankAccountId);
+
   useEffect(() => {
     if (expense) {
       form.reset({
         operationId: expense.operationId || undefined,
         employeeId: expense.employeeId,
+        bankAccountId: expense.bankAccountId || undefined,
+        currency: expense.currency || 'MXN',
         category: expense.category,
         amount: expense.amount,
         description: expense.description,
@@ -3187,6 +3313,7 @@ function ExpenseFormDialog({
       });
     } else {
       form.reset({
+        currency: 'MXN',
         amount: "0.00",
         date: new Date(),
         category: "other",
@@ -3197,6 +3324,13 @@ function ExpenseFormDialog({
   }, [expense, form]);
 
   const handleSubmit = (data: InsertExpense) => {
+    // Validate currency matches bank account
+    if (selectedBankAccount && data.currency !== selectedBankAccount.currency) {
+      form.setError('currency', {
+        message: `La divisa del gasto debe coincidir con la de la cuenta bancaria (${selectedBankAccount.currency})`,
+      });
+      return;
+    }
     onSave(data);
   };
 
@@ -3239,6 +3373,65 @@ function ExpenseFormDialog({
 
             <FormField
               control={form.control}
+              name="bankAccountId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Cuenta Bancaria *</FormLabel>
+                  <FormControl>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      {...field}
+                      value={field.value || ''}
+                      data-testid="select-bank-account-expense"
+                    >
+                      <option value="">Seleccionar cuenta...</option>
+                      {bankAccounts.filter(acc => acc.isActive).map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.name} ({account.currency}) - ${parseFloat(account.currentBalance).toFixed(2)}
+                        </option>
+                      ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                  {selectedBankAccount && (
+                    <p className="text-xs text-muted-foreground">
+                      Divisa de la cuenta: {selectedBankAccount.currency}
+                    </p>
+                  )}
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="currency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Divisa *</FormLabel>
+                  <FormControl>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      {...field}
+                      data-testid="select-currency-expense"
+                    >
+                      <option value="MXN">MXN - Peso Mexicano</option>
+                      <option value="USD">USD - Dólar Estadounidense</option>
+                      <option value="EUR">EUR - Euro</option>
+                      <option value="CAD">CAD - Dólar Canadiense</option>
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                  {selectedBankAccount && field.value !== selectedBankAccount.currency && (
+                    <p className="text-xs text-destructive">
+                      ⚠️ La divisa no coincide con la de la cuenta bancaria
+                    </p>
+                  )}
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="category"
               render={({ field }) => (
                 <FormItem>
@@ -3266,7 +3459,7 @@ function ExpenseFormDialog({
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Monto</FormLabel>
+                  <FormLabel>Monto *</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
