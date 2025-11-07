@@ -36,7 +36,12 @@ export class EmailTaskAutomation {
     userId: string,
     autoCreateTasks: string,
     autoCreateNotes: string,
-    optimizationLevel: 'high' | 'medium' | 'low' = 'high'
+    optimizationLevel: 'high' | 'medium' | 'low' = 'high',
+    companyContext?: {
+      companyName?: string;
+      companyDomain?: string;
+      employeeEmails?: string[];
+    }
   ): Promise<ProcessingResult> {
     
     // Configurar nivel de optimización
@@ -106,7 +111,8 @@ export class EmailTaskAutomation {
       const analysis = await smartGeminiService.analyzeEmailThread(
         thread,
         existingTasks.map(t => ({ title: t.title, status: t.status })),
-        existingNotes.map(n => ({ content: n.content }))
+        existingNotes.map(n => ({ content: n.content })),
+        companyContext
       );
       
       if (analysis.shouldSkip) {
@@ -481,13 +487,21 @@ export class EmailTaskAutomation {
     
     const results: ProcessingResult[] = [];
     
+    // Extraer contexto de empresa del config
+    const companyContext = {
+      companyName: activeConfig.companyName,
+      companyDomain: activeConfig.companyDomain,
+      employeeEmails: activeConfig.employeeEmails as string[] || []
+    };
+    
     for (const item of toProcess) {
       const result = await this.processOperation(
         item.operation.id,
         userId,
         activeConfig.autoCreateTasks || 'disabled',
         activeConfig.autoCreateNotes || 'disabled',
-        (activeConfig.aiOptimizationLevel as any) || 'high'
+        (activeConfig.aiOptimizationLevel as any) || 'high',
+        companyContext
       );
 
       // Procesar detección financiera si está habilitada
@@ -555,12 +569,20 @@ export async function processEmailThreadForAutomation(
 
   console.log(`[Email Task Automation] Processing operation ${operationId} with ${autoCreateTasks} tasks and ${autoCreateNotes} notes`);
 
+  // Extraer contexto de empresa del config
+  const companyContext = {
+    companyName: config.companyName,
+    companyDomain: config.companyDomain,
+    employeeEmails: config.employeeEmails as string[] || []
+  };
+
   // Procesar la operación
   await emailTaskAutomation.processOperation(
     operationId,
     config.userId,
     autoCreateTasks,
     autoCreateNotes,
-    optimizationLevel
+    optimizationLevel,
+    companyContext
   );
 }
