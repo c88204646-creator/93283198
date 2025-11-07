@@ -159,10 +159,10 @@ export default function ClientDetailPage() {
   };
 
   return (
-    <div className="container mx-auto py-8 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="container mx-auto py-4 space-y-4">
+      {/* Header compacto */}
+      <div className="flex items-center justify-between pb-2 border-b">
+        <div className="flex items-center gap-3">
           <Link href="/clients">
             <Button variant="ghost" size="sm" data-testid="button-back">
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -170,12 +170,12 @@ export default function ClientDetailPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <User className="w-8 h-8 text-primary" />
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <User className="w-6 h-6 text-primary" />
               {client.name}
             </h1>
-            <p className="text-muted-foreground mt-1">
-              Cliente desde {format(new Date(client.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: es })}
+            <p className="text-xs text-muted-foreground">
+              Cliente desde {format(new Date(client.createdAt), "dd MMM yyyy", { locale: es })}
             </p>
           </div>
         </div>
@@ -184,57 +184,49 @@ export default function ClientDetailPage() {
         </Badge>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Operaciones</CardTitle>
+      {/* Statistics Cards compactas */}
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Operaciones</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalOperations}</div>
-            <p className="text-xs text-muted-foreground">
-              {activeOperations} activas
-            </p>
+          <CardContent className="pb-3">
+            <div className="text-xl font-bold">{totalOperations}</div>
+            <p className="text-xs text-muted-foreground">{activeOperations} activas</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Facturas</CardTitle>
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Facturas</CardTitle>
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalInvoices}</div>
-            <p className="text-xs text-muted-foreground">
-              {paidInvoices} pagadas
-            </p>
+          <CardContent className="pb-3">
+            <div className="text-xl font-bold">{totalInvoices}</div>
+            <p className="text-xs text-muted-foreground">{paidInvoices} pagadas</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ingresos Totales</CardTitle>
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Ingresos Totales</CardTitle>
             <DollarSign className="h-4 w-4 text-green-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(totalInvoiceAmount)}</div>
-            <p className="text-xs text-muted-foreground">
-              {formatCurrency(paidAmount)} cobrado
-            </p>
+          <CardContent className="pb-3">
+            <div className="text-xl font-bold text-green-600">{formatCurrency(totalInvoiceAmount)}</div>
+            <p className="text-xs text-muted-foreground">{formatCurrency(paidAmount)} cobrado</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cotizaciones</CardTitle>
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-4">
+            <CardTitle className="text-xs font-medium text-muted-foreground">Cotizaciones</CardTitle>
             <FileCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalProposals}</div>
-            <p className="text-xs text-muted-foreground">
-              {acceptedProposals} aceptadas
-            </p>
+          <CardContent className="pb-3">
+            <div className="text-xl font-bold">{totalProposals}</div>
+            <p className="text-xs text-muted-foreground">{acceptedProposals} aceptadas</p>
           </CardContent>
         </Card>
       </div>
@@ -264,73 +256,67 @@ export default function ClientDetailPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="info" className="space-y-4 mt-6">
-          <div className="grid gap-4 md:grid-cols-2">
+        <TabsContent value="info" className="space-y-3 mt-4">
+          <div className="grid gap-3 md:grid-cols-2">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <User className="w-4 h-4" />
                   Información de Contacto
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Email:</span>
-                  <a href={`mailto:${client.email}`} className="text-primary hover:underline">
+              <CardContent className="space-y-2 pt-0">
+                <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-muted/30">
+                  <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                  <a href={`mailto:${client.email}`} className="text-primary hover:underline flex-1 truncate">
                     {client.email}
                   </a>
                 </div>
                 {client.phone && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Teléfono:</span>
+                  <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-muted/30">
+                    <Phone className="w-3.5 h-3.5 text-muted-foreground" />
                     <a href={`tel:${client.phone}`} className="text-primary hover:underline">
                       {client.phone}
                     </a>
                   </div>
                 )}
                 {client.address && (
-                  <div className="flex items-start gap-2 text-sm">
-                    <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-                    <div>
-                      <span className="text-muted-foreground">Dirección:</span>
-                      <p className="mt-1">{client.address}</p>
-                    </div>
+                  <div className="flex items-start gap-2 text-xs py-1.5 px-2 rounded bg-muted/30">
+                    <MapPin className="w-3.5 h-3.5 text-muted-foreground mt-0.5" />
+                    <p className="flex-1">{client.address}</p>
                   </div>
                 )}
-                <div className="flex items-center gap-2 text-sm pt-2 border-t">
-                  <DollarSign className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Divisa:</span>
-                  <Badge variant="outline">{client.currency}</Badge>
-                  <span className="text-xs text-muted-foreground">(No editable)</span>
+                <div className="flex items-center gap-2 text-xs py-1.5 px-2 rounded bg-muted/30 border-t">
+                  <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
+                  <Badge variant="outline" className="text-xs">{client.currency}</Badge>
+                  <span className="text-xs text-muted-foreground ml-auto">(No editable)</span>
                 </div>
               </CardContent>
             </Card>
 
             {client.notes && (
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileText className="w-4 h-4" />
                     Notas
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{client.notes}</p>
+                <CardContent className="pt-0">
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{client.notes}</p>
                 </CardContent>
               </Card>
             )}
           </div>
         </TabsContent>
 
-        <TabsContent value="operations" className="space-y-4 mt-6">
+        <TabsContent value="operations" className="space-y-3 mt-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>Operaciones del Cliente</CardTitle>
-                  <CardDescription>Todas las operaciones asociadas a {client.name}</CardDescription>
+                  <CardTitle className="text-lg">Operaciones del Cliente</CardTitle>
+                  <CardDescription className="text-xs">Todas las operaciones asociadas a {client.name}</CardDescription>
                 </div>
                 <Link href="/operations">
                   <Button variant="outline" size="sm">
@@ -341,9 +327,9 @@ export default function ClientDetailPage() {
             </CardHeader>
             <CardContent>
               {operations.length === 0 ? (
-                <div className="text-center py-12">
-                  <Package className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
-                  <p className="text-muted-foreground">No hay operaciones registradas</p>
+                <div className="text-center py-8">
+                  <Package className="w-10 h-10 mx-auto mb-2 text-muted-foreground opacity-30" />
+                  <p className="text-sm text-muted-foreground">No hay operaciones registradas</p>
                 </div>
               ) : (
                 <Table>
@@ -387,13 +373,13 @@ export default function ClientDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="invoices" className="space-y-4 mt-6">
+        <TabsContent value="invoices" className="space-y-3 mt-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>Facturas del Cliente</CardTitle>
-                  <CardDescription>Historial de facturación de {client.name}</CardDescription>
+                  <CardTitle className="text-lg">Facturas del Cliente</CardTitle>
+                  <CardDescription className="text-xs">Historial de facturación de {client.name}</CardDescription>
                 </div>
                 <Link href="/invoices">
                   <Button variant="outline" size="sm">
@@ -404,24 +390,24 @@ export default function ClientDetailPage() {
             </CardHeader>
             <CardContent>
               {invoices.length === 0 ? (
-                <div className="text-center py-12">
-                  <Receipt className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
-                  <p className="text-muted-foreground">No hay facturas registradas</p>
+                <div className="text-center py-8">
+                  <Receipt className="w-10 h-10 mx-auto mb-2 text-muted-foreground opacity-30" />
+                  <p className="text-sm text-muted-foreground">No hay facturas registradas</p>
                 </div>
               ) : (
                 <>
-                  <div className="grid gap-4 md:grid-cols-3 mb-6">
-                    <div className="p-4 border rounded-lg">
-                      <div className="text-sm text-muted-foreground mb-1">Total Facturado</div>
-                      <div className="text-2xl font-bold">{formatCurrency(totalInvoiceAmount)}</div>
+                  <div className="grid gap-2 md:grid-cols-3 mb-4">
+                    <div className="p-3 border rounded-lg">
+                      <div className="text-xs text-muted-foreground mb-0.5">Total Facturado</div>
+                      <div className="text-lg font-bold">{formatCurrency(totalInvoiceAmount)}</div>
                     </div>
-                    <div className="p-4 border rounded-lg bg-green-50 dark:bg-green-950">
-                      <div className="text-sm text-muted-foreground mb-1">Cobrado</div>
-                      <div className="text-2xl font-bold text-green-600">{formatCurrency(paidAmount)}</div>
+                    <div className="p-3 border rounded-lg bg-green-50 dark:bg-green-950">
+                      <div className="text-xs text-muted-foreground mb-0.5">Cobrado</div>
+                      <div className="text-lg font-bold text-green-600">{formatCurrency(paidAmount)}</div>
                     </div>
-                    <div className="p-4 border rounded-lg bg-orange-50 dark:bg-orange-950">
-                      <div className="text-sm text-muted-foreground mb-1">Pendiente</div>
-                      <div className="text-2xl font-bold text-orange-600">{formatCurrency(pendingAmount)}</div>
+                    <div className="p-3 border rounded-lg bg-orange-50 dark:bg-orange-950">
+                      <div className="text-xs text-muted-foreground mb-0.5">Pendiente</div>
+                      <div className="text-lg font-bold text-orange-600">{formatCurrency(pendingAmount)}</div>
                     </div>
                   </div>
                   <Table>
@@ -460,13 +446,13 @@ export default function ClientDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="proposals" className="space-y-4 mt-6">
+        <TabsContent value="proposals" className="space-y-3 mt-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>Cotizaciones del Cliente</CardTitle>
-                  <CardDescription>Cotizaciones enviadas a {client.name}</CardDescription>
+                  <CardTitle className="text-lg">Cotizaciones del Cliente</CardTitle>
+                  <CardDescription className="text-xs">Cotizaciones enviadas a {client.name}</CardDescription>
                 </div>
                 <Link href="/proposals">
                   <Button variant="outline" size="sm">
@@ -477,9 +463,9 @@ export default function ClientDetailPage() {
             </CardHeader>
             <CardContent>
               {proposals.length === 0 ? (
-                <div className="text-center py-12">
-                  <FileCheck className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
-                  <p className="text-muted-foreground">No hay cotizaciones registradas</p>
+                <div className="text-center py-8">
+                  <FileCheck className="w-10 h-10 mx-auto mb-2 text-muted-foreground opacity-30" />
+                  <p className="text-sm text-muted-foreground">No hay cotizaciones registradas</p>
                 </div>
               ) : (
                 <Table>
@@ -519,15 +505,15 @@ export default function ClientDetailPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-4 mt-6">
-          <div className="grid gap-6 md:grid-cols-2">
+        <TabsContent value="analytics" className="space-y-3 mt-4">
+          <div className="grid gap-3 md:grid-cols-2">
             <Card>
-              <CardHeader>
-                <CardTitle>Tendencia de Operaciones</CardTitle>
-                <CardDescription>Operaciones creadas por mes (últimos 6 meses)</CardDescription>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Tendencia de Operaciones</CardTitle>
+                <CardDescription className="text-xs">Operaciones creadas por mes (últimos 6 meses)</CardDescription>
               </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
+              <CardContent className="pt-0">
+                <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
@@ -542,12 +528,12 @@ export default function ClientDetailPage() {
 
             {statusData.length > 0 && (
               <Card>
-                <CardHeader>
-                  <CardTitle>Operaciones por Estado</CardTitle>
-                  <CardDescription>Distribución actual de operaciones</CardDescription>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Operaciones por Estado</CardTitle>
+                  <CardDescription className="text-xs">Distribución actual de operaciones</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
+                <CardContent className="pt-0">
+                  <ResponsiveContainer width="100%" height={250}>
                     <PieChart>
                       <Pie
                         data={statusData}
