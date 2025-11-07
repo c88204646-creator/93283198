@@ -126,13 +126,31 @@ export const proposals = pgTable("proposals", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Bank Accounts table - Defined before expenses and payments that reference it
+export const bankAccounts = pgTable("bank_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Friendly name (e.g., "Cuenta Principal USD")
+  accountNumber: text("account_number").notNull(),
+  clabe: text("clabe"), // CLABE interbancaria (México)
+  currency: text("currency").notNull().default("MXN"), // MXN, USD, EUR, etc.
+  bankName: text("bank_name"), // Nombre del banco
+  accountType: text("account_type"), // checking, savings, investment
+  initialBalance: decimal("initial_balance", { precision: 12, scale: 2 }).notNull().default("0"),
+  currentBalance: decimal("current_balance", { precision: 12, scale: 2 }).notNull().default("0"),
+  isActive: boolean("is_active").notNull().default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Expenses table
 export const expenses = pgTable("expenses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   operationId: varchar("operation_id").references(() => operations.id, { onDelete: "set null" }),
   employeeId: varchar("employee_id").notNull().references(() => employees.id, { onDelete: "restrict" }),
+  bankAccountId: varchar("bank_account_id").references(() => bankAccounts.id, { onDelete: "restrict" }),
   category: text("category").notNull(), // travel, supplies, equipment, services, other
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("MXN"), // Must match bank account currency
   description: text("description").notNull(),
   date: timestamp("date").notNull(),
   status: text("status").notNull().default("pending"), // pending, approved, rejected, reimbursed
@@ -182,7 +200,9 @@ export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   invoiceId: varchar("invoice_id").references(() => invoices.id, { onDelete: "cascade" }),
   operationId: varchar("operation_id").references(() => operations.id, { onDelete: "set null" }),
+  bankAccountId: varchar("bank_account_id").references(() => bankAccounts.id, { onDelete: "restrict" }),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("MXN"), // Must match bank account currency
   paymentDate: timestamp("payment_date").notNull(),
   paymentMethod: text("payment_method").notNull(), // cash, transfer, check, card, other
   reference: text("reference"),
@@ -744,6 +764,7 @@ export const insertOperationSchema = createInsertSchema(operations).omit({ id: t
 export const insertOperationEmployeeSchema = createInsertSchema(operationEmployees).omit({ id: true, createdAt: true });
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
 export const insertProposalSchema = createInsertSchema(proposals).omit({ id: true, createdAt: true });
+export const insertBankAccountSchema = createInsertSchema(bankAccounts).omit({ id: true, createdAt: true });
 export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true, createdAt: true });
 export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
 export const insertInvoiceItemSchema = createInsertSchema(invoiceItems).omit({ id: true, createdAt: true });
@@ -796,6 +817,9 @@ export type Payment = typeof payments.$inferSelect;
 
 export type InsertProposal = z.infer<typeof insertProposalSchema>;
 export type Proposal = typeof proposals.$inferSelect;
+
+export type InsertBankAccount = z.infer<typeof insertBankAccountSchema>;
+export type BankAccount = typeof bankAccounts.$inferSelect;
 
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
 export type Expense = typeof expenses.$inferSelect;
