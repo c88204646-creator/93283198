@@ -312,15 +312,15 @@ export default function OperationDetail() {
                 )}
               </div>
 
-              {/* Botón de edición mejorado */}
+              {/* Botón de edición compacto */}
               <Button
                 onClick={() => navigate(`/operations/edit/${id}`)}
                 data-testid="button-edit"
                 size="sm"
-                className="shrink-0 w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all group"
+                className="shrink-0 h-8 px-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all group"
               >
-                <Edit2 className="w-3.5 h-3.5 mr-2 transition-transform group-hover:rotate-12" />
-                <span className="text-xs font-semibold">Editar Operación</span>
+                <Edit2 className="w-3 h-3 mr-1.5 transition-transform group-hover:rotate-12" />
+                <span className="text-xs font-medium">Editar</span>
               </Button>
             </div>
           </div>
