@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useParams, Link, useRouter } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { ArrowLeft, User, Mail, Phone, MapPin, TrendingUp, FileText, Package, DollarSign, Calendar, Building2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import type { Client, Operation, Invoice, Proposal } from "@shared/schema";
 export default function ClientDetailPage() {
   const params = useParams();
   const clientId = params.id;
-  const [, navigate] = useRouter();
+  const [, setLocation] = useLocation();
 
   // Fetch client details
   const { data: client, isLoading: clientLoading } = useQuery<Client>({
@@ -400,7 +400,7 @@ export default function ClientDetailPage() {
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => navigate(`/operations/${operation.id}`)}
+                        onClick={() => setLocation(`/operations/${operation.id}`)}
                       >
                         Ver Detalles
                       </Button>
