@@ -2352,66 +2352,246 @@ function FilesTab({ operationId }: { operationId: string }) {
 
 // Client Tab - Muestra información del cliente (readonly, reutiliza UI del módulo de clientes)
 function ClientTab({ operation, client }: { operation: Operation; client?: Client }) {
+  const [, navigate] = useLocation();
+
   if (!client) {
     return (
-      <Card>
-        <CardContent className="text-center py-12">
-          <UserIcon className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
-          <p className="text-muted-foreground">No hay cliente asignado a esta operación</p>
-          <p className="text-sm text-muted-foreground mt-2">Edita la operación para asignar un cliente</p>
+      <Card className="border-dashed">
+        <CardContent className="text-center py-16">
+          <div className="w-20 h-20 rounded-full bg-muted/30 mx-auto mb-4 flex items-center justify-center">
+            <UserIcon className="w-10 h-10 text-muted-foreground opacity-40" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">No hay cliente asignado</h3>
+          <p className="text-muted-foreground mb-6">
+            Edita la operación para asignar un cliente a esta operación
+          </p>
+          <Button onClick={() => navigate(`/operations/edit/${operation.id}`)} variant="outline">
+            <Edit2 className="w-4 h-4 mr-2" />
+            Asignar Cliente
+          </Button>
         </CardContent>
       </Card>
     );
   }
 
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'active':
+        return {
+          label: 'Activo',
+          className: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+          icon: '●'
+        };
+      case 'inactive':
+        return {
+          label: 'Inactivo',
+          className: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+          icon: '○'
+        };
+      case 'potential':
+        return {
+          label: 'Potencial',
+          className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+          icon: '◐'
+        };
+      default:
+        return {
+          label: status,
+          className: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300',
+          icon: '●'
+        };
+    }
+  };
+
+  const statusConfig = getStatusConfig(client.status);
+
   return (
-    <div className="space-y-4">
-      <Card className="overflow-hidden border-primary/20">
-        <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent">
-          <CardTitle className="flex items-center gap-2">
-            <UserIcon className="w-5 h-5 text-primary" />
-            {client.name}
-          </CardTitle>
-          <CardDescription>Información del cliente</CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label className="text-xs text-muted-foreground">Email</Label>
-              <p className="font-medium">{client.email}</p>
+    <div className="space-y-6">
+      {/* Header Card con información principal */}
+      <Card className="overflow-hidden border-primary/20 shadow-lg">
+        <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-6 border-b">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-4">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                {client.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-foreground mb-1" data-testid="text-client-name">
+                  {client.name}
+                </h2>
+                <div className="flex items-center gap-2">
+                  <Badge className={statusConfig.className} data-testid="badge-client-status">
+                    <span className="mr-1">{statusConfig.icon}</span>
+                    {statusConfig.label}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    Cliente desde {format(new Date(client.createdAt), "MMM yyyy")}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Teléfono</Label>
-              <p className="font-medium">{client.phone || 'N/A'}</p>
+            <Button
+              onClick={() => navigate(`/clients/${client.id}`)}
+              variant="outline"
+              size="sm"
+              data-testid="button-view-client"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Ver Perfil
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {/* Información de contacto y detalles */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="overflow-hidden hover:shadow-md transition-shadow">
+          <CardHeader className="bg-muted/30 pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Mail className="w-4 h-4 text-primary" />
+              Información de Contacto
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-4">
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+              <Mail className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Email</Label>
+                <a 
+                  href={`mailto:${client.email}`} 
+                  className="font-medium text-primary hover:underline block truncate mt-1"
+                  data-testid="link-client-email"
+                >
+                  {client.email}
+                </a>
+              </div>
             </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Dirección</Label>
-              <p className="font-medium">{client.address || 'N/A'}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Moneda</Label>
-              <p className="font-medium">{client.currency}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Estado</Label>
-              <Badge className={
-                client.status === 'active' ? 'bg-green-100 text-green-800' :
-                client.status === 'inactive' ? 'bg-red-100 text-red-800' :
-                'bg-yellow-100 text-yellow-800'
-              }>
-                {client.status}
-              </Badge>
-            </div>
-            {client.notes && (
-              <div className="md:col-span-2">
-                <Label className="text-xs text-muted-foreground">Notas</Label>
-                <p className="font-medium text-sm">{client.notes}</p>
+
+            {client.phone && (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                <Phone className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">Teléfono</Label>
+                  <a 
+                    href={`tel:${client.phone}`} 
+                    className="font-medium text-primary hover:underline block truncate mt-1"
+                    data-testid="link-client-phone"
+                  >
+                    {client.phone}
+                  </a>
+                </div>
               </div>
             )}
-          </div>
-          <Separator className="my-4" />
-          <div className="text-sm text-muted-foreground">
-            <p>Para editar este cliente, ve al módulo de Clientes</p>
+
+            {!client.phone && (
+              <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                <Phone className="w-5 h-5 text-muted-foreground/50 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wide">Teléfono</Label>
+                  <p className="text-sm text-muted-foreground italic mt-1">No registrado</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="overflow-hidden hover:shadow-md transition-shadow">
+          <CardHeader className="bg-muted/30 pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Building2 className="w-4 h-4 text-primary" />
+              Detalles del Cliente
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4 space-y-4">
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+              <DollarSign className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Moneda</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline" className="font-semibold" data-testid="badge-client-currency">
+                    {client.currency}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground italic">
+                    (No editable)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+              <Calendar className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Cliente desde</Label>
+                <p className="font-medium mt-1" data-testid="text-client-created-at">
+                  {format(new Date(client.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: require('date-fns/locale/es') })}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Dirección */}
+      {client.address && (
+        <Card className="overflow-hidden hover:shadow-md transition-shadow">
+          <CardHeader className="bg-muted/30 pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MapPin className="w-4 h-4 text-primary" />
+              Dirección
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-gradient-to-br from-primary/5 to-transparent border border-primary/10">
+              <MapPin className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+              <p className="font-medium leading-relaxed" data-testid="text-client-address">
+                {client.address}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Notas */}
+      {client.notes && (
+        <Card className="overflow-hidden hover:shadow-md transition-shadow">
+          <CardHeader className="bg-muted/30 pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="w-4 h-4 text-primary" />
+              Notas del Cliente
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="p-4 rounded-lg bg-muted/30 border border-border">
+              <p className="text-sm whitespace-pre-wrap leading-relaxed" data-testid="text-client-notes">
+                {client.notes}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Footer con acciones */}
+      <Card className="bg-muted/20 border-dashed">
+        <CardContent className="py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Edit2 className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold mb-1">¿Necesitas editar este cliente?</h3>
+                <p className="text-sm text-muted-foreground">
+                  Visita el módulo de Clientes para actualizar la información, agregar notas o cambiar el estado
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => navigate('/clients')}
+              variant="outline"
+              data-testid="button-go-to-clients"
+            >
+              Ir a Clientes
+            </Button>
           </div>
         </CardContent>
       </Card>
