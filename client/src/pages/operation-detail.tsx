@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import {
   ArrowLeft, Package, FileText, CheckSquare, Mail, Edit2, Trash2, Plus,
   Calendar, User as UserIcon, MapPin, Ship, Plane, Truck, DollarSign, FolderOpen,
@@ -552,7 +553,7 @@ function InformationTab({ operation, client, employees }: { operation: Operation
             <div className="flex-1 min-w-0">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Fecha de Recogida</Label>
               <p className="font-semibold text-base mt-1" data-testid="text-pickup-date">
-                {operation.pickUpDate ? format(new Date(operation.pickUpDate), 'PPP', { locale: require('date-fns/locale/es') }) : 'N/A'}
+                {operation.pickUpDate ? format(new Date(operation.pickUpDate), 'PPP', { locale: es }) : 'N/A'}
               </p>
             </div>
           </div>
@@ -561,7 +562,7 @@ function InformationTab({ operation, client, employees }: { operation: Operation
             <div className="flex-1 min-w-0">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">ETD (Fecha Estimada de Salida)</Label>
               <p className="font-semibold text-base mt-1" data-testid="text-etd">
-                {operation.etd ? format(new Date(operation.etd), 'PPP', { locale: require('date-fns/locale/es') }) : 'N/A'}
+                {operation.etd ? format(new Date(operation.etd), 'PPP', { locale: es }) : 'N/A'}
               </p>
             </div>
           </div>
@@ -570,7 +571,7 @@ function InformationTab({ operation, client, employees }: { operation: Operation
             <div className="flex-1 min-w-0">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">ETA (Fecha Estimada de Llegada)</Label>
               <p className="font-semibold text-base mt-1" data-testid="text-eta">
-                {operation.eta ? format(new Date(operation.eta), 'PPP', { locale: require('date-fns/locale/es') }) : 'N/A'}
+                {operation.eta ? format(new Date(operation.eta), 'PPP', { locale: es }) : 'N/A'}
               </p>
             </div>
           </div>
@@ -2524,7 +2525,7 @@ function ClientTab({ operation, client }: { operation: Operation; client?: Clien
               <div className="flex-1 min-w-0">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Cliente desde</Label>
                 <p className="font-medium mt-1" data-testid="text-client-created-at">
-                  {format(new Date(client.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: require('date-fns/locale/es') })}
+                  {format(new Date(client.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: es })}
                 </p>
               </div>
             </div>
