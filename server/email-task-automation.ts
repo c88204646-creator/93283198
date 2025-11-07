@@ -118,11 +118,25 @@ export class EmailTaskAutomation {
       if (autoCreateTasks !== 'disabled' && analysis.tasks.length > 0) {
         for (const taskSuggestion of analysis.tasks) {
           try {
-            // Verificar que no exista una tarea similar
-            const similarTask = existingTasks.find(t => 
-              t.title.toLowerCase().includes(taskSuggestion.title.toLowerCase().substring(0, 20)) ||
-              taskSuggestion.title.toLowerCase().includes(t.title.toLowerCase().substring(0, 20))
-            );
+            // Verificar que no exista una tarea similar (comparación más estricta)
+            const normalizedNewTitle = taskSuggestion.title.toLowerCase().trim();
+            const similarTask = existingTasks.find(t => {
+              const normalizedExisting = t.title.toLowerCase().trim();
+              
+              // Duplicado exacto
+              if (normalizedExisting === normalizedNewTitle) return true;
+              
+              // Similitud alta (70% de overlap mínimo con al menos 15 caracteres)
+              const minLength = Math.min(normalizedExisting.length, normalizedNewTitle.length);
+              if (minLength < 15) return false;
+              
+              const checkLength = Math.min(40, minLength); // Comparar hasta 40 caracteres
+              const existingSubstr = normalizedExisting.substring(0, checkLength);
+              const newSubstr = normalizedNewTitle.substring(0, checkLength);
+              
+              return existingSubstr.includes(newSubstr.substring(0, 15)) || 
+                     newSubstr.includes(existingSubstr.substring(0, 15));
+            });
             
             if (similarTask) {
               // Respetar tareas modificadas manualmente - NUNCA duplicar o modificar
@@ -166,20 +180,35 @@ export class EmailTaskAutomation {
       if (autoCreateNotes !== 'disabled' && analysis.notes.length > 0) {
         for (const noteSuggestion of analysis.notes) {
           try {
-            // Verificar que no exista una nota similar
-            const isDuplicate = existingNotes.some(n => 
-              n.content.toLowerCase().includes(noteSuggestion.content.toLowerCase().substring(0, 30))
-            );
+            // Verificar que no exista una nota similar (comparación más estricta)
+            const normalizedNewContent = noteSuggestion.content.toLowerCase().trim();
+            const isDuplicate = existingNotes.some(n => {
+              const normalizedExisting = n.content.toLowerCase().trim();
+              
+              // Duplicado exacto
+              if (normalizedExisting === normalizedNewContent) return true;
+              
+              // Similitud alta (comparar primeros 50 caracteres)
+              const checkLength = Math.min(50, normalizedExisting.length, normalizedNewContent.length);
+              if (checkLength < 20) return false;
+              
+              const existingSubstr = normalizedExisting.substring(0, checkLength);
+              const newSubstr = normalizedNewContent.substring(0, checkLength);
+              
+              return existingSubstr.includes(newSubstr.substring(0, 20)) || 
+                     newSubstr.includes(existingSubstr.substring(0, 20));
+            });
             
             if (isDuplicate) {
               console.log(`[Email Task Automation] ⏭️  Skipped duplicate note`);
               continue;
             }
             
+            // Contenido limpio: solo la nota profesional, sin metadata extra
             const note = await storage.createOperationNote({
               operationId,
               userId,
-              content: `[AUTO] ${noteSuggestion.content}\n\n---\n💡 Confianza: ${noteSuggestion.confidence}%\n📧 De correo: ${emails[emails.length - 1].subject}`,
+              content: noteSuggestion.content,
               createdAutomatically: true,
               sourceGmailMessageId: emails[emails.length - 1].id,
               sourceEmailThreadId: threadId,
