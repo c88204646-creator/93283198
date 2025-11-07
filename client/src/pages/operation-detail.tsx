@@ -21,7 +21,8 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import DOMPurify from 'isomorphic-dompurify';
-import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage } from "@shared/schema";
+import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage, Payment, InsertPayment } from "@shared/schema";
+import { insertPaymentSchema } from "@shared/schema";
 import { FileUploader } from "@/components/FileUploader";
 import { OperationAnalysisComponent } from "@/components/OperationAnalysis";
 import { TaskKanban } from "@/components/TaskKanban";
@@ -39,6 +40,24 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -2402,26 +2421,369 @@ function ClientTab({ operation, client }: { operation: Operation; client?: Clien
 
 // Payments Tab - Gestión de pagos
 function PaymentsTab({ operationId }: { operationId: string }) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const { toast } = useToast();
+
+  // Fetch payments
+  const { data: payments = [], isLoading } = useQuery<Payment[]>({
+    queryKey: ['/api/operations', operationId, 'payments'],
+  });
+
+  // Create/Update mutation
+  const saveMutation = useMutation({
+    mutationFn: async (data: InsertPayment) => {
+      if (editingPayment) {
+        return apiRequest('PATCH', `/api/payments/${editingPayment.id}`, data);
+      } else {
+        return apiRequest('POST', `/api/operations/${operationId}/payments`, data);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/operations', operationId, 'payments'] });
+      setIsDialogOpen(false);
+      setEditingPayment(null);
+      toast({
+        title: editingPayment ? "Pago actualizado" : "Pago creado",
+        description: `El pago ha sido ${editingPayment ? 'actualizado' : 'creado'} exitosamente`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo guardar el pago",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest('DELETE', `/api/payments/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/operations', operationId, 'payments'] });
+      toast({
+        title: "Pago eliminado",
+        description: "El pago ha sido eliminado exitosamente",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar el pago",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEdit = (payment: Payment) => {
+    setEditingPayment(payment);
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = (payment: Payment) => {
+    if (confirm(`¿Estás seguro de eliminar el pago de $${payment.amount}?`)) {
+      deleteMutation.mutate(payment.id);
+    }
+  };
+
+  const handleNewPayment = () => {
+    setEditingPayment(null);
+    setIsDialogOpen(true);
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="flex items-center justify-center">
+            <div className="text-muted-foreground">Cargando pagos...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <DollarSign className="w-5 h-5 text-primary" />
-          Pagos de la Operación
-        </CardTitle>
-        <CardDescription>Gestiona los pagos vinculados a esta operación</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-center py-12">
-          <DollarSign className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
-          <p className="text-muted-foreground mb-4">No hay pagos registrados</p>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Agregar Pago
-          </Button>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold">Pagos de la Operación</h3>
+          <p className="text-sm text-muted-foreground">Gestiona los pagos vinculados a esta operación</p>
         </div>
-      </CardContent>
-    </Card>
+        <Button onClick={handleNewPayment} data-testid="button-new-payment">
+          <Plus className="w-4 h-4 mr-2" />
+          Agregar Pago
+        </Button>
+      </div>
+
+      {payments.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <DollarSign className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+            <p className="text-muted-foreground mb-4">No hay pagos registrados</p>
+            <Button onClick={handleNewPayment} variant="outline">
+              <Plus className="w-4 h-4 mr-2" />
+              Agregar Primer Pago
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Monto</TableHead>
+                  <TableHead>Método</TableHead>
+                  <TableHead>Referencia</TableHead>
+                  <TableHead>Notas</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {payments.map((payment) => (
+                  <TableRow key={payment.id} data-testid={`row-payment-${payment.id}`}>
+                    <TableCell>
+                      {format(new Date(payment.paymentDate), 'dd/MM/yyyy')}
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      ${parseFloat(payment.amount).toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{payment.paymentMethod}</Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {payment.reference || '-'}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                      {payment.notes || '-'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(payment)}
+                          data-testid={`button-edit-payment-${payment.id}`}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(payment)}
+                          data-testid={`button-delete-payment-${payment.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <PaymentFormDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        payment={editingPayment}
+        onSave={(data) => saveMutation.mutate(data)}
+        isPending={saveMutation.isPending}
+      />
+    </div>
+  );
+}
+
+// Payment Form Dialog Component
+function PaymentFormDialog({
+  open,
+  onOpenChange,
+  payment,
+  onSave,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  payment: Payment | null;
+  onSave: (data: InsertPayment) => void;
+  isPending: boolean;
+}) {
+  const form = useForm<InsertPayment>({
+    resolver: zodResolver(insertPaymentSchema),
+    defaultValues: payment ? {
+      invoiceId: payment.invoiceId || undefined,
+      operationId: payment.operationId || undefined,
+      amount: payment.amount,
+      paymentDate: payment.paymentDate,
+      paymentMethod: payment.paymentMethod,
+      reference: payment.reference || undefined,
+      notes: payment.notes || undefined,
+    } : {
+      amount: "0.00",
+      paymentDate: new Date(),
+      paymentMethod: "transfer",
+    },
+  });
+
+  useEffect(() => {
+    if (payment) {
+      form.reset({
+        invoiceId: payment.invoiceId || undefined,
+        operationId: payment.operationId || undefined,
+        amount: payment.amount,
+        paymentDate: payment.paymentDate,
+        paymentMethod: payment.paymentMethod,
+        reference: payment.reference || undefined,
+        notes: payment.notes || undefined,
+      });
+    } else {
+      form.reset({
+        amount: "0.00",
+        paymentDate: new Date(),
+        paymentMethod: "transfer",
+      });
+    }
+  }, [payment, form]);
+
+  const handleSubmit = (data: InsertPayment) => {
+    onSave(data);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{payment ? 'Editar Pago' : 'Nuevo Pago'}</DialogTitle>
+          <DialogDescription>
+            {payment ? 'Modifica los detalles del pago' : 'Agrega un nuevo pago a la operación'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="amount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Monto</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...field}
+                      data-testid="input-payment-amount"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="paymentDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fecha de Pago</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="date"
+                      value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                      onChange={(e) => field.onChange(new Date(e.target.value))}
+                      data-testid="input-payment-date"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="paymentMethod"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Método de Pago</FormLabel>
+                  <FormControl>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      {...field}
+                      data-testid="select-payment-method"
+                    >
+                      <option value="cash">Efectivo</option>
+                      <option value="transfer">Transferencia</option>
+                      <option value="check">Cheque</option>
+                      <option value="card">Tarjeta</option>
+                      <option value="other">Otro</option>
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="reference"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Referencia (Opcional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Número de referencia"
+                      {...field}
+                      value={field.value || ''}
+                      data-testid="input-payment-reference"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notas (Opcional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Notas adicionales"
+                      {...field}
+                      value={field.value || ''}
+                      data-testid="input-payment-notes"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isPending}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isPending} data-testid="button-save-payment">
+                {isPending ? 'Guardando...' : payment ? 'Actualizar' : 'Crear'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
