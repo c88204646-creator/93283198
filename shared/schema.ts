@@ -792,6 +792,10 @@ export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: tru
   phone: z.string().optional(),
 });
 export const insertOperationSchema = createInsertSchema(operations).omit({ id: true, createdAt: true }).extend({
+  clientId: z.string().optional().nullable().transform((val) => {
+    if (!val || val === '') return null;
+    return val;
+  }),
   startDate: z.union([z.string(), z.date()]).optional().nullable().transform((val) => {
     if (!val) return null;
     if (typeof val === 'string') return new Date(val);
