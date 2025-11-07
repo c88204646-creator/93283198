@@ -2829,6 +2829,127 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Financial Suggestions routes
+  app.get("/api/financial-suggestions/pending", requireAuth, async (req, res) => {
+    try {
+      const suggestions = await storage.getAllPendingFinancialSuggestions();
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Get pending financial suggestions error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/financial-suggestions/operation/:operationId", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const { status } = req.query;
+      const suggestions = await storage.getFinancialSuggestions(operationId, status as string);
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Get operation financial suggestions error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/financial-suggestions/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const suggestion = await storage.getFinancialSuggestion(id);
+      if (!suggestion) {
+        return res.status(404).json({ message: "Financial suggestion not found" });
+      }
+      res.json(suggestion);
+    } catch (error) {
+      console.error("Get financial suggestion error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/financial-suggestions/:id/approve", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.session.userId!;
+
+      const suggestion = await storage.getFinancialSuggestion(id);
+      if (!suggestion) {
+        return res.status(404).json({ message: "Financial suggestion not found" });
+      }
+
+      if (suggestion.status !== 'pending') {
+        return res.status(400).json({ message: "Suggestion already processed" });
+      }
+
+      const approved = await storage.approveFinancialSuggestion(id, userId);
+      
+      if (!approved) {
+        return res.status(500).json({ message: "Failed to approve suggestion" });
+      }
+
+      if (suggestion.type === 'payment') {
+        const payment = await storage.createPayment({
+          operationId: suggestion.operationId,
+          amount: parseFloat(suggestion.amount.toString()),
+          currency: suggestion.currency,
+          date: suggestion.detectedDate || new Date(),
+          method: 'bank_transfer',
+          description: suggestion.description || 'Payment detected from email',
+        });
+
+        await storage.updateFinancialSuggestion(id, {
+          status: 'processed',
+          createdRecordId: payment.id,
+          createdRecordType: 'payment',
+        });
+
+        res.json({ message: "Payment created successfully", payment, suggestion: approved });
+      } else if (suggestion.type === 'expense') {
+        const expense = await storage.createExpense({
+          operationId: suggestion.operationId,
+          amount: parseFloat(suggestion.amount.toString()),
+          currency: suggestion.currency,
+          date: suggestion.detectedDate || new Date(),
+          category: 'general',
+          description: suggestion.description || 'Expense detected from email',
+        });
+
+        await storage.updateFinancialSuggestion(id, {
+          status: 'processed',
+          createdRecordId: expense.id,
+          createdRecordType: 'expense',
+        });
+
+        res.json({ message: "Expense created successfully", expense, suggestion: approved });
+      }
+    } catch (error) {
+      console.error("Approve financial suggestion error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/financial-suggestions/:id/reject", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const userId = req.session.userId!;
+
+      const suggestion = await storage.getFinancialSuggestion(id);
+      if (!suggestion) {
+        return res.status(404).json({ message: "Financial suggestion not found" });
+      }
+
+      if (suggestion.status !== 'pending') {
+        return res.status(400).json({ message: "Suggestion already processed" });
+      }
+
+      const rejected = await storage.rejectFinancialSuggestion(id, userId, reason || 'No reason provided');
+      res.json({ message: "Financial suggestion rejected", suggestion: rejected });
+    } catch (error) {
+      console.error("Reject financial suggestion error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // ADMIN: Seed knowledge base with professional logistics feedback
   app.post("/api/admin/seed-knowledge", requireAuth, requireAdmin, async (req, res) => {
     try {

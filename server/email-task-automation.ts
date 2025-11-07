@@ -6,21 +6,26 @@
 import { storage } from './storage';
 import { smartGeminiService } from './smart-gemini-service';
 import { KnowledgeBaseService } from './knowledge-base-service';
+import { FinancialDetectionService } from './financial-detection-service';
+import { getB2FileContent } from './b2';
 import type { GmailMessage, Operation } from '@shared/schema';
 
 interface ProcessingResult {
   operationId: string;
   tasksCreated: number;
   notesCreated: number;
+  financialSuggestionsCreated?: number;
   skipped: boolean;
   reason?: string;
 }
 
 export class EmailTaskAutomation {
   private knowledgeBaseService: KnowledgeBaseService;
+  private financialDetectionService: FinancialDetectionService;
   
   constructor() {
     this.knowledgeBaseService = new KnowledgeBaseService();
+    this.financialDetectionService = new FinancialDetectionService();
   }
   
   /**
@@ -268,6 +273,124 @@ export class EmailTaskAutomation {
       reason: totalTasksCreated === 0 && totalNotesCreated === 0 ? 'No se encontraron acciones pendientes' : undefined
     };
   }
+
+  /**
+   * Procesa attachments de una operación para detectar transacciones financieras
+   */
+  async processFinancialDetection(
+    operationId: string,
+    autoDetectPayments: boolean,
+    autoDetectExpenses: boolean
+  ): Promise<number> {
+    if (!autoDetectPayments && !autoDetectExpenses) {
+      return 0;
+    }
+
+    console.log(`[Financial Detection] Processing operation ${operationId}`);
+
+    // Obtener correos vinculados a la operación
+    const linkedEmails = await storage.getGmailMessagesByOperation(operationId);
+    if (linkedEmails.length === 0) {
+      return 0;
+    }
+
+    // Obtener attachments de los correos
+    const emailIds = linkedEmails.map(e => e.id);
+    const allAttachments = await Promise.all(
+      emailIds.map(async emailId => {
+        const attachments = await storage.getGmailAttachmentsByMessage(emailId);
+        return attachments.map(att => ({ ...att, emailId }));
+      })
+    );
+
+    const attachments = allAttachments.flat();
+    const pdfAttachments = attachments.filter(att => 
+      att.mimeType === 'application/pdf' || att.filename?.toLowerCase().endsWith('.pdf')
+    );
+
+    if (pdfAttachments.length === 0) {
+      console.log(`[Financial Detection] No PDF attachments found`);
+      return 0;
+    }
+
+    console.log(`[Financial Detection] Found ${pdfAttachments.length} PDF attachments to analyze`);
+
+    let suggestionsCreated = 0;
+
+    for (const attachment of pdfAttachments) {
+      try {
+        // Verificar que no hayamos procesado este archivo ya
+        const existingSuggestions = await storage.getFinancialSuggestions(operationId);
+        const alreadyProcessed = existingSuggestions.some(s => 
+          s.sourceFileId === attachment.id || 
+          s.sourceEmailId === attachment.emailId
+        );
+
+        if (alreadyProcessed) {
+          console.log(`[Financial Detection] ⏭️  Skipping already processed attachment ${attachment.filename}`);
+          continue;
+        }
+
+        // Descargar el archivo de B2
+        if (!attachment.b2FileKey) {
+          console.log(`[Financial Detection] ⚠️  No B2 key for attachment ${attachment.filename}`);
+          continue;
+        }
+
+        const fileBuffer = await getB2FileContent(attachment.b2FileKey);
+        
+        // Extraer texto del PDF
+        const text = await this.financialDetectionService.extractTextFromPDF(fileBuffer);
+
+        // Obtener operación para contexto
+        const operation = await storage.getOperation(operationId);
+
+        // Detectar transacciones
+        const detectedTransactions = await this.financialDetectionService.detectTransactionsFromText(
+          text,
+          operation ? {
+            reference: operation.referenceNumber || operation.name,
+            client: operation.clientId || undefined,
+            type: operation.operationType || undefined,
+          } : undefined
+        );
+
+        // Crear sugerencias financieras
+        for (const transaction of detectedTransactions) {
+          // Filtrar según configuración
+          if (transaction.type === 'payment' && !autoDetectPayments) continue;
+          if (transaction.type === 'expense' && !autoDetectExpenses) continue;
+
+          await storage.createFinancialSuggestion({
+            operationId,
+            type: transaction.type,
+            source: 'email_pdf',
+            sourceFileId: attachment.id,
+            sourceEmailId: attachment.emailId,
+            amount: transaction.amount.toString(),
+            currency: transaction.currency,
+            description: transaction.description,
+            detectedDate: transaction.date,
+            confidenceScore: transaction.confidence,
+            aiReasoning: transaction.reasoning,
+            status: 'pending',
+          });
+
+          suggestionsCreated++;
+          console.log(`[Financial Detection] ✅ Created ${transaction.type} suggestion: ${transaction.description} (${transaction.amount} ${transaction.currency})`);
+        }
+
+        // Pequeña pausa entre archivos
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+      } catch (error) {
+        console.error(`[Financial Detection] Error processing attachment ${attachment.filename}:`, error);
+        // Continuar con el siguiente archivo
+      }
+    }
+
+    return suggestionsCreated;
+  }
   
   /**
    * Procesa todas las operaciones que tengan automatización habilitada
@@ -277,7 +400,7 @@ export class EmailTaskAutomation {
     const configs = await storage.getAutomationConfigs(userId);
     const activeConfig = configs.find(c => 
       c.isEnabled && 
-      (c.autoCreateTasks !== 'disabled' || c.autoCreateNotes !== 'disabled')
+      (c.autoCreateTasks !== 'disabled' || c.autoCreateNotes !== 'disabled' || c.autoDetectPayments || c.autoDetectExpenses)
     );
     
     if (!activeConfig) {
@@ -308,8 +431,25 @@ export class EmailTaskAutomation {
         activeConfig.autoCreateNotes || 'disabled',
         (activeConfig.aiOptimizationLevel as any) || 'high'
       );
+
+      // Procesar detección financiera si está habilitada
+      let financialSuggestionsCreated = 0;
+      if (activeConfig.autoDetectPayments || activeConfig.autoDetectExpenses) {
+        try {
+          financialSuggestionsCreated = await this.processFinancialDetection(
+            item.operation.id,
+            activeConfig.autoDetectPayments || false,
+            activeConfig.autoDetectExpenses || false
+          );
+        } catch (error) {
+          console.error(`[Email Task Automation] Error in financial detection for operation ${item.operation.id}:`, error);
+        }
+      }
       
-      results.push(result);
+      results.push({
+        ...result,
+        financialSuggestionsCreated
+      });
       
       // Pequeña pausa entre operaciones para no saturar Gemini API
       await new Promise(resolve => setTimeout(resolve, 1000));
