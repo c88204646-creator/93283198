@@ -9,6 +9,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LiveChat } from "@/components/LiveChat";
+import { FinancialSuggestionsNotification } from "@/components/FinancialSuggestionsNotification";
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
@@ -102,7 +103,10 @@ function AppLayout() {
               <div className="h-5 w-px bg-border"></div>
               <h2 className="text-sm font-medium text-foreground/70">Logistics Control Center</h2>
             </div>
-            <ThemeToggle />
+            <div className="flex items-center gap-2">
+              <FinancialSuggestionsNotification />
+              <ThemeToggle />
+            </div>
           </header>
           <main className="flex-1 overflow-auto p-6 bg-background">
             <div className="max-w-7xl mx-auto">

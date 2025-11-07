@@ -7,7 +7,7 @@ import { storage } from './storage';
 import { smartGeminiService } from './smart-gemini-service';
 import { KnowledgeBaseService } from './knowledge-base-service';
 import { FinancialDetectionService } from './financial-detection-service';
-import { getB2FileContent } from './b2';
+import { backblazeStorage } from './backblazeStorage';
 import type { GmailMessage, Operation } from '@shared/schema';
 
 interface ProcessingResult {
@@ -297,14 +297,14 @@ export class EmailTaskAutomation {
     // Obtener attachments de los correos
     const emailIds = linkedEmails.map(e => e.id);
     const allAttachments = await Promise.all(
-      emailIds.map(async emailId => {
-        const attachments = await storage.getGmailAttachmentsByMessage(emailId);
-        return attachments.map(att => ({ ...att, emailId }));
+      emailIds.map(async (emailId: string) => {
+        const attachments = await storage.getGmailAttachments(emailId);
+        return attachments.map((att: any) => ({ ...att, emailId }));
       })
     );
 
     const attachments = allAttachments.flat();
-    const pdfAttachments = attachments.filter(att => 
+    const pdfAttachments = attachments.filter((att: any) => 
       att.mimeType === 'application/pdf' || att.filename?.toLowerCase().endsWith('.pdf')
     );
 
@@ -321,9 +321,9 @@ export class EmailTaskAutomation {
       try {
         // Verificar que no hayamos procesado este archivo ya
         const existingSuggestions = await storage.getFinancialSuggestions(operationId);
-        const alreadyProcessed = existingSuggestions.some(s => 
-          s.sourceFileId === attachment.id || 
-          s.sourceEmailId === attachment.emailId
+        const alreadyProcessed = existingSuggestions.some((s: any) => 
+          s.source_file_id === attachment.id || 
+          s.source_email_id === attachment.emailId
         );
 
         if (alreadyProcessed) {
@@ -337,7 +337,7 @@ export class EmailTaskAutomation {
           continue;
         }
 
-        const fileBuffer = await getB2FileContent(attachment.b2FileKey);
+        const fileBuffer = await backblazeStorage.downloadFile(attachment.b2FileKey);
         
         // Extraer texto del PDF
         const text = await this.financialDetectionService.extractTextFromPDF(fileBuffer);
@@ -349,9 +349,9 @@ export class EmailTaskAutomation {
         const detectedTransactions = await this.financialDetectionService.detectTransactionsFromText(
           text,
           operation ? {
-            reference: operation.referenceNumber || operation.name,
-            client: operation.clientId || undefined,
-            type: operation.operationType || undefined,
+            operationId: operation.id,
+            operationName: operation.name,
+            clientName: operation.clientId || undefined,
           } : undefined
         );
 
@@ -364,15 +364,15 @@ export class EmailTaskAutomation {
           await storage.createFinancialSuggestion({
             operationId,
             type: transaction.type,
-            source: 'email_pdf',
+            sourceType: 'email_pdf',
             sourceFileId: attachment.id,
             sourceEmailId: attachment.emailId,
             amount: transaction.amount.toString(),
             currency: transaction.currency,
             description: transaction.description,
-            detectedDate: transaction.date,
-            confidenceScore: transaction.confidence,
-            aiReasoning: transaction.reasoning,
+            date: transaction.date || new Date(),
+            aiConfidence: transaction.confidence.toString(),
+            aiAnalysis: transaction.reasoning,
             status: 'pending',
           });
 
