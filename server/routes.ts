@@ -925,6 +925,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Operation Invoices Routes
+  app.get("/api/operations/:operationId/invoices", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const invoices = await storage.getInvoicesByOperation(operationId);
+      res.json(invoices);
+    } catch (error) {
+      console.error("Get operation invoices error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Expense Routes
   app.get("/api/expenses", requireAuth, async (req, res) => {
     try {

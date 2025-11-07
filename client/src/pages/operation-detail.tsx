@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import DOMPurify from 'isomorphic-dompurify';
-import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage, Payment, InsertPayment } from "@shared/schema";
+import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage, Payment, InsertPayment, Invoice, Expense } from "@shared/schema";
 import { insertPaymentSchema } from "@shared/schema";
 import { FileUploader } from "@/components/FileUploader";
 import { OperationAnalysisComponent } from "@/components/OperationAnalysis";
@@ -2789,26 +2789,134 @@ function PaymentFormDialog({
 
 // Invoices Tab - Gestión de facturas
 function InvoicesTab({ operationId }: { operationId: string }) {
+  const [, navigate] = useLocation();
+
+  // Fetch invoices
+  const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
+    queryKey: ['/api/operations', operationId, 'invoices'],
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="flex items-center justify-center">
+            <div className="text-muted-foreground">Cargando facturas...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'draft': return 'bg-gray-100 text-gray-800';
+      case 'sent': return 'bg-blue-100 text-blue-800';
+      case 'paid': return 'bg-green-100 text-green-800';
+      case 'overdue': return 'bg-red-100 text-red-800';
+      case 'cancelled': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'draft': return 'Borrador';
+      case 'sent': return 'Enviada';
+      case 'paid': return 'Pagada';
+      case 'overdue': return 'Vencida';
+      case 'cancelled': return 'Cancelada';
+      default: return status;
+    }
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-primary" />
-          Facturas de la Operación
-        </CardTitle>
-        <CardDescription>Gestiona las facturas vinculadas a esta operación</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-center py-12">
-          <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
-          <p className="text-muted-foreground mb-4">No hay facturas registradas</p>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Crear Factura
-          </Button>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold">Facturas de la Operación</h3>
+          <p className="text-sm text-muted-foreground">Facturas asociadas a esta operación</p>
         </div>
-      </CardContent>
-    </Card>
+        <Button onClick={() => navigate('/invoices')} data-testid="button-view-invoices">
+          <ExternalLink className="w-4 h-4 mr-2" />
+          Ir a Facturas
+        </Button>
+      </div>
+
+      {invoices.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+            <p className="text-muted-foreground mb-4">No hay facturas vinculadas a esta operación</p>
+            <Button onClick={() => navigate('/invoices')} variant="outline">
+              <Plus className="w-4 h-4 mr-2" />
+              Crear Factura en el Módulo
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nº Factura</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Subtotal</TableHead>
+                  <TableHead>Impuesto</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Vencimiento</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoices.map((invoice) => (
+                  <TableRow key={invoice.id} data-testid={`row-invoice-${invoice.id}`}>
+                    <TableCell className="font-semibold">{invoice.invoiceNumber}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(invoice.createdAt), 'dd/MM/yyyy')}
+                    </TableCell>
+                    <TableCell>
+                      ${parseFloat(invoice.subtotal).toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      ${parseFloat(invoice.tax).toFixed(2)}
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      ${parseFloat(invoice.total).toFixed(2)} {invoice.currency}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(invoice.status)}>
+                        {getStatusLabel(invoice.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(invoice.dueDate), 'dd/MM/yyyy')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigate(`/invoices`)}
+                        data-testid={`button-view-invoice-${invoice.id}`}
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        Ver
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="text-sm text-muted-foreground bg-muted/30 p-4 rounded-lg">
+        <p>💡 <strong>Nota:</strong> Las facturas se crean y editan desde el módulo de Facturas. Aquí puedes ver las facturas asociadas a esta operación.</p>
+      </div>
+    </div>
   );
 }
 
