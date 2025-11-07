@@ -59,15 +59,19 @@ export function LiveChat() {
   });
 
   useEffect(() => {
-    if (isOpen && !currentConversationId && conversations.length === 0) {
+    if (!isOpen) return;
+    
+    if (createConversationMutation.isPending) return;
+    
+    if (!currentConversationId && conversations.length === 0) {
       createConversationMutation.mutate();
-    } else if (isOpen && !currentConversationId && conversations.length > 0) {
+    } else if (!currentConversationId && conversations.length > 0) {
       const activeConv = conversations.find(c => c.status === 'active');
       if (activeConv) {
         setCurrentConversationId(activeConv.id);
       }
     }
-  }, [isOpen, currentConversationId, conversations]);
+  }, [isOpen, currentConversationId, conversations.length]);
 
   useEffect(() => {
     if (scrollRef.current) {
