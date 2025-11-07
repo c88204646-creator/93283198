@@ -33,6 +33,8 @@ interface TaskSuggestion {
   dueDate?: Date;
   confidence: number; // 0-100
   reasoning: string;
+  suggestedStatus?: 'pending' | 'overdue' | 'completed';
+  isDuplicate?: boolean;
 }
 
 interface NoteSuggestion {
@@ -41,9 +43,16 @@ interface NoteSuggestion {
   reasoning: string;
 }
 
+interface StatusUpdate {
+  taskTitle: string;
+  newStatus: 'completed' | 'overdue';
+  reasoning: string;
+}
+
 interface AnalysisResult {
   tasks: TaskSuggestion[];
   notes: NoteSuggestion[];
+  statusUpdates?: StatusUpdate[];
   shouldSkip: boolean;
   cacheKey: string;
   usedCache: boolean;
@@ -294,18 +303,20 @@ INSTRUCCIONES CRÍTICAS:
       const jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const parsed = JSON.parse(jsonText);
       
-      // Filtrar por umbral de confianza
+      // Filtrar por umbral de confianza y duplicados
       const filteredTasks = (parsed.tasks || []).filter(
-        (t: TaskSuggestion) => t.confidence >= this.minConfidenceThreshold
+        (t: TaskSuggestion) => t.confidence >= this.minConfidenceThreshold && !t.isDuplicate
       );
       const filteredNotes = (parsed.notes || []).filter(
         (n: NoteSuggestion) => n.confidence >= this.minConfidenceThreshold
       );
+      const statusUpdates = parsed.statusUpdates || [];
       
       const analysisResult: AnalysisResult = {
         tasks: filteredTasks,
         notes: filteredNotes,
-        shouldSkip: filteredTasks.length === 0 && filteredNotes.length === 0,
+        statusUpdates: statusUpdates,
+        shouldSkip: filteredTasks.length === 0 && filteredNotes.length === 0 && statusUpdates.length === 0,
         cacheKey: threadHash,
         usedCache: false
       };
@@ -317,7 +328,7 @@ INSTRUCCIONES CRÍTICAS:
         threadHash
       });
       
-      console.log(`[Smart Gemini] ✅ Analysis complete: ${filteredTasks.length} tasks, ${filteredNotes.length} notes`);
+      console.log(`[Smart Gemini] ✅ Analysis complete: ${filteredTasks.length} tasks, ${filteredNotes.length} notes, ${statusUpdates.length} status updates`);
       
       return analysisResult;
       
