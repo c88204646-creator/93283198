@@ -21,8 +21,8 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import DOMPurify from 'isomorphic-dompurify';
-import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage, Payment, InsertPayment, Invoice, Expense } from "@shared/schema";
-import { insertPaymentSchema } from "@shared/schema";
+import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage, Payment, InsertPayment, Invoice, Expense, InsertExpense } from "@shared/schema";
+import { insertPaymentSchema, insertExpenseSchema } from "@shared/schema";
 import { FileUploader } from "@/components/FileUploader";
 import { OperationAnalysisComponent } from "@/components/OperationAnalysis";
 import { TaskKanban } from "@/components/TaskKanban";
@@ -2922,25 +2922,460 @@ function InvoicesTab({ operationId }: { operationId: string }) {
 
 // Expenses Tab - Gestión de gastos
 function ExpensesTab({ operationId }: { operationId: string }) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const { toast } = useToast();
+
+  // Fetch employees for dropdown
+  const { data: employees = [] } = useQuery<Employee[]>({
+    queryKey: ['/api/employees'],
+  });
+
+  // Fetch expenses
+  const { data: expenses = [], isLoading } = useQuery<Expense[]>({
+    queryKey: ['/api/operations', operationId, 'expenses'],
+  });
+
+  // Create/Update mutation
+  const saveMutation = useMutation({
+    mutationFn: async (data: InsertExpense) => {
+      if (editingExpense) {
+        return apiRequest('PATCH', `/api/expenses/${editingExpense.id}`, data);
+      } else {
+        return apiRequest('POST', `/api/operations/${operationId}/expenses`, data);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/operations', operationId, 'expenses'] });
+      setIsDialogOpen(false);
+      setEditingExpense(null);
+      toast({
+        title: editingExpense ? "Gasto actualizado" : "Gasto creado",
+        description: `El gasto ha sido ${editingExpense ? 'actualizado' : 'creado'} exitosamente`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo guardar el gasto",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest('DELETE', `/api/expenses/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/operations', operationId, 'expenses'] });
+      toast({
+        title: "Gasto eliminado",
+        description: "El gasto ha sido eliminado exitosamente",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "No se pudo eliminar el gasto",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEdit = (expense: Expense) => {
+    setEditingExpense(expense);
+    setIsDialogOpen(true);
+  };
+
+  const handleDelete = (expense: Expense) => {
+    if (confirm(`¿Estás seguro de eliminar el gasto de $${expense.amount}?`)) {
+      deleteMutation.mutate(expense.id);
+    }
+  };
+
+  const handleNewExpense = () => {
+    setEditingExpense(null);
+    setIsDialogOpen(true);
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <div className="flex items-center justify-center">
+            <div className="text-muted-foreground">Cargando gastos...</div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      case 'reimbursed': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Pendiente';
+      case 'approved': return 'Aprobado';
+      case 'rejected': return 'Rechazado';
+      case 'reimbursed': return 'Reembolsado';
+      default: return status;
+    }
+  };
+
+  const getCategoryLabel = (category: string) => {
+    switch (category) {
+      case 'travel': return 'Viaje';
+      case 'supplies': return 'Suministros';
+      case 'equipment': return 'Equipo';
+      case 'services': return 'Servicios';
+      case 'other': return 'Otro';
+      default: return category;
+    }
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <DollarSign className="w-5 h-5 text-primary" />
-          Gastos de la Operación
-        </CardTitle>
-        <CardDescription>Gestiona los gastos vinculados a esta operación</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="text-center py-12">
-          <DollarSign className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
-          <p className="text-muted-foreground mb-4">No hay gastos registrados</p>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Agregar Gasto
-          </Button>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold">Gastos de la Operación</h3>
+          <p className="text-sm text-muted-foreground">Gestiona los gastos vinculados a esta operación</p>
         </div>
-      </CardContent>
-    </Card>
+        <Button onClick={handleNewExpense} data-testid="button-new-expense">
+          <Plus className="w-4 h-4 mr-2" />
+          Agregar Gasto
+        </Button>
+      </div>
+
+      {expenses.length === 0 ? (
+        <Card>
+          <CardContent className="text-center py-12">
+            <DollarSign className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+            <p className="text-muted-foreground mb-4">No hay gastos registrados</p>
+            <Button onClick={handleNewExpense} variant="outline">
+              <Plus className="w-4 h-4 mr-2" />
+              Agregar Primer Gasto
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Monto</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {expenses.map((expense) => (
+                  <TableRow key={expense.id} data-testid={`row-expense-${expense.id}`}>
+                    <TableCell>
+                      {format(new Date(expense.date), 'dd/MM/yyyy')}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{getCategoryLabel(expense.category)}</Badge>
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate">{expense.description}</TableCell>
+                    <TableCell className="font-semibold">
+                      ${parseFloat(expense.amount).toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(expense.status)}>
+                        {getStatusLabel(expense.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(expense)}
+                          data-testid={`button-edit-expense-${expense.id}`}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(expense)}
+                          data-testid={`button-delete-expense-${expense.id}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      <ExpenseFormDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        expense={editingExpense}
+        employees={employees}
+        onSave={(data) => saveMutation.mutate(data)}
+        isPending={saveMutation.isPending}
+      />
+    </div>
+  );
+}
+
+// Expense Form Dialog Component
+function ExpenseFormDialog({
+  open,
+  onOpenChange,
+  expense,
+  employees,
+  onSave,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  expense: Expense | null;
+  employees: Employee[];
+  onSave: (data: InsertExpense) => void;
+  isPending: boolean;
+}) {
+  const form = useForm<InsertExpense>({
+    resolver: zodResolver(insertExpenseSchema),
+    defaultValues: expense ? {
+      operationId: expense.operationId || undefined,
+      employeeId: expense.employeeId,
+      category: expense.category,
+      amount: expense.amount,
+      description: expense.description,
+      date: expense.date,
+      status: expense.status,
+      receiptUrl: expense.receiptUrl || undefined,
+    } : {
+      amount: "0.00",
+      date: new Date(),
+      category: "other",
+      status: "pending",
+      description: "",
+    },
+  });
+
+  useEffect(() => {
+    if (expense) {
+      form.reset({
+        operationId: expense.operationId || undefined,
+        employeeId: expense.employeeId,
+        category: expense.category,
+        amount: expense.amount,
+        description: expense.description,
+        date: expense.date,
+        status: expense.status,
+        receiptUrl: expense.receiptUrl || undefined,
+      });
+    } else {
+      form.reset({
+        amount: "0.00",
+        date: new Date(),
+        category: "other",
+        status: "pending",
+        description: "",
+      });
+    }
+  }, [expense, form]);
+
+  const handleSubmit = (data: InsertExpense) => {
+    onSave(data);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{expense ? 'Editar Gasto' : 'Nuevo Gasto'}</DialogTitle>
+          <DialogDescription>
+            {expense ? 'Modifica los detalles del gasto' : 'Agrega un nuevo gasto a la operación'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="employeeId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Empleado</FormLabel>
+                  <FormControl>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      {...field}
+                      data-testid="select-employee"
+                    >
+                      <option value="">Seleccionar empleado</option>
+                      {employees.map((emp) => (
+                        <option key={emp.id} value={emp.id}>
+                          {emp.firstName} {emp.lastName}
+                        </option>
+                      ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categoría</FormLabel>
+                  <FormControl>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      {...field}
+                      data-testid="select-category"
+                    >
+                      <option value="travel">Viaje</option>
+                      <option value="supplies">Suministros</option>
+                      <option value="equipment">Equipo</option>
+                      <option value="services">Servicios</option>
+                      <option value="other">Otro</option>
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="amount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Monto</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...field}
+                      data-testid="input-expense-amount"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descripción</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Describe el gasto"
+                      {...field}
+                      data-testid="input-expense-description"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fecha</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="date"
+                      value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                      onChange={(e) => field.onChange(new Date(e.target.value))}
+                      data-testid="input-expense-date"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Estado</FormLabel>
+                  <FormControl>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                      {...field}
+                      data-testid="select-status"
+                    >
+                      <option value="pending">Pendiente</option>
+                      <option value="approved">Aprobado</option>
+                      <option value="rejected">Rechazado</option>
+                      <option value="reimbursed">Reembolsado</option>
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="receiptUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>URL del Recibo (Opcional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="https://..."
+                      {...field}
+                      value={field.value || ''}
+                      data-testid="input-receipt-url"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isPending}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isPending} data-testid="button-save-expense">
+                {isPending ? 'Guardando...' : expense ? 'Actualizar' : 'Crear'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }

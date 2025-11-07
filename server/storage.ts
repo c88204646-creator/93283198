@@ -113,6 +113,7 @@ export interface IStorage {
 
   // Expenses
   getAllExpenses(): Promise<Expense[]>;
+  getExpensesByOperation(operationId: string): Promise<Expense[]>;
   getExpense(id: string): Promise<Expense | undefined>;
   createExpense(expense: InsertExpense): Promise<Expense>;
   updateExpense(id: string, expense: Partial<InsertExpense>): Promise<Expense | undefined>;
@@ -460,6 +461,10 @@ export class DatabaseStorage implements IStorage {
   // Expenses
   async getAllExpenses(): Promise<Expense[]> {
     return await db.select().from(expenses).orderBy(desc(expenses.createdAt));
+  }
+
+  async getExpensesByOperation(operationId: string): Promise<Expense[]> {
+    return await db.select().from(expenses).where(eq(expenses.operationId, operationId)).orderBy(desc(expenses.createdAt));
   }
 
   async countExpenses(): Promise<number> {

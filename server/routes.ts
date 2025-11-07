@@ -993,6 +993,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Operation Expenses Routes
+  app.get("/api/operations/:operationId/expenses", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const expenses = await storage.getExpensesByOperation(operationId);
+      res.json(expenses);
+    } catch (error) {
+      console.error("Get operation expenses error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/operations/:operationId/expenses", requireAuth, async (req, res) => {
+    try {
+      const { operationId } = req.params;
+      const data = insertExpenseSchema.parse({ ...req.body, operationId });
+      const expense = await storage.createExpense(data);
+      res.json(expense);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Create operation expense error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Lead Routes
   app.get("/api/leads", requireAuth, async (req, res) => {
     try {
