@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Calendar, Download, Building2, CreditCard, Brain, Sparkles, RefreshCw } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Calendar, Building2, CreditCard, Brain, Sparkles, RefreshCw } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -490,16 +490,8 @@ export default function BankAccountDetailPage() {
       {/* Transactions Table */}
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle>Historial de Movimientos</CardTitle>
-              <CardDescription>Todos los ingresos y egresos de esta cuenta</CardDescription>
-            </div>
-            <Button variant="outline" size="sm">
-              <Download className="w-4 h-4 mr-2" />
-              Exportar
-            </Button>
-          </div>
+          <CardTitle>Historial de Movimientos</CardTitle>
+          <CardDescription>Todos los ingresos y egresos de esta cuenta</CardDescription>
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
