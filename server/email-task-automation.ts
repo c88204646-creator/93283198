@@ -278,15 +278,16 @@ export async function processEmailThreadForAutomation(
     return;
   }
 
-  // Obtener el usuario que creó la operación (asumiendo que storage tiene una forma de obtener esto)
-  // Por ahora usaremos una búsqueda indirecta
+  // Obtener el usuario desde la configuración de automatización habilitada
   const configs = await storage.getEnabledAutomationConfigs();
-  const config = configs.find(c => c.moduleName === 'operation_creator');
+  const config = configs[0]; // Usar la primera configuración habilitada
   
   if (!config) {
-    console.error('[Email Task Automation] No operation creator config found');
+    console.error('[Email Task Automation] No enabled automation config found');
     return;
   }
+
+  console.log(`[Email Task Automation] Processing operation ${operationId} with ${autoCreateTasks} tasks and ${autoCreateNotes} notes`);
 
   // Procesar la operación
   await emailTaskAutomation.processOperation(
