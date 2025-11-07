@@ -572,6 +572,12 @@ export const financialSuggestions = pgTable("financial_suggestions", {
   reviewedAt: timestamp("reviewed_at"),
   rejectionReason: text("rejection_reason"),
   
+  // Duplicate detection
+  isDuplicate: boolean("is_duplicate").default(false), // Potentially duplicate transaction
+  duplicateReason: text("duplicate_reason"), // Why it's considered a duplicate
+  relatedSuggestionId: varchar("related_suggestion_id"), // Reference to similar suggestion
+  attachmentHash: text("attachment_hash"), // SHA-256 hash of the source file for deduplication
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
