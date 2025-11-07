@@ -12,6 +12,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import crypto from 'crypto';
 import { KnowledgeBaseService } from './knowledge-base-service';
+import { CircuitBreaker } from './circuit-breaker';
 import type { Operation } from '@shared/schema';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -75,9 +76,15 @@ export class SmartGeminiService {
   private lastApiCallTime: number = 0;
   private minDelayBetweenCalls: number = 2000; // 2 segundos entre llamadas
   private knowledgeBaseService: KnowledgeBaseService;
+  private circuitBreaker: CircuitBreaker;
 
   constructor() {
     this.knowledgeBaseService = new KnowledgeBaseService();
+    this.circuitBreaker = new CircuitBreaker('SmartGeminiService', {
+      failureThreshold: 5,
+      timeout: 60000,
+      halfOpenRequests: 1
+    });
     this.model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash-exp',
       systemInstruction: `Eres un asistente experto en análisis de correos electrónicos para logística y freight forwarding.
@@ -302,6 +309,18 @@ INSTRUCCIONES CRÍTICAS:
 7. Solo devuelve tareas/notas con confianza > ${this.minConfidenceThreshold}%`;
 
     try {
+      // Verificar estado del circuit breaker
+      if (!this.circuitBreaker.canExecute()) {
+        console.warn('[Smart Gemini] ⚠️  Circuit breaker is OPEN - skipping Gemini call');
+        return {
+          tasks: [],
+          notes: [],
+          shouldSkip: true,
+          cacheKey: threadHash,
+          usedCache: false
+        };
+      }
+
       // Rate limiting: esperar el delay mínimo entre llamadas
       const now = Date.now();
       const timeSinceLastCall = now - this.lastApiCallTime;
@@ -320,6 +339,7 @@ INSTRUCCIONES CRÍTICAS:
           const text = result.response.text();
           
           // Si llegamos aquí, la llamada fue exitosa
+          this.circuitBreaker.recordSuccess();
           return await this.processGeminiResponse(text, threadHash);
           
         } catch (error: any) {
@@ -336,11 +356,13 @@ INSTRUCCIONES CRÍTICAS:
           }
           
           // Si es otro error, no reintentar
+          this.circuitBreaker.recordFailure();
           throw error;
         }
       }
       
       // Si agotamos los reintentos, lanzar el último error
+      this.circuitBreaker.recordFailure();
       throw lastError;
       
     } catch (error) {
