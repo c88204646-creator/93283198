@@ -219,7 +219,12 @@ Responde en JSON con: {"tasks": [...], "notes": [...]}`
   async analyzeEmailThread(
     thread: EmailThread,
     existingTasks: { title: string; status: string }[] = [],
-    existingNotes: { content: string }[] = []
+    existingNotes: { content: string }[] = [],
+    companyContext?: {
+      companyName?: string;
+      companyDomain?: string;
+      employeeEmails?: string[];
+    }
   ): Promise<AnalysisResult> {
     const threadHash = this.generateThreadHash(thread);
     
@@ -256,10 +261,28 @@ Responde en JSON con: {"tasks": [...], "notes": [...]}`
     console.log('[Smart Gemini] 🤖 Calling Gemini API - analyzing thread...');
     
     const currentDate = new Date();
+    
+    // Construir contexto de empresa si está disponible
+    let companyContextInfo = '';
+    if (companyContext?.companyName) {
+      companyContextInfo = `
+CONTEXTO DE TU EMPRESA:
+- Nombre de tu empresa: ${companyContext.companyName}
+${companyContext.companyDomain ? `- Dominio de email: @${companyContext.companyDomain}` : ''}
+${companyContext.employeeEmails && companyContext.employeeEmails.length > 0 ? `- Emails de empleados: ${companyContext.employeeEmails.join(', ')}` : ''}
+
+IMPORTANTE: 
+- Los correos DE @${companyContext.companyDomain || companyContext.companyName} son de TU EQUIPO INTERNO (no son el cliente)
+- Los correos PARA @${companyContext.companyDomain || companyContext.companyName} son solicitudes A TU EMPRESA
+- Identifica correctamente quién es el CLIENTE EXTERNO (quien solicita el servicio de logística)
+- Las tareas son para TU EQUIPO, describe las acciones desde la perspectiva de ${companyContext.companyName}
+`;
+    }
+    
     const prompt = `Analiza esta cadena de correos sobre logística/freight forwarding y determina:
 
 FECHA ACTUAL: ${currentDate.toISOString()} (${currentDate.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })})
-
+${companyContextInfo}
 THREAD DE CORREOS (ordenados cronológicamente):
 ${thread.messages.map((m, i) => `
 Correo ${i + 1}:
