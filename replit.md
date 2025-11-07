@@ -112,7 +112,14 @@ Design preference: Logistics-focused iconography and terminology.
   - Confidence scoring (70% minimum threshold) ensures high-quality suggestions
   - Real-time notification system in header showing pending suggestions with badge counter
   - Detailed approval workflow with AI reasoning display, rejection capability with notes
-  - Automatic deduplication prevents processing the same attachment multiple times
+  - **Intelligent Duplicate Detection System** (NEW - COMPLETE):
+    - SHA-256 file hash calculation for exact duplicate detection
+    - Automatic skip of already-processed files (prevents reprocessing same attachment)
+    - Smart similarity matching: ±2% amount tolerance, ±3 day date window, same operation
+    - New database fields: `isDuplicate`, `duplicateReason`, `relatedSuggestionId`, `attachmentHash`
+    - Visual UI indicators: duplicate badge in notification list, warning alert in approval modal
+    - Clear messaging explains why transaction is flagged as potential duplicate
+    - Users can still approve flagged duplicates with full context (warning-only, not blocking)
   - **Configurable UI toggles in automation settings**: `autoDetectPayments` and `autoDetectExpenses` switches with clear descriptions
   - Integrated with automation service - processes automatically in background every 15 minutes
   - New `financial_suggestions` table tracks all detected transactions and their approval status
