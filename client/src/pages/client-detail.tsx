@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useRouter } from "wouter";
 import { ArrowLeft, User, Mail, Phone, MapPin, TrendingUp, FileText, Package, DollarSign, Calendar, Building2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import type { Client, Operation, Invoice, Proposal } from "@shared/schema";
 export default function ClientDetailPage() {
   const params = useParams();
   const clientId = params.id;
+  const [, navigate] = useRouter();
 
   // Fetch client details
   const { data: client, isLoading: clientLoading } = useQuery<Client>({
@@ -396,11 +397,13 @@ export default function ClientDetailPage() {
                     </TableCell>
                     <TableCell>{format(new Date(operation.createdAt), 'dd/MM/yyyy')}</TableCell>
                     <TableCell className="text-right">
-                      <Link href={`/operations/${operation.id}`}>
-                        <Button variant="ghost" size="sm">
-                          Ver Detalles
-                        </Button>
-                      </Link>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => navigate(`/operations/${operation.id}`)}
+                      >
+                        Ver Detalles
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
