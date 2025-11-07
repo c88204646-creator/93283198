@@ -698,115 +698,261 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
     setEditContent("");
   };
 
+  // Agrupar notas por fecha
+  const groupedNotes = useMemo(() => {
+    const groups: { [key: string]: OperationNote[] } = {};
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    notes.forEach((note) => {
+      const noteDate = new Date(note.createdAt);
+      let groupKey: string;
+
+      if (noteDate.toDateString() === today.toDateString()) {
+        groupKey = 'Hoy';
+      } else if (noteDate.toDateString() === yesterday.toDateString()) {
+        groupKey = 'Ayer';
+      } else {
+        groupKey = format(noteDate, 'dd MMMM yyyy', { locale: es });
+      }
+
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(note);
+    });
+
+    return groups;
+  }, [notes]);
+
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Agregar Nueva Nota</CardTitle>
+    <div className="space-y-6">
+      {/* Formulario de nueva nota con diseño mejorado */}
+      <Card className="border-primary/20 shadow-md hover:shadow-lg transition-shadow">
+        <CardHeader className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Plus className="w-5 h-5 text-primary" />
+            Nueva Nota
+          </CardTitle>
+          <CardDescription>Agrega una nota o comentario importante para esta operación</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Textarea
-            placeholder="Escribe una nota..."
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            rows={4}
-            data-testid="input-new-note"
-          />
-          <Button
-            onClick={handleCreateNote}
-            disabled={createNoteMutation.isPending || !newNote.trim()}
-            data-testid="button-create-note"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Agregar Nota
-          </Button>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="relative">
+              <Textarea
+                placeholder="Escribe tu nota aquí... Puedes incluir detalles importantes, actualizaciones o recordatorios."
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                rows={4}
+                data-testid="input-new-note"
+                className="resize-none focus:ring-2 focus:ring-primary/20 transition-all"
+              />
+              <div className="absolute bottom-3 right-3 text-xs text-muted-foreground">
+                {newNote.length} caracteres
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                La nota se guardará con la fecha y hora actual
+              </p>
+              <Button
+                onClick={handleCreateNote}
+                disabled={createNoteMutation.isPending || !newNote.trim()}
+                data-testid="button-create-note"
+                className="min-w-[120px]"
+              >
+                {createNoteMutation.isPending ? (
+                  <>
+                    <Clock className="w-4 h-4 mr-2 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Agregar Nota
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <div className="space-y-3">
+      {/* Timeline de notas */}
+      <div className="space-y-6">
         {notes.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              No hay notas para esta operación
+          <Card className="border-dashed border-2">
+            <CardContent className="py-16 text-center">
+              <div className="w-20 h-20 rounded-full bg-muted/30 mx-auto mb-4 flex items-center justify-center">
+                <FileText className="w-10 h-10 text-muted-foreground opacity-40" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">No hay notas todavía</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Comienza agregando la primera nota para documentar el progreso y detalles importantes de esta operación
+              </p>
             </CardContent>
           </Card>
         ) : (
-          notes.map((note) => {
-            const user = users.find(u => u.id === note.userId);
-            const isEditing = editingNote === note.id;
-
-            return (
-              <Card key={note.id} data-testid={`card-note-${note.id}`}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <UserIcon className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-medium" data-testid={`text-note-user-${note.id}`}>
-                        {user?.username || 'Usuario'}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {format(new Date(note.createdAt), 'PPp')}
-                      </span>
-                    </div>
-                    {!isEditing && (
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => startEdit(note)}
-                          data-testid={`button-edit-note-${note.id}`}
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteNoteMutation.mutate(note.id)}
-                          data-testid={`button-delete-note-${note.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    )}
+          <div className="space-y-8">
+            {Object.entries(groupedNotes).map(([dateGroup, groupNotes]) => (
+              <div key={dateGroup} className="space-y-4">
+                {/* Encabezado de fecha */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
+                    <Calendar className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-primary">{dateGroup}</span>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {isEditing ? (
-                    <div className="space-y-3">
-                      <Textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        rows={4}
-                        data-testid={`input-edit-note-${note.id}`}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdateNote(note.id)}
-                          disabled={updateNoteMutation.isPending}
-                          data-testid={`button-save-note-${note.id}`}
-                        >
-                          Guardar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={cancelEdit}
-                          data-testid={`button-cancel-note-${note.id}`}
-                        >
-                          Cancelar
-                        </Button>
+                  <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent"></div>
+                </div>
+
+                {/* Timeline de notas del grupo */}
+                <div className="relative pl-8 space-y-6">
+                  {/* Línea vertical del timeline */}
+                  <div className="absolute left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary/40 via-primary/20 to-transparent"></div>
+
+                  {groupNotes.map((note, index) => {
+                    const user = users.find(u => u.id === note.userId);
+                    const isEditing = editingNote === note.id;
+                    const isAutomated = note.createdAutomatically;
+
+                    return (
+                      <div key={note.id} className="relative" data-testid={`card-note-${note.id}`}>
+                        {/* Punto del timeline */}
+                        <div className={`absolute -left-[30px] top-2 w-4 h-4 rounded-full border-2 ${
+                          isAutomated 
+                            ? 'bg-blue-500 border-blue-300 shadow-lg shadow-blue-500/50' 
+                            : 'bg-primary border-primary/30 shadow-lg shadow-primary/30'
+                        }`}>
+                          {isAutomated && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Zap className="w-2.5 h-2.5 text-white" />
+                            </div>
+                          )}
+                        </div>
+
+                        <Card className={`transition-all hover:shadow-md ${
+                          isAutomated 
+                            ? 'border-blue-200 bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-950/20 dark:border-blue-800' 
+                            : 'border-border hover:border-primary/30'
+                        }`}>
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between gap-4">
+                              {/* Info del usuario y hora */}
+                              <div className="flex items-center gap-3 flex-1">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                                  isAutomated 
+                                    ? 'bg-blue-500 text-white' 
+                                    : 'bg-primary/10 text-primary'
+                                }`}>
+                                  {isAutomated ? (
+                                    <Zap className="w-5 h-5" />
+                                  ) : (
+                                    (user?.username || 'U').charAt(0).toUpperCase()
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-semibold text-sm" data-testid={`text-note-user-${note.id}`}>
+                                      {isAutomated ? 'Sistema Automático' : (user?.username || 'Usuario')}
+                                    </span>
+                                    {isAutomated && (
+                                      <Badge variant="outline" className="text-xs bg-blue-500/10 border-blue-500/20 text-blue-700 dark:text-blue-300">
+                                        <Zap className="w-3 h-3 mr-1" />
+                                        Automático
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Clock className="w-3 h-3" />
+                                    {format(new Date(note.createdAt), "HH:mm 'hrs'", { locale: es })}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Botones de acción */}
+                              {!isEditing && !isAutomated && (
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => startEdit(note)}
+                                    data-testid={`button-edit-note-${note.id}`}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteNoteMutation.mutate(note.id)}
+                                    data-testid={`button-delete-note-${note.id}`}
+                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </CardHeader>
+                          <CardContent className="group">
+                            {isEditing ? (
+                              <div className="space-y-3">
+                                <Textarea
+                                  value={editContent}
+                                  onChange={(e) => setEditContent(e.target.value)}
+                                  rows={4}
+                                  data-testid={`input-edit-note-${note.id}`}
+                                  className="resize-none"
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateNote(note.id)}
+                                    disabled={updateNoteMutation.isPending}
+                                    data-testid={`button-save-note-${note.id}`}
+                                  >
+                                    {updateNoteMutation.isPending ? 'Guardando...' : 'Guardar'}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={cancelEdit}
+                                    data-testid={`button-cancel-note-${note.id}`}
+                                  >
+                                    Cancelar
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                <p className="whitespace-pre-wrap leading-relaxed text-sm" data-testid={`text-note-content-${note.id}`}>
+                                  {note.content}
+                                </p>
+                                {isAutomated && note.aiConfidence && (
+                                  <div className="flex items-center gap-2 pt-2 border-t text-xs text-muted-foreground">
+                                    <span>Confianza IA:</span>
+                                    <div className="flex-1 max-w-[200px] h-2 bg-muted rounded-full overflow-hidden">
+                                      <div 
+                                        className="h-full bg-blue-500 transition-all" 
+                                        style={{ width: `${note.aiConfidence}%` }}
+                                      ></div>
+                                    </div>
+                                    <span className="font-medium">{parseFloat(note.aiConfidence).toFixed(0)}%</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
                       </div>
-                    </div>
-                  ) : (
-                    <p className="whitespace-pre-wrap" data-testid={`text-note-content-${note.id}`}>
-                      {note.content}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
