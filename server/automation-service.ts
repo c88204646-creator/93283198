@@ -90,6 +90,11 @@ export class AutomationService {
         await this.processLinkedMessagesAttachments(config);
       }
 
+      // Process existing operations for tasks/notes automation if enabled
+      if (config.autoCreateTasks !== 'disabled' || config.autoCreateNotes !== 'disabled') {
+        await this.processExistingOperationsForTasksAndNotes(config);
+      }
+
       // Update last processed timestamp
       await storage.updateAutomationConfig(config.id, {
         lastProcessedAt: new Date(),
@@ -469,6 +474,59 @@ export class AutomationService {
       }
     } catch (error) {
       console.error('[Automation] Error processing linked messages attachments:', error);
+    }
+  }
+
+  private async processExistingOperationsForTasksAndNotes(config: AutomationConfig) {
+    try {
+      console.log(`[Automation] Processing existing operations for tasks/notes automation`);
+      
+      // Get all operations that have linked emails
+      const db = (await import('./db')).db;
+      const { gmailMessages } = await import('@shared/schema');
+      const { isNotNull, sql: sqlFunc } = await import('drizzle-orm');
+      
+      // Get distinct operation IDs that have linked emails
+      const operationsWithEmails = await db.selectDistinct({
+        operationId: gmailMessages.operationId
+      })
+        .from(gmailMessages)
+        .where(isNotNull(gmailMessages.operationId));
+
+      console.log(`[Automation] Found ${operationsWithEmails.length} operations with linked emails`);
+
+      // Process each operation
+      for (const item of operationsWithEmails) {
+        if (!item.operationId) continue;
+
+        try {
+          // Get the first linked message to extract the initial messageId
+          const [firstMessage] = await db.select()
+            .from(gmailMessages)
+            .where(sqlFunc`${gmailMessages.operationId} = ${item.operationId}`)
+            .limit(1);
+
+          if (!firstMessage) continue;
+
+          // Process this operation for tasks and notes
+          await processEmailThreadForAutomation(
+            firstMessage.id,
+            item.operationId,
+            config.autoCreateTasks || 'disabled',
+            config.autoCreateNotes || 'disabled',
+            config.aiOptimizationLevel || 'high'
+          );
+
+          // Small delay to avoid overwhelming Gemini API
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (error) {
+          console.error(`[Automation] Error processing operation ${item.operationId}:`, error);
+        }
+      }
+
+      console.log(`[Automation] Finished processing operations for tasks/notes automation`);
+    } catch (error) {
+      console.error('[Automation] Error in processExistingOperationsForTasksAndNotes:', error);
     }
   }
 
