@@ -3,7 +3,7 @@ import { db } from "./db";
 import { eq, desc, and, inArray, gte, sql, isNull, asc, count } from "drizzle-orm";
 import {
   users, clients, employees, operations, invoices, proposals, expenses, leads, 
-  invoiceItems, proposalItems, payments, customFields, customFieldValues,
+  invoiceItems, proposalItems, payments, bankAccounts, customFields, customFieldValues,
   operationEmployees, gmailAccounts, gmailMessages, gmailAttachments, calendarEvents,
   automationConfigs, automationRules, automationLogs, operationNotes, operationTasks,
   operationFolders, operationFiles, operationAnalyses, knowledgeBase, chatConversations, chatMessages,
@@ -14,6 +14,7 @@ import {
   type OperationEmployee, type InsertOperationEmployee,
   type Invoice, type InsertInvoice,
   type Proposal, type InsertProposal,
+  type BankAccount, type InsertBankAccount,
   type Expense, type InsertExpense,
   type Lead, type InsertLead,
   type InvoiceItem, type InsertInvoiceItem,
@@ -102,6 +103,13 @@ export interface IStorage {
   createProposalItem(item: InsertProposalItem): Promise<ProposalItem>;
   updateProposalItem(id: string, item: Partial<InsertProposalItem>): Promise<ProposalItem | undefined>;
   deleteProposalItem(id: string): Promise<void>;
+
+  // Bank Accounts
+  getAllBankAccounts(): Promise<BankAccount[]>;
+  getBankAccount(id: string): Promise<BankAccount | undefined>;
+  createBankAccount(account: InsertBankAccount): Promise<BankAccount>;
+  updateBankAccount(id: string, account: Partial<InsertBankAccount>): Promise<BankAccount | undefined>;
+  deleteBankAccount(id: string): Promise<void>;
 
   // Payments
   getPayments(invoiceId: string): Promise<Payment[]>;
@@ -628,6 +636,30 @@ export class DatabaseStorage implements IStorage {
 
   async deleteProposalItem(id: string): Promise<void> {
     await db.delete(proposalItems).where(eq(proposalItems.id, id));
+  }
+
+  // Bank Accounts
+  async getAllBankAccounts(): Promise<BankAccount[]> {
+    return await db.select().from(bankAccounts).orderBy(desc(bankAccounts.createdAt));
+  }
+
+  async getBankAccount(id: string): Promise<BankAccount | undefined> {
+    const [account] = await db.select().from(bankAccounts).where(eq(bankAccounts.id, id));
+    return account || undefined;
+  }
+
+  async createBankAccount(insertAccount: InsertBankAccount): Promise<BankAccount> {
+    const [account] = await db.insert(bankAccounts).values(insertAccount).returning();
+    return account;
+  }
+
+  async updateBankAccount(id: string, updateData: Partial<InsertBankAccount>): Promise<BankAccount | undefined> {
+    const [account] = await db.update(bankAccounts).set(updateData).where(eq(bankAccounts.id, id)).returning();
+    return account || undefined;
+  }
+
+  async deleteBankAccount(id: string): Promise<void> {
+    await db.delete(bankAccounts).where(eq(bankAccounts.id, id));
   }
 
   // Payments

@@ -7,7 +7,7 @@ import { pool } from "./db";
 import bcrypt from "bcrypt";
 import {
   insertUserSchema, insertClientSchema, insertEmployeeSchema, insertOperationSchema,
-  insertInvoiceSchema, insertProposalSchema, insertExpenseSchema, insertLeadSchema,
+  insertInvoiceSchema, insertProposalSchema, insertBankAccountSchema, insertExpenseSchema, insertLeadSchema,
   insertCustomFieldSchema, insertOperationFolderSchema, insertOperationFileSchema
 } from "@shared/schema";
 import { z } from "zod";
@@ -933,6 +933,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(invoices);
     } catch (error) {
       console.error("Get operation invoices error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Bank Account Routes
+  app.get("/api/bank-accounts", requireAuth, async (req, res) => {
+    try {
+      const accounts = await storage.getAllBankAccounts();
+      res.json(accounts);
+    } catch (error) {
+      console.error("Get bank accounts error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/bank-accounts", requireAuth, async (req, res) => {
+    try {
+      const data = insertBankAccountSchema.parse(req.body);
+      const account = await storage.createBankAccount(data);
+      res.json(account);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Create bank account error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/bank-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = insertBankAccountSchema.partial().parse(req.body);
+      const account = await storage.updateBankAccount(id, data);
+
+      if (!account) {
+        return res.status(404).json({ message: "Bank account not found" });
+      }
+
+      res.json(account);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Update bank account error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/bank-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteBankAccount(id);
+      res.json({ message: "Bank account deleted successfully" });
+    } catch (error) {
+      console.error("Delete bank account error:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
