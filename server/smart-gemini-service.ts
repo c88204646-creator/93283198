@@ -13,6 +13,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import crypto from 'crypto';
 import { KnowledgeBaseService } from './knowledge-base-service';
 import { CircuitBreaker } from './circuit-breaker';
+import { BasicEmailAnalyzer } from './basic-email-analyzer';
 import type { Operation } from '@shared/schema';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -77,14 +78,16 @@ export class SmartGeminiService {
   private minDelayBetweenCalls: number = 2000; // 2 segundos entre llamadas
   private knowledgeBaseService: KnowledgeBaseService;
   private circuitBreaker: CircuitBreaker;
+  private basicAnalyzer: BasicEmailAnalyzer;
 
   constructor() {
     this.knowledgeBaseService = new KnowledgeBaseService();
-    this.circuitBreaker = new CircuitBreaker('SmartGeminiService', {
+    this.circuitBreaker = new CircuitBreaker({
       failureThreshold: 5,
-      timeout: 60000,
-      halfOpenRequests: 1
+      successThreshold: 2,
+      timeout: 60000
     });
+    this.basicAnalyzer = new BasicEmailAnalyzer();
     this.model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash-exp',
       systemInstruction: `Eres un asistente experto en análisis de correos electrónicos para logística y freight forwarding.
@@ -310,15 +313,9 @@ INSTRUCCIONES CRÍTICAS:
 
     try {
       // Verificar estado del circuit breaker
-      if (!this.circuitBreaker.canExecute()) {
-        console.warn('[Smart Gemini] ⚠️  Circuit breaker is OPEN - skipping Gemini call');
-        return {
-          tasks: [],
-          notes: [],
-          shouldSkip: true,
-          cacheKey: threadHash,
-          usedCache: false
-        };
+      if (!this.circuitBreaker.canMakeRequest()) {
+        console.warn('[Smart Gemini] ⚠️  Circuit breaker is OPEN - usando fallback básico (rule-based)');
+        return await this.useFallbackAnalyzer(thread, threadHash);
       }
 
       // Rate limiting: esperar el delay mínimo entre llamadas
@@ -366,7 +363,58 @@ INSTRUCCIONES CRÍTICAS:
       throw lastError;
       
     } catch (error) {
-      console.error('[Smart Gemini] ❌ Error calling Gemini:', error);
+      console.error('[Smart Gemini] ❌ Error calling Gemini - usando fallback básico (rule-based):', error);
+      return await this.useFallbackAnalyzer(thread, threadHash);
+    }
+  }
+
+  /**
+   * Usa el analizador básico (rule-based) como fallback cuando Gemini falla
+   * Sistema 100% open source que no depende de APIs externas
+   */
+  private async useFallbackAnalyzer(thread: EmailThread, threadHash: string): Promise<AnalysisResult> {
+    try {
+      console.log('[Smart Gemini] 🔄 Usando analizador básico (rule-based) como fallback...');
+      
+      // Convertir thread a formato del analizador básico
+      const messages = thread.messages.map(msg => ({
+        id: msg.id,
+        from: msg.from,
+        subject: msg.subject,
+        snippet: msg.snippet,
+        body: msg.snippet, // Por ahora usamos snippet como body
+        date: msg.date
+      }));
+
+      // Analizar con el sistema basado en reglas
+      const result = await this.basicAnalyzer.analyzeEmailThread(messages);
+
+      // Convertir resultado a formato AnalysisResult
+      const analysisResult: AnalysisResult = {
+        tasks: result.tasks.map(task => ({
+          title: task.title,
+          description: task.description,
+          priority: task.priority,
+          confidence: task.confidence,
+          reasoning: `${task.reasoning} (fallback: rule-based)`,
+          isDuplicate: false
+        })),
+        notes: result.notes.map(note => ({
+          content: note.content,
+          confidence: note.confidence,
+          reasoning: `${note.reasoning} (fallback: rule-based)`
+        })),
+        shouldSkip: result.tasks.length === 0 && result.notes.length === 0,
+        cacheKey: threadHash,
+        usedCache: false
+      };
+
+      console.log(`[Smart Gemini] ✅ Fallback analysis complete: ${analysisResult.tasks.length} tasks, ${analysisResult.notes.length} notes`);
+      
+      return analysisResult;
+      
+    } catch (error) {
+      console.error('[Smart Gemini] ❌ Error in fallback analyzer:', error);
       return {
         tasks: [],
         notes: [],
