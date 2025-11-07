@@ -178,6 +178,15 @@ function ModuleConfigurationDialog({
   const [customFolderNames, setCustomFolderNames] = useState<Record<string, string>>(
     (config?.customFolderNames as Record<string, string>) || {}
   );
+  const [companyName, setCompanyName] = useState<string>(
+    config?.companyName || ''
+  );
+  const [companyDomain, setCompanyDomain] = useState<string>(
+    config?.companyDomain || ''
+  );
+  const [employeeEmails, setEmployeeEmails] = useState<string>(
+    config?.employeeEmails ? (config.employeeEmails as string[]).join(', ') : ''
+  );
 
   const { data: employees = [] } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
@@ -198,6 +207,9 @@ function ModuleConfigurationDialog({
         autoDetectPayments,
         autoDetectExpenses,
         customFolderNames: sanitizedNames,
+        companyName: companyName.trim(),
+        companyDomain: companyDomain.trim(),
+        employeeEmails: employeeEmails.split(',').map(e => e.trim()).filter(e => e),
       });
     },
     onSuccess: () => {
@@ -217,7 +229,7 @@ function ModuleConfigurationDialog({
   });
 
   const updateConfigMutation = useMutation({
-    mutationFn: async ({ isEnabled, accounts, employees, attachments, tasks, notes, optimization, detectPayments, detectExpenses, folderNames }: { isEnabled?: boolean; accounts?: string[]; employees?: string[]; attachments?: boolean; tasks?: string; notes?: string; optimization?: string; detectPayments?: boolean; detectExpenses?: boolean; folderNames?: Record<string, string> }) => {
+    mutationFn: async ({ isEnabled, accounts, employees, attachments, tasks, notes, optimization, detectPayments, detectExpenses, folderNames, compName, compDomain, empEmails }: { isEnabled?: boolean; accounts?: string[]; employees?: string[]; attachments?: boolean; tasks?: string; notes?: string; optimization?: string; detectPayments?: boolean; detectExpenses?: boolean; folderNames?: Record<string, string>; compName?: string; compDomain?: string; empEmails?: string[] }) => {
       return apiRequest("PATCH", `/api/automation/configs/${config!.id}`, {
         isEnabled,
         selectedGmailAccounts: accounts,
@@ -229,6 +241,9 @@ function ModuleConfigurationDialog({
         autoDetectPayments: detectPayments,
         autoDetectExpenses: detectExpenses,
         customFolderNames: folderNames,
+        companyName: compName,
+        companyDomain: compDomain,
+        employeeEmails: empEmails,
       });
     },
     onSuccess: () => {
@@ -269,7 +284,20 @@ function ModuleConfigurationDialog({
     );
     
     if (config) {
-      updateConfigMutation.mutate({ accounts: selectedAccounts, employees: selectedEmployees, attachments: processAttachments, tasks: autoCreateTasks, notes: autoCreateNotes, optimization: aiOptimizationLevel, detectPayments: autoDetectPayments, detectExpenses: autoDetectExpenses, folderNames: sanitizedFolderNames });
+      updateConfigMutation.mutate({ 
+        accounts: selectedAccounts, 
+        employees: selectedEmployees, 
+        attachments: processAttachments, 
+        tasks: autoCreateTasks, 
+        notes: autoCreateNotes, 
+        optimization: aiOptimizationLevel, 
+        detectPayments: autoDetectPayments, 
+        detectExpenses: autoDetectExpenses, 
+        folderNames: sanitizedFolderNames,
+        compName: companyName.trim(),
+        compDomain: companyDomain.trim(),
+        empEmails: employeeEmails.split(',').map(e => e.trim()).filter(e => e),
+      });
     } else {
       createConfigMutation.mutate(sanitizedFolderNames);
     }
@@ -347,6 +375,9 @@ function ModuleConfigurationDialog({
               aiOptimizationLevel={aiOptimizationLevel}
               autoDetectPayments={autoDetectPayments}
               autoDetectExpenses={autoDetectExpenses}
+              companyName={companyName}
+              companyDomain={companyDomain}
+              employeeEmails={employeeEmails}
               onAccountsChange={setSelectedAccounts}
               onEmployeesChange={setSelectedEmployees}
               onProcessAttachmentsChange={setProcessAttachments}
@@ -355,6 +386,9 @@ function ModuleConfigurationDialog({
               onAiOptimizationLevelChange={setAiOptimizationLevel}
               onAutoDetectPaymentsChange={setAutoDetectPayments}
               onAutoDetectExpensesChange={setAutoDetectExpenses}
+              onCompanyNameChange={setCompanyName}
+              onCompanyDomainChange={setCompanyDomain}
+              onEmployeeEmailsChange={setEmployeeEmails}
               customFolderNames={customFolderNames}
               onCustomFolderNamesChange={setCustomFolderNames}
               onSave={handleSaveSettings}
@@ -391,6 +425,9 @@ function SettingsTab({
   aiOptimizationLevel,
   autoDetectPayments,
   autoDetectExpenses,
+  companyName,
+  companyDomain,
+  employeeEmails,
   customFolderNames,
   onAccountsChange,
   onEmployeesChange,
@@ -400,6 +437,9 @@ function SettingsTab({
   onAiOptimizationLevelChange,
   onAutoDetectPaymentsChange,
   onAutoDetectExpensesChange,
+  onCompanyNameChange,
+  onCompanyDomainChange,
+  onEmployeeEmailsChange,
   onCustomFolderNamesChange,
   onSave,
   onDelete,
@@ -417,6 +457,9 @@ function SettingsTab({
   aiOptimizationLevel: string;
   autoDetectPayments: boolean;
   autoDetectExpenses: boolean;
+  companyName: string;
+  companyDomain: string;
+  employeeEmails: string;
   customFolderNames: Record<string, string>;
   onAccountsChange: (accounts: string[]) => void;
   onEmployeesChange: (employees: string[]) => void;
@@ -426,6 +469,9 @@ function SettingsTab({
   onAiOptimizationLevelChange: (level: string) => void;
   onAutoDetectPaymentsChange: (enabled: boolean) => void;
   onAutoDetectExpensesChange: (enabled: boolean) => void;
+  onCompanyNameChange: (name: string) => void;
+  onCompanyDomainChange: (domain: string) => void;
+  onEmployeeEmailsChange: (emails: string) => void;
   onCustomFolderNamesChange: (names: Record<string, string>) => void;
   onSave: () => void;
   onDelete: () => void;
@@ -479,6 +525,58 @@ function SettingsTab({
             ))}
           </div>
         )}
+      </div>
+
+      <div className="border-t pt-6">
+        <Label className="text-base font-semibold mb-3 block">Company Context (for AI)</Label>
+        <p className="text-sm text-muted-foreground mb-4">
+          Help the AI identify internal vs external emails to generate more accurate tasks and notes
+        </p>
+        
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="company-name" className="text-sm mb-2 block">Company Name</Label>
+            <Input
+              id="company-name"
+              value={companyName}
+              onChange={(e) => onCompanyNameChange(e.target.value)}
+              placeholder="e.g., Navicargo Logistics"
+              data-testid="input-company-name"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Your company name for better context
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="company-domain" className="text-sm mb-2 block">Company Email Domain</Label>
+            <Input
+              id="company-domain"
+              value={companyDomain}
+              onChange={(e) => onCompanyDomainChange(e.target.value)}
+              placeholder="e.g., navicargologistics.com"
+              data-testid="input-company-domain"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              If all employee emails end with this domain (e.g., @navicargologistics.com), enter it here
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="employee-emails" className="text-sm mb-2 block">Employee Emails (Optional)</Label>
+            <Textarea
+              id="employee-emails"
+              value={employeeEmails}
+              onChange={(e) => onEmployeeEmailsChange(e.target.value)}
+              placeholder="email1@company.com, email2@company.com"
+              rows={3}
+              data-testid="input-employee-emails"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Specific employee emails separated by commas. Use this if employees don't all use the same domain.
+            </p>
+          </div>
+        </div>
       </div>
 
       <div>

@@ -377,6 +377,10 @@ export const automationConfigs = pgTable("automation_configs", {
   autoCreateTasks: text("auto_create_tasks").default("disabled"), // disabled, basic, smart_ai
   autoCreateNotes: text("auto_create_notes").default("disabled"), // disabled, basic, smart_ai
   aiOptimizationLevel: text("ai_optimization_level").default("high"), // high (80% reduction), medium (50%), low (20%)
+  // Company context for AI analysis (helps identify internal vs external emails)
+  companyName: text("company_name"), // Company name (e.g., "Navicargo Logistics")
+  companyDomain: text("company_domain"), // Company email domain (e.g., "navicargologistics.com")
+  employeeEmails: text("employee_emails").array(), // Array of employee email addresses for internal identification
   // Financial detection settings
   autoDetectPayments: boolean("auto_detect_payments").notNull().default(false), // Automatically detect payments from emails/PDFs
   autoDetectExpenses: boolean("auto_detect_expenses").notNull().default(false), // Automatically detect expenses from emails/PDFs

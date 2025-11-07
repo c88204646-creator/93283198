@@ -1,7 +1,7 @@
 # LogistiCore - Freight Forwarding Platform
 
 ### Overview
-LogistiCore is a comprehensive full-stack enterprise platform designed to streamline freight forwarding and logistics operations. It manages shipments, clients, staff, invoices, quotes, expenses, and leads with robust role-based access control. The platform emphasizes enterprise design principles with logistics-focused iconography and terminology, aiming to enhance efficiency and reduce operational costs within the logistics sector. Key capabilities include integrated financial management, AI-powered operational assistance, and a Kanban task board system.
+LogistiCore is a comprehensive full-stack enterprise platform designed to streamline freight forwarding and logistics operations. It manages shipments, clients, staff, invoices, quotes, expenses, and leads with robust role-based access control. The platform emphasizes enterprise design principles with logistics-focused iconography and terminology, aiming to enhance efficiency and reduce operational costs within the logistics sector. Key capabilities include integrated financial management, AI-powered operational assistance with company context awareness, and a Kanban task board system.
 
 ### User Preferences
 Preferred communication style: Simple, everyday language (Spanish).
