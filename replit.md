@@ -153,3 +153,13 @@ Design preference: Logistics-focused iconography and terminology.
   - Fixed client assignment issue by transforming empty strings to null in insertOperationSchema
   - Created FinancialDetectionService for analyzing email attachments and detecting transactions
   - Added FinancialSuggestionsNotification component in app header for user approval workflow
+- **Financial Overview Dashboard** (NEW - COMPLETE):
+  - **Visual Financial Summary**: 4-card dashboard showing operation profitability at a glance
+  - **Cards Display**: Invoices Total, Payments Received, Expenses Total, and calculated Profit (Payments - Expenses)
+  - **Smart Profit Visualization**: Green background for positive profit, red for negative, with matching icons
+  - **Currency Formatting**: Respects operation currency with proper locale formatting (Spanish/Mexican format)
+  - **Loading States**: Skeleton loaders during data fetch for smooth UX
+  - **Backend Aggregation**: New `getOperationFinancialSummary` method efficiently aggregates financial data
+  - **API Endpoint**: GET `/api/operations/:id/financial-overview` provides aggregated financial metrics
+  - **Integration**: Prominently displayed at top of operation detail page, above tabs
+  - **Real-time Updates**: Automatically reflects changes to invoices, payments, and expenses

@@ -17,7 +17,7 @@ interface FinancialSummary {
 
 export function FinancialOverview({ operationId }: FinancialOverviewProps) {
   const { data: financial, isLoading } = useQuery<FinancialSummary>({
-    queryKey: ['/api/operations', operationId, 'financial-overview'],
+    queryKey: [`/api/operations/${operationId}/financial-overview`],
   });
 
   const formatCurrency = (amount: number, currency?: string | null) => {
