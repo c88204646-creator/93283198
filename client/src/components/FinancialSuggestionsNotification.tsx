@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Bell, DollarSign, TrendingDown, CheckCircle2, XCircle } from "lucide-react";
+import { Bell, DollarSign, TrendingDown, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -36,6 +36,9 @@ interface FinancialSuggestion {
   aiConfidence: string;
   aiAnalysis: string;
   status: string;
+  isDuplicate: boolean;
+  duplicateReason?: string;
+  relatedSuggestionId?: string;
   createdAt: string;
 }
 
@@ -158,9 +161,17 @@ export function FinancialSuggestionsNotification() {
                       <p className="font-medium text-sm truncate">
                         {suggestion.type === 'payment' ? 'Pago recibido' : 'Gasto detectado'}
                       </p>
-                      <Badge variant="outline" className="text-xs shrink-0">
-                        {parseInt(suggestion.aiConfidence)}% confianza
-                      </Badge>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {suggestion.isDuplicate && (
+                          <Badge variant="destructive" className="text-xs flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Duplicado
+                          </Badge>
+                        )}
+                        <Badge variant="outline" className="text-xs">
+                          {parseInt(suggestion.aiConfidence)}% confianza
+                        </Badge>
+                      </div>
                     </div>
                     <p className="text-lg font-bold mt-1">
                       {suggestion.amount} {suggestion.currency}
@@ -168,6 +179,12 @@ export function FinancialSuggestionsNotification() {
                     <p className="text-sm text-muted-foreground truncate mt-1">
                       {suggestion.description}
                     </p>
+                    {suggestion.isDuplicate && suggestion.duplicateReason && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        {suggestion.duplicateReason}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-1">
                       {new Date(suggestion.createdAt).toLocaleDateString('es-ES', {
                         day: 'numeric',
@@ -209,6 +226,23 @@ export function FinancialSuggestionsNotification() {
               </AlertDialogTitle>
               <AlertDialogDescription asChild>
                 <div className="space-y-4 pt-4">
+                  {selectedSuggestion.isDuplicate && (
+                    <>
+                      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+                          <div>
+                            <p className="font-semibold text-amber-900 dark:text-amber-100">⚠️ Posible Duplicado</p>
+                            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                              {selectedSuggestion.duplicateReason || "Esta transacción podría estar duplicada. Revisa cuidadosamente antes de aprobar."}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <Separator />
+                    </>
+                  )}
+                  
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Monto</p>

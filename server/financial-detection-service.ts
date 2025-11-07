@@ -1,6 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as pdfParse from "pdf-parse";
+import { createHash } from "crypto";
 import type { InsertFinancialSuggestion } from "@shared/schema";
+import { db } from "./db";
+import { financialSuggestions } from "@shared/schema";
+import { and, eq, sql } from "drizzle-orm";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -19,6 +23,77 @@ interface DetectedTransaction {
 
 export class FinancialDetectionService {
   private model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+
+  calculateFileHash(buffer: Buffer): string {
+    return createHash("sha256").update(buffer).digest("hex");
+  }
+
+  async checkForDuplicates(
+    transaction: DetectedTransaction,
+    operationId?: string,
+    attachmentHash?: string
+  ): Promise<{ isDuplicate: boolean; duplicateReason?: string; relatedSuggestionId?: string }> {
+    try {
+      // First check: Has this exact file been processed before?
+      if (attachmentHash) {
+        const existingByHash = await db
+          .select()
+          .from(financialSuggestions)
+          .where(eq(financialSuggestions.attachmentHash, attachmentHash))
+          .limit(1);
+
+        if (existingByHash.length > 0) {
+          return {
+            isDuplicate: true,
+            duplicateReason: "El mismo archivo ya fue procesado anteriormente",
+            relatedSuggestionId: existingByHash[0].id,
+          };
+        }
+      }
+
+      // Second check: Similar transaction (amount, date, operation)
+      if (operationId) {
+        const amount = parseFloat(transaction.amount.toString());
+        const amountMin = amount * 0.98; // -2%
+        const amountMax = amount * 1.02; // +2%
+
+        const dateMin = new Date(transaction.date);
+        dateMin.setDate(dateMin.getDate() - 3); // -3 days
+
+        const dateMax = new Date(transaction.date);
+        dateMax.setDate(dateMax.getDate() + 3); // +3 days
+
+        const similarTransactions = await db
+          .select()
+          .from(financialSuggestions)
+          .where(
+            and(
+              eq(financialSuggestions.operationId, operationId),
+              eq(financialSuggestions.type, transaction.type),
+              eq(financialSuggestions.currency, transaction.currency),
+              sql`CAST(${financialSuggestions.amount} AS DECIMAL) >= ${amountMin}`,
+              sql`CAST(${financialSuggestions.amount} AS DECIMAL) <= ${amountMax}`,
+              sql`${financialSuggestions.date} >= ${dateMin}`,
+              sql`${financialSuggestions.date} <= ${dateMax}`
+            )
+          )
+          .limit(1);
+
+        if (similarTransactions.length > 0) {
+          return {
+            isDuplicate: true,
+            duplicateReason: `Transacción similar encontrada: ${transaction.currency} ${amount} en la misma operación con fecha cercana`,
+            relatedSuggestionId: similarTransactions[0].id,
+          };
+        }
+      }
+
+      return { isDuplicate: false };
+    } catch (error) {
+      console.error("[Financial Detection] Error checking duplicates:", error);
+      return { isDuplicate: false };
+    }
+  }
 
   async extractTextFromPDF(buffer: Buffer): Promise<string> {
     try {
@@ -119,7 +194,7 @@ Return empty array [] if no transactions detected.`;
     return this.detectTransactionsFromText(extractedText, operationContext);
   }
 
-  createSuggestionFromTransaction(
+  async createSuggestionFromTransaction(
     transaction: DetectedTransaction,
     sourceInfo: {
       sourceType: "email_attachment" | "email_body" | "gmail_message";
@@ -127,8 +202,16 @@ Return empty array [] if no transactions detected.`;
       gmailAttachmentId?: string;
       operationId?: string;
       extractedText: string;
+      attachmentHash?: string;
     }
-  ): Omit<InsertFinancialSuggestion, "createdAt" | "updatedAt"> {
+  ): Promise<Omit<InsertFinancialSuggestion, "createdAt" | "updatedAt">> {
+    // Check for duplicates
+    const duplicateCheck = await this.checkForDuplicates(
+      transaction,
+      sourceInfo.operationId,
+      sourceInfo.attachmentHash
+    );
+
     return {
       type: transaction.type,
       status: "pending",
@@ -152,6 +235,10 @@ Return empty array [] if no transactions detected.`;
       reviewedById: null,
       reviewedAt: null,
       rejectionReason: null,
+      isDuplicate: duplicateCheck.isDuplicate,
+      duplicateReason: duplicateCheck.duplicateReason || null,
+      relatedSuggestionId: duplicateCheck.relatedSuggestionId || null,
+      attachmentHash: sourceInfo.attachmentHash || null,
     };
   }
 }

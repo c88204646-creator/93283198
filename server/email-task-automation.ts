@@ -319,18 +319,6 @@ export class EmailTaskAutomation {
 
     for (const attachment of pdfAttachments) {
       try {
-        // Verificar que no hayamos procesado este archivo ya
-        const existingSuggestions = await storage.getFinancialSuggestions(operationId);
-        const alreadyProcessed = existingSuggestions.some((s: any) => 
-          s.source_file_id === attachment.id || 
-          s.source_email_id === attachment.emailId
-        );
-
-        if (alreadyProcessed) {
-          console.log(`[Financial Detection] ⏭️  Skipping already processed attachment ${attachment.filename}`);
-          continue;
-        }
-
         // Descargar el archivo de B2
         if (!attachment.b2FileKey) {
           console.log(`[Financial Detection] ⚠️  No B2 key for attachment ${attachment.filename}`);
@@ -338,6 +326,20 @@ export class EmailTaskAutomation {
         }
 
         const fileBuffer = await backblazeStorage.downloadFile(attachment.b2FileKey);
+        
+        // Calcular hash del archivo para detección de duplicados
+        const attachmentHash = this.financialDetectionService.calculateFileHash(fileBuffer);
+        
+        // Verificar si este hash ya fue procesado (archivo exacto)
+        const existingSuggestions = await storage.getFinancialSuggestions(operationId);
+        const alreadyProcessedByHash = existingSuggestions.some((s: any) => 
+          s.attachmentHash === attachmentHash
+        );
+
+        if (alreadyProcessedByHash) {
+          console.log(`[Financial Detection] ⏭️  Skipping already processed file ${attachment.filename} (identical hash)`);
+          continue;
+        }
         
         // Extraer texto del PDF
         const text = await this.financialDetectionService.extractTextFromPDF(fileBuffer);
@@ -355,29 +357,34 @@ export class EmailTaskAutomation {
           } : undefined
         );
 
-        // Crear sugerencias financieras
+        // Crear sugerencias financieras con detección de duplicados
         for (const transaction of detectedTransactions) {
           // Filtrar según configuración
           if (transaction.type === 'payment' && !autoDetectPayments) continue;
           if (transaction.type === 'expense' && !autoDetectExpenses) continue;
 
-          await storage.createFinancialSuggestion({
-            operationId,
-            type: transaction.type,
-            sourceType: 'email_pdf',
-            sourceFileId: attachment.id,
-            sourceEmailId: attachment.emailId,
-            amount: transaction.amount.toString(),
-            currency: transaction.currency,
-            description: transaction.description,
-            date: transaction.date || new Date(),
-            aiConfidence: transaction.confidence.toString(),
-            aiAnalysis: transaction.reasoning,
-            status: 'pending',
-          });
+          // Usar el nuevo método que incluye verificación de duplicados
+          const suggestionData = await this.financialDetectionService.createSuggestionFromTransaction(
+            transaction,
+            {
+              sourceType: 'email_attachment',
+              gmailMessageId: attachment.emailId,
+              gmailAttachmentId: attachment.id,
+              operationId,
+              extractedText: text,
+              attachmentHash,
+            }
+          );
+
+          await storage.createFinancialSuggestion(suggestionData);
 
           suggestionsCreated++;
-          console.log(`[Financial Detection] ✅ Created ${transaction.type} suggestion: ${transaction.description} (${transaction.amount} ${transaction.currency})`);
+          
+          if (suggestionData.isDuplicate) {
+            console.log(`[Financial Detection] ⚠️  Created DUPLICATE ${transaction.type} suggestion: ${transaction.description} (${transaction.amount} ${transaction.currency}) - ${suggestionData.duplicateReason}`);
+          } else {
+            console.log(`[Financial Detection] ✅ Created ${transaction.type} suggestion: ${transaction.description} (${transaction.amount} ${transaction.currency})`);
+          }
         }
 
         // Pequeña pausa entre archivos
