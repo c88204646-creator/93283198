@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
-import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Calendar, Download, Building2, CreditCard } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, DollarSign, Calendar, Download, Building2, CreditCard, Brain, Sparkles, RefreshCw } from "lucide-react";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { format, startOfMonth, endOfMonth, subMonths, parse ParseFloat } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { es } from "date-fns/locale";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import type { BankAccount, Payment, Expense } from "@shared/schema";
@@ -47,6 +48,26 @@ export default function BankAccountDetailPage() {
   const { data: expenses = [], isLoading: expensesLoading } = useQuery<Expense[]>({
     queryKey: ['/api/bank-accounts', accountId, 'expenses'],
     enabled: !!accountId,
+  });
+
+  // Fetch AI financial analysis
+  const { data: analysis, isLoading: analysisLoading, refetch: refetchAnalysis } = useQuery<any>({
+    queryKey: ['/api/bank-accounts', accountId, 'analysis'],
+    enabled: !!accountId && !!(payments.length > 0 || expenses.length > 0),
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
+  // Mutation to refresh analysis
+  const refreshAnalysisMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest(`/api/bank-accounts/${accountId}/analysis/refresh`, {
+        method: 'POST',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/bank-accounts', accountId, 'analysis'] });
+      refetchAnalysis();
+    },
   });
 
   if (accountLoading || paymentsLoading || expensesLoading) {
@@ -307,6 +328,81 @@ export default function BankAccountDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Financial Analysis */}
+      {(payments.length > 0 || expenses.length > 0) && (
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Brain className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    Análisis Financiero con IA
+                    <Sparkles className="w-4 h-4 text-yellow-500" />
+                  </CardTitle>
+                  <CardDescription>
+                    Insights inteligentes generados por experto financiero empresarial
+                  </CardDescription>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refreshAnalysisMutation.mutate()}
+                disabled={refreshAnalysisMutation.isPending}
+                data-testid="button-refresh-analysis"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${refreshAnalysisMutation.isPending ? 'animate-spin' : ''}`} />
+                Actualizar
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {analysisLoading ? (
+              <div className="space-y-3">
+                <div className="h-4 bg-muted animate-pulse rounded w-3/4"></div>
+                <div className="h-4 bg-muted animate-pulse rounded w-full"></div>
+                <div className="h-4 bg-muted animate-pulse rounded w-5/6"></div>
+                <div className="h-4 bg-muted animate-pulse rounded w-2/3"></div>
+              </div>
+            ) : analysis && analysis.status === 'ready' ? (
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {analysis.analysis}
+                </div>
+                <div className="mt-4 pt-4 border-t flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center gap-4">
+                    <span>📊 {analysis.paymentsAnalyzed} ingresos analizados</span>
+                    <span>💸 {analysis.expensesAnalyzed} gastos analizados</span>
+                  </div>
+                  <span>
+                    Generado: {format(new Date(analysis.generatedAt), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Brain className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+                <p className="text-sm text-muted-foreground mb-4">
+                  Generando análisis inteligente de tu cuenta bancaria...
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetchAnalysis()}
+                  data-testid="button-generate-analysis"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generar Análisis
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Charts */}
       <div className="grid gap-6 md:grid-cols-2">
