@@ -2007,7 +2007,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/automation/configs", requireAuth, async (req, res) => {
     try {
       const userId = req.session.userId!;
-      const { moduleName, moduleDescription, isEnabled, selectedGmailAccounts, defaultEmployees, processAttachments, autoCreateTasks, autoCreateNotes, aiOptimizationLevel } = req.body;
+      const { moduleName, moduleDescription, isEnabled, selectedGmailAccounts, defaultEmployees, processAttachments, autoCreateTasks, autoCreateNotes, aiOptimizationLevel, autoDetectPayments, autoDetectExpenses, companyName, companyDomain, employeeEmails } = req.body;
 
       // Check if config already exists for this module
       const existing = await storage.getAutomationConfigByModule(userId, moduleName);
@@ -2028,6 +2028,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aiOptimizationLevel: aiOptimizationLevel || 'high',
         autoDetectPayments: autoDetectPayments || false,
         autoDetectExpenses: autoDetectExpenses || false,
+        companyName: companyName || '',
+        companyDomain: companyDomain || '',
+        employeeEmails: employeeEmails || [],
       });
 
       res.json(config);
@@ -2047,7 +2050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Config not found" });
       }
 
-      const { moduleDescription, isEnabled, selectedGmailAccounts, defaultEmployees, processAttachments, autoCreateTasks, autoCreateNotes, aiOptimizationLevel, autoDetectPayments, autoDetectExpenses } = req.body;
+      const { moduleDescription, isEnabled, selectedGmailAccounts, defaultEmployees, processAttachments, autoCreateTasks, autoCreateNotes, aiOptimizationLevel, autoDetectPayments, autoDetectExpenses, companyName, companyDomain, employeeEmails } = req.body;
       const updated = await storage.updateAutomationConfig(id, {
         moduleDescription,
         isEnabled,
@@ -2059,6 +2062,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aiOptimizationLevel,
         autoDetectPayments,
         autoDetectExpenses,
+        companyName,
+        companyDomain,
+        employeeEmails,
       });
 
       res.json(updated);
