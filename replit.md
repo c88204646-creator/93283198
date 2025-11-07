@@ -27,16 +27,17 @@ Design preference: Logistics-focused iconography and terminology.
 - **Integration Tables**: `customFields`, `customFieldValues`, `gmailAccounts`, `gmailMessages`, `calendarEvents`.
 - **File Management Tables**: `operationFolders`, `operationFiles`, `gmailAttachments`.
 - **Automation Tables**: `automationConfigs` (with `customFolderNames` JSONB), `automationRules`, `automationLogs`.
-- **AI Tables**: `operationAnalyses`, `knowledgeBase`.
+- **AI Tables**: `operationAnalyses`, `bankAccountAnalyses`, `knowledgeBase` (supports both 'operation' and 'bank_account' analysis types).
 - **Patterns**: UUID primary keys, foreign key relationships, timestamp tracking, status enums, JSONB for metadata, B2 storage keys, SHA-256 file hashes.
 
 #### Core Features
-- **Integrated Financial Management**: Comprehensive banking module (accounts, transactions), payments linked to invoices and bank accounts, expenses linked to bank accounts.
+- **Integrated Financial Management**: Comprehensive banking module (accounts, transactions), payments linked to invoices and bank accounts, expenses linked to bank accounts, clickable accounts with detailed financial dashboards.
 - **Gmail Integration**: OAuth 2.0, background sync (messages, calendar events), multi-account support, email bodies and attachments stored in Backblaze B2 with deduplication, intelligent spam filtering.
 - **AI-Powered Assistance**:
     - **LiveChat Personal Assistant**: Optimistic updates, smart operation search by various references, proactive assistance, flexible search.
     - **AI Task & Note Automation**: Automatically creates tasks and notes from email threads using Gemini AI, with smart caching and deduplication.
-    - **AI Knowledge Base System**: Progressive learning system reusing successful analyses from a knowledge base (stored in B2) to reduce Gemini API calls.
+    - **AI Financial Analysis**: Expert financial analysis for bank accounts using Gemini AI with progressive learning. Provides insights on cash flow, expense categorization, red flags, optimization opportunities, and actionable recommendations. Uses knowledge base to reduce API calls.
+    - **AI Knowledge Base System**: Progressive learning system reusing successful analyses from a knowledge base (stored in B2) to reduce Gemini API calls. Now supports both operation and bank account analysis types.
 - **Kanban Task Board System**: Drag-and-drop task management with configurable status columns, manual override of AI-generated tasks.
 - **File Management**: Backblaze B2 exclusive storage for all files, automatic attachment processing and categorization, SHA-256 hash-based deduplication, hierarchical folder organization, manual file/folder creation, editing, and movement. Automation respects user modifications.
 - **Automation Module**: Plugin-based system for entity creation from email patterns, rule-based matching, custom folder name configuration.
