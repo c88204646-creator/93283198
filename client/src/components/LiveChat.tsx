@@ -31,9 +31,7 @@ export function LiveChat() {
   });
 
   const createConversationMutation = useMutation({
-    mutationFn: () => apiRequest<ChatConversation>('/api/chat/conversations', {
-      method: 'POST',
-    }),
+    mutationFn: () => apiRequest<ChatConversation>('POST', '/api/chat/conversations'),
     onSuccess: (data) => {
       setCurrentConversationId(data.id);
       queryClient.invalidateQueries({ queryKey: ['/api/chat/conversations'] });
@@ -42,11 +40,7 @@ export function LiveChat() {
 
   const sendMessageMutation = useMutation({
     mutationFn: (content: string) => 
-      apiRequest(`/api/chat/conversations/${currentConversationId}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({ content }),
-        headers: { 'Content-Type': 'application/json' },
-      }),
+      apiRequest('POST', `/api/chat/conversations/${currentConversationId}/messages`, { content }),
     onSuccess: () => {
       queryClient.invalidateQueries({ 
         queryKey: ['/api/chat/conversations', currentConversationId, 'messages'] 
@@ -57,9 +51,7 @@ export function LiveChat() {
 
   const archiveConversationMutation = useMutation({
     mutationFn: (conversationId: string) =>
-      apiRequest(`/api/chat/conversations/${conversationId}`, {
-        method: 'DELETE',
-      }),
+      apiRequest('DELETE', `/api/chat/conversations/${conversationId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/chat/conversations'] });
       setCurrentConversationId(null);

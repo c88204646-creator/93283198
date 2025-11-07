@@ -9,7 +9,13 @@ Industry focus: Freight forwarding and logistics operations.
 Design preference: Logistics-focused iconography and terminology.
 
 ## Recent Updates (November 7, 2025)
-1. **Kanban Task Board System**: Implemented visual drag-and-drop task management:
+1. **LiveChat Personal Assistant Fixed**: Resolved critical API call issues in chat widget:
+   - Fixed incorrect `apiRequest` method signatures throughout LiveChat component
+   - Created missing database tables: `chat_conversations` and `chat_messages`
+   - Chat widget now fully functional for sending/receiving messages
+   - Personal assistant integration works correctly with Gemini AI
+   - Conversation history and message persistence enabled
+2. **Kanban Task Board System**: Implemented visual drag-and-drop task management:
    - New `TaskKanban` component with 5 status columns displayed horizontally: Pending, In Progress, Pending Approval, Completed, Cancelled
    - **Horizontal scrollable layout** - All columns visible in a single line with 320px width each for easy drag-and-drop
    - Drag-and-drop functionality using @dnd-kit library for moving tasks between status columns
