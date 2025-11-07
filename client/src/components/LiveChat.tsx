@@ -98,28 +98,28 @@ export function LiveChat() {
       <Button
         onClick={() => setIsOpen(true)}
         className={cn(
-          "fixed shadow-lg z-50 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700",
+          "fixed shadow-2xl z-[9999] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 transition-transform hover:scale-110",
           isMobile 
-            ? "bottom-4 right-4 h-14 w-14 rounded-full" 
-            : "bottom-6 right-6 h-16 w-16 rounded-full"
+            ? "bottom-6 right-6 h-16 w-16 rounded-full" 
+            : "bottom-8 right-8 h-20 w-20 rounded-full"
         )}
         size="icon"
       >
-        <MessageCircle className={isMobile ? "h-6 w-6" : "h-7 w-7"} />
+        <MessageCircle className={isMobile ? "h-7 w-7" : "h-9 w-9"} />
       </Button>
     );
   }
 
   return (
     <Card className={cn(
-      "fixed z-50 shadow-2xl transition-all duration-300 overflow-hidden flex flex-col",
+      "fixed z-[9999] shadow-2xl transition-all duration-300 overflow-hidden flex flex-col rounded-2xl",
       isMobile 
         ? isMinimized 
-          ? "bottom-4 right-4 left-4 h-16" 
-          : "bottom-4 right-4 left-4 h-[500px]"
+          ? "bottom-6 right-6 left-6 h-16" 
+          : "bottom-6 right-6 left-6 h-[500px]"
         : isMinimized 
-          ? "bottom-6 right-6 h-16 w-[380px]" 
-          : "bottom-6 right-6 h-[520px] w-[380px]"
+          ? "bottom-8 right-8 h-16 w-[380px]" 
+          : "bottom-8 right-8 h-[540px] w-[400px]"
     )}>
       {/* Header */}
       <div className={cn(
