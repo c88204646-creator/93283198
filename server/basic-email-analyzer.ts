@@ -174,14 +174,28 @@ export class BasicEmailAnalyzer {
 
     // Crear task si se detectó alguna acción
     if (actionTypes.length > 0) {
-      // Título simple: solo acción
-      const title = actionTypes.join(' y ');
+      // Título profesional: acción + contexto
+      const ref = trackingNumbers.length > 0 ? trackingNumbers[0] : '';
+      const date = dates.length > 0 ? dates[0] : '';
       
-      // Descripción breve: solo lo esencial
-      const description = message.snippet.slice(0, 100).trim() + (message.snippet.length > 100 ? '...' : '');
+      let title = actionTypes[0]; // Usar primera acción principal
+      if (ref) title += ` ${ref}`;
+      if (date && !ref) title += ` para ${date}`;
+      
+      // Descripción: extraer lo relevante (sin saludos ni conversación)
+      let description = message.snippet
+        .replace(/^(buen[ao]s?\s+(dia|tarde|noche)|hola|hello|dear|estimad[ao]|saludos|regards|atentamente).*/gi, '')
+        .replace(/quedo\s+atent[ao].*/gi, '')
+        .replace(/quedamos?\s+a\s+la\s+orden.*/gi, '')
+        .trim()
+        .slice(0, 100);
+      
+      if (description.length < 20) {
+        description = `Acción de ${actionTypes.join(' y ')} requerida`;
+      }
 
       tasks.push({
-        title,
+        title: title.slice(0, 60),
         description,
         priority,
         confidence: 65,
@@ -221,8 +235,32 @@ export class BasicEmailAnalyzer {
       return null;
     }
 
-    // Nota simple y clara: solo el contenido principal
-    const content = message.snippet.slice(0, 150).trim() + (message.snippet.length > 150 ? '...' : '');
+    // Limpiar texto de saludos y conversaciones informales
+    let cleanContent = message.snippet
+      .replace(/^(buen[ao]s?\s+(dia|tarde|noche|dias)|hola|hello|dear|estimad[ao]|saludos|regards).*/gi, '')
+      .replace(/quedo\s+atent[ao].*/gi, '')
+      .replace(/quedamos?\s+a\s+la\s+orden.*/gi, '')
+      .replace(/\/\s*I[''']ll?\s+pending.*/gi, '')
+      .replace(/best\s+regards.*/gi, '')
+      .replace(/atentamente.*/gi, '')
+      .trim();
+
+    // Si después de limpiar queda muy poco, generar nota estructurada
+    if (cleanContent.length < 30) {
+      const parts = [];
+      if (trackingNumbers.length > 0) parts.push(`Ref: ${trackingNumbers[0]}`);
+      if (dates.length > 0) parts.push(`Fecha: ${dates[0]}`);
+      if (amounts.length > 0) parts.push(`Monto: ${amounts[0]}`);
+      cleanContent = `Comunicación registrada. ${parts.join('. ')}`;
+    }
+
+    // Limitar a 150 caracteres
+    const content = cleanContent.slice(0, 150).trim() + (cleanContent.length > 150 ? '...' : '');
+
+    // Verificar que tenga longitud mínima
+    if (content.length < 30) {
+      return null;
+    }
 
     return {
       content,

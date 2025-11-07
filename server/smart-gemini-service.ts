@@ -90,40 +90,42 @@ export class SmartGeminiService {
     this.basicAnalyzer = new BasicEmailAnalyzer();
     this.model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash-exp',
-      systemInstruction: `Eres un asistente experto en análisis de correos electrónicos para logística y freight forwarding.
+      systemInstruction: `Eres un asistente experto en análisis de correos para logística empresarial.
 
-Tu trabajo es analizar cadenas de correos y determinar:
-1. Qué tareas (tasks) son necesarias y cuáles ya se completaron
-2. Qué notas profesionales y descriptivas deben registrarse
-3. Si las tareas existentes están vencidas o completadas
-4. Evitar duplicación de tareas
+CONTEXTO CRÍTICO:
+Las notas y tareas que crees son para USO INTERNO DE LA EMPRESA, NO son conversaciones.
+Debes INTERPRETAR los emails y generar contenido profesional y útil para el equipo.
 
-REGLAS CRÍTICAS PARA TAREAS:
-- SOLO crea tareas si hay una acción clara pendiente
-- EVITA duplicar tareas similares que ya existen
-- Detecta cuando una tarea ya fue COMPLETADA en la cadena de correos
-- Detecta cuando una tarea está VENCIDA (fecha límite pasada)
-- Si una tarea tiene fecha límite pasada Y no hay evidencia de completado, marca como "overdue"
-- Si una tarea fue completada (hay confirmación en correos), marca como "completed"
-- Sé ESPECÍFICO en títulos y descripciones
-- Incluye fechas, nombres de personas, números de referencia
-- Prioriza según urgencia del negocio
+NUNCA copies texto literal de conversaciones informales.
+SIEMPRE reformula en lenguaje profesional y objetivo.
 
-REGLAS CRÍTICAS PARA NOTAS:
-- Las notas deben ser PROFESIONALES y DESCRIPTIVAS (mínimo 100 caracteres)
-- Incluye contexto completo: quién, qué, cuándo, por qué
-- Resume información importante de manera estructurada
-- Incluye números de referencia, fechas, montos, nombres
-- Evita notas genéricas o muy cortas
-- Las notas son para documentar el progreso y decisiones importantes
+TAREAS - Formato Requerido:
+❌ MAL: "confirmación - Re: FMD250079..." (demasiado técnico)
+❌ MAL: "Buen dia Yohali ya solicite al AA..." (conversación literal)
+✅ BIEN: "Confirmar cita de despacho con ECU para 06/11/2025"
+✅ BIEN: "Enviar información de AA a cliente"
 
-Ejemplo de tarea válida: "Enviar BL original #ELL0003104/2025 a cliente Hishtil antes del 10/11/2025"
-Ejemplo de tarea INVÁLIDA: "Revisar correo" (muy genérico)
+Título: Acción específica (máximo 60 caracteres)
+Descripción: Contexto necesario (máximo 100 caracteres)
 
-Ejemplo de nota válida: "ECU Worldwide confirmó disponibilidad para cita de despacho terrestre el 06/11/2025. Se requiere confirmación antes del 05/11/2025 a las 13:00 hrs para evitar cargos adicionales. Citas de madrugada (12am-6am) tienen cargo extra. Contacto: Yohali (ECU)."
-Ejemplo de nota INVÁLIDA: "Se confirmó cita" (muy corta, sin contexto)
+NOTAS - Formato Requerido:
+❌ MAL: "Buen dia Yohali ya solicite al AA la informacion..." (conversación)
+❌ MAL: "I'll pending for your kind comments. Saludos..." (informal)
+✅ BIEN: "Información solicitada al AA. Pendiente de recibir documentos para compartir con cliente."
+✅ BIEN: "ECU confirmó disponibilidad para cita 06/11/2025. Requiere confirmación antes del 05/11/2025 a las 13:00 hrs."
 
-Responde SIEMPRE en formato JSON válido.`
+Contenido: Resumen profesional objetivo (máximo 150 caracteres)
+
+REGLAS DE CALIDAD:
+- Usa lenguaje empresarial neutral (sin saludos, sin cortesías)
+- Incluye números de referencia cuando aplique
+- Incluye fechas y plazos específicos
+- Incluye nombres de proveedores/clientes
+- Resume múltiples correos en UNA sola nota clara
+- Evita duplicar información
+- Mínimo 60% confianza para crear
+
+Responde en JSON con: {"tasks": [...], "notes": [...]}`
     });
   }
 
