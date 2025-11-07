@@ -377,6 +377,10 @@ export const automationConfigs = pgTable("automation_configs", {
   autoCreateTasks: text("auto_create_tasks").default("disabled"), // disabled, basic, smart_ai
   autoCreateNotes: text("auto_create_notes").default("disabled"), // disabled, basic, smart_ai
   aiOptimizationLevel: text("ai_optimization_level").default("high"), // high (80% reduction), medium (50%), low (20%)
+  // Financial detection settings
+  autoDetectPayments: boolean("auto_detect_payments").notNull().default(false), // Automatically detect payments from emails/PDFs
+  autoDetectExpenses: boolean("auto_detect_expenses").notNull().default(false), // Automatically detect expenses from emails/PDFs
+  financialDetectionConfidence: integer("financial_detection_confidence").notNull().default(75), // Minimum confidence (0-100) to create suggestion
   settings: jsonb("settings"), // Module-specific settings
   lastProcessedAt: timestamp("last_processed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -526,6 +530,50 @@ export const chatMessages = pgTable("chat_messages", {
   content: text("content").notNull(),
   metadata: jsonb("metadata"), // Para guardar info de tool calls, etc.
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Financial Suggestions table - AI-detected payments and expenses pending user approval
+export const financialSuggestions = pgTable("financial_suggestions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: text("type").notNull(), // 'payment' or 'expense'
+  status: text("status").notNull().default("pending"), // pending, approved, rejected
+  
+  // Source information
+  sourceType: text("source_type").notNull(), // 'email_attachment', 'email_body', 'gmail_message'
+  gmailMessageId: varchar("gmail_message_id").references(() => gmailMessages.id, { onDelete: "cascade" }),
+  gmailAttachmentId: varchar("gmail_attachment_id").references(() => gmailAttachments.id, { onDelete: "set null" }),
+  operationId: varchar("operation_id").references(() => operations.id, { onDelete: "cascade" }),
+  
+  // Detected financial data
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: text("currency").notNull(), // MXN, USD, ARS
+  date: timestamp("date").notNull(),
+  description: text("description").notNull(),
+  
+  // For payments
+  paymentMethod: text("payment_method"), // cash, transfer, check, card, other
+  reference: text("reference"), // Payment reference number
+  invoiceId: varchar("invoice_id").references(() => invoices.id, { onDelete: "set null" }),
+  
+  // For expenses
+  category: text("category"), // travel, supplies, equipment, services, other
+  
+  // Common fields
+  bankAccountId: varchar("bank_account_id").references(() => bankAccounts.id, { onDelete: "set null" }),
+  
+  // AI metadata
+  aiConfidence: decimal("ai_confidence", { precision: 5, scale: 2 }), // AI confidence score (0-100)
+  aiModel: text("ai_model"), // AI model used (e.g., "gemini-2.0-flash-exp")
+  aiReasoning: text("ai_reasoning"), // Why AI thinks this is a payment/expense
+  extractedText: text("extracted_text"), // Text extracted from PDF or email
+  
+  // User interaction
+  reviewedById: varchar("reviewed_by_id").references(() => users.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at"),
+  rejectionReason: text("rejection_reason"),
+  
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Relations
@@ -848,6 +896,7 @@ export const insertOperationAnalysisSchema = createInsertSchema(operationAnalyse
 export const insertBankAccountAnalysisSchema = createInsertSchema(bankAccountAnalyses).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertChatConversationSchema = createInsertSchema(chatConversations).omit({ id: true, createdAt: true });
 export const insertChatMessageSchema = createInsertSchema(chatMessages).omit({ id: true, createdAt: true });
+export const insertFinancialSuggestionSchema = createInsertSchema(financialSuggestions).omit({ id: true, createdAt: true, updatedAt: true });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -947,3 +996,6 @@ export type ChatConversation = typeof chatConversations.$inferSelect;
 
 export type InsertChatMessage = z.infer<typeof insertChatMessageSchema>;
 export type ChatMessage = typeof chatMessages.$inferSelect;
+
+export type InsertFinancialSuggestion = z.infer<typeof insertFinancialSuggestionSchema>;
+export type FinancialSuggestion = typeof financialSuggestions.$inferSelect;
