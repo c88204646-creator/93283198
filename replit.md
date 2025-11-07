@@ -105,7 +105,7 @@ Design preference: Logistics-focused iconography and terminology.
 ### Recent Changes
 
 **November 7, 2025 - AI Financial Detection System & Enhanced Automation**
-- **AI-Powered Financial Transaction Detection** (NEW):
+- **AI-Powered Financial Transaction Detection** (NEW - COMPLETE):
   - Automated detection of payments (from clients) and expenses (company payments) from email attachments using Gemini AI
   - PDF text extraction with pdf-parse library for analyzing invoices, receipts, and financial documents
   - Creates financial suggestions requiring user approval before creating actual payment/expense records
@@ -113,10 +113,11 @@ Design preference: Logistics-focused iconography and terminology.
   - Real-time notification system in header showing pending suggestions with badge counter
   - Detailed approval workflow with AI reasoning display, rejection capability with notes
   - Automatic deduplication prevents processing the same attachment multiple times
-  - Configurable per automation config with `autoDetectPayments` and `autoDetectExpenses` flags
+  - **Configurable UI toggles in automation settings**: `autoDetectPayments` and `autoDetectExpenses` switches with clear descriptions
   - Integrated with automation service - processes automatically in background every 15 minutes
   - New `financial_suggestions` table tracks all detected transactions and their approval status
   - Financial Detection API endpoints: GET pending, GET by operation, approve, reject
+  - Full integration with automation config mutations (create/update operations include detection flags)
 - **Enhanced AI Task/Note Generation**:
   - Improved prompts to generate professional, descriptive notes (minimum 100 characters) with full context
   - Implemented intelligent task deduplication to prevent creating similar tasks from email threads
