@@ -2050,7 +2050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/operations/:operationId/tasks/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
-      const { title, description, status, priority, assignedToId, dueDate, completedAt } = req.body;
+      const { title, description, status, priority, assignedToId, dueDate, completedAt, modifiedManually } = req.body;
 
       const task = await storage.getOperationTask(id);
       if (!task) {
@@ -2065,6 +2065,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         assignedToId,
         dueDate: dueDate ? new Date(dueDate) : undefined,
         completedAt: completedAt ? new Date(completedAt) : undefined,
+        modifiedManually: modifiedManually !== undefined ? modifiedManually : task.modifiedManually,
       });
 
       res.json(updated);

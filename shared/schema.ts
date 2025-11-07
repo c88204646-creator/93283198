@@ -224,13 +224,14 @@ export const operationTasks = pgTable("operation_tasks", {
   order: integer("order").notNull().default(0),
   title: text("title").notNull(),
   description: text("description"),
-  status: text("status").notNull().default("pending"), // pending, in-progress, completed, cancelled
+  status: text("status").notNull().default("pending"), // pending, in-progress, pending-approval, completed, cancelled
   priority: text("priority").notNull().default("medium"), // low, medium, high, urgent
   assignedToId: varchar("assigned_to_id").references(() => employees.id, { onDelete: "set null" }),
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),
   createdById: varchar("created_by_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   createdAutomatically: boolean("created_automatically").notNull().default(false), // Auto-created by AI
+  modifiedManually: boolean("modified_manually").notNull().default(false), // User has manually modified this task (status, title, etc.)
   sourceGmailMessageId: varchar("source_gmail_message_id").references(() => gmailMessages.id, { onDelete: "set null" }), // Link to source email
   sourceEmailThreadId: text("source_email_thread_id"), // Gmail thread ID for tracking conversations
   aiConfidence: decimal("ai_confidence", { precision: 5, scale: 2 }), // AI confidence score (0-100)

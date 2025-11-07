@@ -107,12 +107,20 @@ export class EmailTaskAutomation {
       if (autoCreateTasks !== 'disabled' && analysis.tasks.length > 0) {
         for (const taskSuggestion of analysis.tasks) {
           try {
-            // Verificar que no exista una tarea idéntica
-            const isDuplicate = existingTasks.some(t => 
-              t.title.toLowerCase().includes(taskSuggestion.title.toLowerCase().substring(0, 20))
+            // Verificar que no exista una tarea similar
+            const similarTask = existingTasks.find(t => 
+              t.title.toLowerCase().includes(taskSuggestion.title.toLowerCase().substring(0, 20)) ||
+              taskSuggestion.title.toLowerCase().includes(t.title.toLowerCase().substring(0, 20))
             );
             
-            if (isDuplicate) {
+            if (similarTask) {
+              // Respetar tareas modificadas manualmente - NUNCA duplicar o modificar
+              if (similarTask.modifiedManually) {
+                console.log(`[Email Task Automation] 🔒 Respecting manually modified task: ${similarTask.title}`);
+                continue;
+              }
+              
+              // Tarea duplicada automática - skip
               console.log(`[Email Task Automation] ⏭️  Skipped duplicate task: ${taskSuggestion.title}`);
               continue;
             }
@@ -126,6 +134,7 @@ export class EmailTaskAutomation {
               createdById: userId,
               order: existingTasks.length + totalTasksCreated,
               createdAutomatically: true,
+              modifiedManually: false,
               sourceGmailMessageId: emails[emails.length - 1].id,
               sourceEmailThreadId: threadId,
               aiConfidence: taskSuggestion.confidence.toString(),

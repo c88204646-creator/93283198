@@ -24,6 +24,7 @@ import DOMPurify from 'isomorphic-dompurify';
 import type { Operation, OperationNote, OperationTask, Employee, User, Client, GmailMessage } from "@shared/schema";
 import { FileUploader } from "@/components/FileUploader";
 import { OperationAnalysisComponent } from "@/components/OperationAnalysis";
+import { TaskKanban } from "@/components/TaskKanban";
 import {
   Dialog,
   DialogContent,
@@ -702,6 +703,7 @@ function TasksTab({ operationId, tasks, employees, users }: {
 }) {
   const { toast } = useToast();
   const [showNewTask, setShowNewTask] = useState(false);
+  const [editingTask, setEditingTask] = useState<OperationTask | null>(null);
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
@@ -735,10 +737,14 @@ function TasksTab({ operationId, tasks, employees, users }: {
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, updates }: { taskId: string; updates: Partial<OperationTask> }) => {
-      return apiRequest('PATCH', `/api/operations/${operationId}/tasks/${taskId}`, updates);
+      return apiRequest('PATCH', `/api/operations/${operationId}/tasks/${taskId}`, {
+        ...updates,
+        modifiedManually: true,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/operations/${operationId}/tasks`] });
+      setEditingTask(null);
       toast({ title: "Tarea actualizada exitosamente" });
     },
     onError: () => {
@@ -767,39 +773,36 @@ function TasksTab({ operationId, tasks, employees, users }: {
     createTaskMutation.mutate(newTask);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-      case 'in-progress': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'cancelled': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-    }
+  const handleEditTask = (task: OperationTask) => {
+    setEditingTask(task);
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      case 'high': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-    }
+  const handleSaveEdit = () => {
+    if (!editingTask) return;
+    updateTaskMutation.mutate({
+      taskId: editingTask.id,
+      updates: {
+        title: editingTask.title,
+        description: editingTask.description,
+        status: editingTask.status,
+        priority: editingTask.priority,
+        assignedToId: editingTask.assignedToId,
+        dueDate: editingTask.dueDate,
+        completedAt: editingTask.status === 'completed' ? new Date().toISOString() : null,
+      },
+    });
   };
 
   return (
     <div className="space-y-4">
-      {!showNewTask ? (
-        <Button onClick={() => setShowNewTask(true)} data-testid="button-new-task">
-          <Plus className="w-4 h-4 mr-2" />
-          Nueva Tarea
-        </Button>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Nueva Tarea</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      {/* Task Creation Dialog */}
+      <Dialog open={showNewTask} onOpenChange={setShowNewTask}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nueva Tarea</DialogTitle>
+            <DialogDescription>Crea una nueva tarea para esta operación</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Título *</Label>
@@ -841,6 +844,7 @@ function TasksTab({ operationId, tasks, employees, users }: {
                   <SelectContent>
                     <SelectItem value="pending">Pendiente</SelectItem>
                     <SelectItem value="in-progress">En Progreso</SelectItem>
+                    <SelectItem value="pending-approval">Por Aprobar</SelectItem>
                     <SelectItem value="completed">Completada</SelectItem>
                     <SelectItem value="cancelled">Cancelada</SelectItem>
                   </SelectContent>
@@ -883,109 +887,135 @@ function TasksTab({ operationId, tasks, employees, users }: {
                 data-testid="input-task-description"
               />
             </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={handleCreateTask}
-                disabled={createTaskMutation.isPending}
-                data-testid="button-save-task"
-              >
-                Crear Tarea
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowNewTask(false)}
-                data-testid="button-cancel-task"
-              >
-                Cancelar
-              </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewTask(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateTask} disabled={createTaskMutation.isPending}>
+              Crear Tarea
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task Edit Dialog */}
+      <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar Tarea</DialogTitle>
+            <DialogDescription>Modifica los detalles de la tarea</DialogDescription>
+          </DialogHeader>
+          {editingTask && (
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Título *</Label>
+                  <Input
+                    value={editingTask.title}
+                    onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })}
+                    placeholder="Título de la tarea"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Asignado a</Label>
+                  <Select
+                    value={editingTask.assignedToId || "unassigned"}
+                    onValueChange={(value) => setEditingTask({ ...editingTask, assignedToId: value === "unassigned" ? null : value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar empleado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Sin asignar</SelectItem>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Estado</Label>
+                  <Select
+                    value={editingTask.status}
+                    onValueChange={(value) => setEditingTask({ ...editingTask, status: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pendiente</SelectItem>
+                      <SelectItem value="in-progress">En Progreso</SelectItem>
+                      <SelectItem value="pending-approval">Por Aprobar</SelectItem>
+                      <SelectItem value="completed">Completada</SelectItem>
+                      <SelectItem value="cancelled">Cancelada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Prioridad</Label>
+                  <Select
+                    value={editingTask.priority}
+                    onValueChange={(value) => setEditingTask({ ...editingTask, priority: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Baja</SelectItem>
+                      <SelectItem value="medium">Media</SelectItem>
+                      <SelectItem value="high">Alta</SelectItem>
+                      <SelectItem value="urgent">Urgente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Fecha de Vencimiento</Label>
+                  <Input
+                    type="date"
+                    value={editingTask.dueDate ? new Date(editingTask.dueDate).toISOString().split('T')[0] : ''}
+                    onChange={(e) => setEditingTask({ ...editingTask, dueDate: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Descripción</Label>
+                <Textarea
+                  value={editingTask.description || ''}
+                  onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })}
+                  placeholder="Descripción de la tarea"
+                  rows={3}
+                />
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingTask(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={updateTaskMutation.isPending}>
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <div className="space-y-3">
-        {tasks.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              No hay tareas para esta operación
-            </CardContent>
-          </Card>
-        ) : (
-          tasks.map((task) => {
-            const assignedEmployee = employees.find(e => e.id === task.assignedToId);
-            const createdByUser = users.find(u => u.id === task.createdById);
-
-            return (
-              <Card key={task.id} data-testid={`card-task-${task.id}`}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
-                        <CardTitle data-testid={`text-task-title-${task.id}`}>{task.title}</CardTitle>
-                        <Badge className={getStatusColor(task.status)} data-testid={`badge-task-status-${task.id}`}>
-                          {task.status}
-                        </Badge>
-                        <Badge className={getPriorityColor(task.priority)} data-testid={`badge-task-priority-${task.id}`}>
-                          {task.priority}
-                        </Badge>
-                      </div>
-                      {task.description && (
-                        <CardDescription data-testid={`text-task-description-${task.id}`}>
-                          {task.description}
-                        </CardDescription>
-                      )}
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground pt-2">
-                        {assignedEmployee && (
-                          <div className="flex items-center gap-1">
-                            <UserIcon className="w-3 h-3" />
-                            <span>{assignedEmployee.name}</span>
-                          </div>
-                        )}
-                        {task.dueDate && (
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            <span>{format(new Date(task.dueDate), 'PP')}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1">
-                          <span>Creada por {createdByUser?.username || 'Usuario'}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-                          updateTaskMutation.mutate({
-                            taskId: task.id,
-                            updates: { 
-                              status: newStatus,
-                              completedAt: newStatus === 'completed' ? new Date().toISOString() : null
-                            }
-                          });
-                        }}
-                        data-testid={`button-toggle-task-${task.id}`}
-                      >
-                        <CheckSquare className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteTaskMutation.mutate(task.id)}
-                        data-testid={`button-delete-task-${task.id}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            );
-          })
-        )}
-      </div>
+      {/* Kanban Board */}
+      <TaskKanban
+        operationId={operationId}
+        tasks={tasks}
+        employees={employees}
+        users={users}
+        onAddTask={() => setShowNewTask(true)}
+        onEditTask={handleEditTask}
+        onDeleteTask={(taskId) => {
+          if (confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+            deleteTaskMutation.mutate(taskId);
+          }
+        }}
+      />
     </div>
   );
 }

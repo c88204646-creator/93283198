@@ -9,14 +9,25 @@ Industry focus: Freight forwarding and logistics operations.
 Design preference: Logistics-focused iconography and terminology.
 
 ## Recent Updates (November 7, 2025)
-1. **AI Knowledge Base System**: Implemented progressive learning system to dramatically reduce Gemini API usage:
+1. **Kanban Task Board System**: Implemented visual drag-and-drop task management:
+   - New `TaskKanban` component with 5 status columns displayed horizontally: Pending, In Progress, Pending Approval, Completed, Cancelled
+   - **Horizontal scrollable layout** - All columns visible in a single line with 320px width each for easy drag-and-drop
+   - Drag-and-drop functionality using @dnd-kit library for moving tasks between status columns
+   - **Status selector in create/edit forms** - Users can manually select task status when creating or editing tasks
+   - Added `modifiedManually` boolean field to `operationTasks` table to track user-edited tasks
+   - Manual task modifications (edit, drag-drop, status change) automatically set `modifiedManually: true` flag
+   - AI automation respects manually modified tasks - never duplicates or overwrites them
+   - Visual indicators show task priority, assignee, due date, and creation source (AI vs Manual)
+   - Integrated into operation detail page with dialog-based create/edit forms
+   - Console logs clearly show: "🔒 Respecting manually modified task" when automation skips protected tasks
+2. **AI Knowledge Base System**: Implemented progressive learning system to dramatically reduce Gemini API usage:
    - New `knowledgeBase` table indexes successful analyses with operation metadata
    - Intelligent similarity matching (60%+ threshold) finds relevant prior analyses
    - Successful analyses stored as JSON documents in Backblaze B2 for reuse
    - System learns from each analysis and improves quality scores over time
    - Logs clearly show: "🎓 REUSING KNOWLEDGE" vs "🤖 CALLING GEMINI API"
    - Cache extended from 1 hour to 24 hours to further reduce API calls
-2. **Operation Analysis Service Enhanced**: 
+3. **Operation Analysis Service Enhanced**: 
    - Before calling Gemini, system searches knowledge base for similar operations
    - If match found (based on type, category, shipping mode, priority), adapts existing analysis
    - Only calls Gemini when no similar case exists in knowledge base
