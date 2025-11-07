@@ -75,6 +75,13 @@ export interface IStorage {
   updateOperation(id: string, operation: Partial<InsertOperation>): Promise<Operation | undefined>;
   deleteOperation(id: string): Promise<void>;
   countOperations(): Promise<number>;
+  getOperationFinancialSummary(operationId: string): Promise<{
+    invoicesTotal: number;
+    paymentsTotal: number;
+    expensesTotal: number;
+    profit: number;
+    currency: string | null;
+  }>;
 
   // Invoices
   getAllInvoices(): Promise<Invoice[]>;
@@ -404,6 +411,45 @@ export class DatabaseStorage implements IStorage {
 
   async deleteOperation(id: string): Promise<void> {
     await db.delete(operations).where(eq(operations.id, id));
+  }
+
+  async getOperationFinancialSummary(operationId: string): Promise<{
+    invoicesTotal: number;
+    paymentsTotal: number;
+    expensesTotal: number;
+    profit: number;
+    currency: string | null;
+  }> {
+    const operation = await this.getOperation(operationId);
+    const currency = operation?.currency || null;
+
+    const operationInvoices = await db.select()
+      .from(invoices)
+      .where(eq(invoices.operationId, operationId));
+    
+    const invoicesTotal = operationInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0);
+
+    const operationPayments = await db.select()
+      .from(payments)
+      .where(eq(payments.operationId, operationId));
+    
+    const paymentsTotal = operationPayments.reduce((sum, pay) => sum + Number(pay.amount || 0), 0);
+
+    const operationExpenses = await db.select()
+      .from(expenses)
+      .where(eq(expenses.operationId, operationId));
+    
+    const expensesTotal = operationExpenses.reduce((sum, exp) => sum + Number(exp.amount || 0), 0);
+
+    const profit = paymentsTotal - expensesTotal;
+
+    return {
+      invoicesTotal,
+      paymentsTotal,
+      expensesTotal,
+      profit,
+      currency
+    };
   }
 
   // Operation Employees
