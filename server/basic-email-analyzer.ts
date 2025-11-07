@@ -174,24 +174,17 @@ export class BasicEmailAnalyzer {
 
     // Crear task si se detectó alguna acción
     if (actionTypes.length > 0) {
-      const context = [];
-      if (trackingNumbers.length > 0) context.push(`Ref: ${trackingNumbers[0]}`);
-      if (dates.length > 0) context.push(`Fecha: ${dates[0]}`);
-      if (amounts.length > 0) context.push(`Monto: ${amounts[0]}`);
-
-      const title = `${actionTypes.join(' y ')} - ${message.subject.slice(0, 50)}`;
-      const description = [
-        `Email de: ${message.from}`,
-        `Asunto: ${message.subject}`,
-        context.length > 0 ? context.join(' | ') : '',
-        message.snippet.slice(0, 150)
-      ].filter(Boolean).join('\n');
+      // Título simple: solo acción
+      const title = actionTypes.join(' y ');
+      
+      // Descripción breve: solo lo esencial
+      const description = message.snippet.slice(0, 100).trim() + (message.snippet.length > 100 ? '...' : '');
 
       tasks.push({
         title,
         description,
         priority,
-        confidence: 65, // Confianza media para análisis basado en reglas
+        confidence: 65,
         reasoning: `Detectado automáticamente por keywords: ${actionTypes.join(', ')}`,
         source: 'rule-based'
       });
@@ -200,8 +193,8 @@ export class BasicEmailAnalyzer {
     // Si hay palabras de urgencia pero no acción específica, crear task genérica
     else if (hasUrgent || hasHigh) {
       tasks.push({
-        title: `Revisar: ${message.subject.slice(0, 60)}`,
-        description: `Email ${hasUrgent ? 'urgente' : 'importante'} de ${message.from}\n${message.snippet.slice(0, 150)}`,
+        title: 'Revisar email',
+        description: message.snippet.slice(0, 100).trim() + (message.snippet.length > 100 ? '...' : ''),
         priority,
         confidence: 60,
         reasoning: `Marcado como ${hasUrgent ? 'urgente' : 'importante'} por keywords detectadas`,
@@ -220,40 +213,16 @@ export class BasicEmailAnalyzer {
     const trackingNumbers = this.extractMatches(fullText, this.patterns.tracking);
     const dates = this.extractMatches(fullText, this.patterns.date);
     const amounts = this.extractMatches(fullText, this.patterns.amount);
-    const emails = this.extractMatches(message.from + ' ' + (message.body || ''), this.patterns.email);
 
-    // Solo crear nota si hay información estructurada suficiente
-    if (trackingNumbers.length === 0 && dates.length === 0 && amounts.length === 0) {
-      return null;
-    }
-
-    const sections = [];
+    // Solo crear nota si hay información relevante
+    const hasRelevantInfo = trackingNumbers.length > 0 || dates.length > 0 || amounts.length > 0;
     
-    sections.push(`📧 Email de: ${message.from}`);
-    sections.push(`📌 Asunto: ${message.subject}`);
-    sections.push(`📅 Fecha: ${message.date.toLocaleDateString('es-MX')}`);
-
-    if (trackingNumbers.length > 0) {
-      sections.push(`🔢 Referencias detectadas: ${trackingNumbers.slice(0, 3).join(', ')}`);
-    }
-
-    if (dates.length > 0) {
-      sections.push(`📆 Fechas mencionadas: ${dates.slice(0, 3).join(', ')}`);
-    }
-
-    if (amounts.length > 0) {
-      sections.push(`💰 Montos detectados: ${amounts.slice(0, 3).join(', ')}`);
-    }
-
-    // Agregar snippet del contenido
-    sections.push(`\n📝 Contenido:\n${message.snippet.slice(0, 200)}${message.snippet.length > 200 ? '...' : ''}`);
-
-    const content = sections.join('\n');
-
-    // Verificar longitud mínima (100 caracteres)
-    if (content.length < 100) {
+    if (!hasRelevantInfo) {
       return null;
     }
+
+    // Nota simple y clara: solo el contenido principal
+    const content = message.snippet.slice(0, 150).trim() + (message.snippet.length > 150 ? '...' : '');
 
     return {
       content,
