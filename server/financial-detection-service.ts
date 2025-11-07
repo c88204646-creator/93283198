@@ -1,12 +1,16 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as pdfParse from "pdf-parse";
 import { createHash } from "crypto";
-import type { InsertFinancialSuggestion } from "@shared/schema";
+import type { InsertFinancialSuggestion, InsertProcessingQueue } from "@shared/schema";
 import { db } from "./db";
-import { financialSuggestions } from "@shared/schema";
+import { financialSuggestions, processingQueue } from "@shared/schema";
 import { and, eq, sql } from "drizzle-orm";
+import { CircuitBreaker } from "./circuit-breaker";
+import { BasicOCRExtractor } from "./basic-ocr-extractor";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const circuitBreaker = new CircuitBreaker("gemini-financial-detection");
+const ocrExtractor = new BasicOCRExtractor();
 
 interface DetectedTransaction {
   type: "payment" | "expense";
@@ -113,6 +117,12 @@ export class FinancialDetectionService {
       clientName?: string;
     }
   ): Promise<DetectedTransaction[]> {
+    // Check if circuit breaker allows the call
+    if (!circuitBreaker.canExecute()) {
+      console.log("[Financial Detection] Circuit breaker OPEN - Gemini unavailable");
+      throw new Error("Gemini API circuit breaker open");
+    }
+
     try {
       const prompt = `You are a financial transaction analyzer for a logistics company. Analyze the following text and detect any financial transactions (PAYMENTS or EXPENSES).
 
@@ -142,7 +152,7 @@ ${text}
     "date": "YYYY-MM-DD",
     "description": "Clear description",
     "paymentMethod": "transfer" (only for payments),
-    "reference": "Reference number",
+    "reference": "transfer" | "check" | "card" | "cash",
     "category": "category" (only for expenses),
     "confidence": 0-100,
     "reasoning": "Why this is a payment/expense"
@@ -157,19 +167,27 @@ Return empty array [] if no transactions detected.`;
       const jsonMatch = responseText.match(/\[[\s\S]*\]/);
       if (!jsonMatch) {
         console.log("[Financial Detection] No transactions detected in response");
+        circuitBreaker.recordSuccess(); // Successfully called API, even if no transactions
         return [];
       }
 
       const transactions: DetectedTransaction[] = JSON.parse(jsonMatch[0]);
+      circuitBreaker.recordSuccess(); // API call succeeded
       
       return transactions.map(t => ({
         ...t,
         date: new Date(t.date),
       })).filter(t => t.confidence >= 70);
 
-    } catch (error) {
+    } catch (error: any) {
+      // Check if it's a rate limit error (429)
+      if (error?.message?.includes("429") || error?.status === 429) {
+        console.error("[Financial Detection] Rate limit error - Recording failure in circuit breaker");
+        circuitBreaker.recordFailure();
+      }
+      
       console.error("[Financial Detection] Error detecting transactions:", error);
-      return [];
+      throw error; // Re-throw to trigger fallback
     }
   }
 
@@ -194,6 +212,157 @@ Return empty array [] if no transactions detected.`;
     return this.detectTransactionsFromText(extractedText, operationContext);
   }
 
+  /**
+   * OCR fallback - Uses BasicOCRExtractor when Gemini fails
+   * Returns transactions with lower confidence (usually 50-65%)
+   */
+  async detectWithOCRFallback(
+    pdfBuffer: Buffer,
+    operationContext?: { operationId: string; operationName: string; clientName?: string }
+  ): Promise<DetectedTransaction[]> {
+    console.log("[Financial Detection] Using OCR fallback for PDF processing");
+    
+    try {
+      const ocrResult = await ocrExtractor.extractFromPDF(pdfBuffer);
+      
+      if (!ocrResult.success || !ocrResult.amount) {
+        console.log("[Financial Detection] OCR could not extract transaction data");
+        return [];
+      }
+
+      // Convert OCR result to DetectedTransaction format
+      const transaction: DetectedTransaction = {
+        type: ocrResult.type || "expense",
+        amount: ocrResult.amount,
+        currency: ocrResult.currency || "MXN",
+        date: ocrResult.date || new Date(),
+        description: ocrResult.description || "Transacción detectada por OCR",
+        reference: ocrResult.reference,
+        confidence: ocrResult.confidence,
+        reasoning: `Extracted via OCR (Tesseract). Confidence: ${ocrResult.confidence}%`,
+        category: ocrResult.type === "expense" ? "other" : undefined,
+        paymentMethod: ocrResult.type === "payment" ? "transfer" : undefined,
+      };
+
+      console.log(`[Financial Detection] OCR extracted transaction: ${transaction.currency} ${transaction.amount} (${transaction.confidence}% confidence)`);
+      
+      return [transaction];
+    } catch (error) {
+      console.error("[Financial Detection] Error in OCR fallback:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Save to processing queue for manual review
+   * Used when both Gemini and OCR fail
+   */
+  async saveToProcessingQueue(
+    pdfBuffer: Buffer,
+    fileName: string,
+    filePath: string,
+    type: "payment" | "expense",
+    context: {
+      operationId?: string;
+      gmailMessageId?: string;
+      gmailAttachmentId?: string;
+    }
+  ): Promise<void> {
+    try {
+      const fileHash = this.calculateFileHash(pdfBuffer);
+
+      // Check if already in queue
+      const existing = await db
+        .select()
+        .from(processingQueue)
+        .where(eq(processingQueue.fileHash, fileHash))
+        .limit(1);
+
+      if (existing.length > 0) {
+        console.log(`[Financial Detection] File already in processing queue: ${fileName}`);
+        return;
+      }
+
+      const queueItem: InsertProcessingQueue = {
+        operationId: context.operationId || null,
+        gmailMessageId: context.gmailMessageId || null,
+        gmailAttachmentId: context.gmailAttachmentId || null,
+        filePath,
+        fileName,
+        fileHash,
+        type,
+        status: "pending",
+        fallbackLevel: 3, // Manual review level
+        attempts: 0,
+        lastAttempt: null,
+        lastError: "Gemini and OCR both failed",
+        ocrResult: null,
+        ocrConfidence: null,
+        financialSuggestionId: null,
+      };
+
+      await db.insert(processingQueue).values(queueItem);
+      console.log(`[Financial Detection] Saved to processing queue: ${fileName} (hash: ${fileHash.substring(0, 8)})`);
+    } catch (error) {
+      console.error("[Financial Detection] Error saving to processing queue:", error);
+    }
+  }
+
+  /**
+   * Main method with 3-level fallback:
+   * 1. Try Gemini AI
+   * 2. If Gemini fails, try OCR
+   * 3. If OCR fails, save to queue for manual review
+   */
+  async detectWithFallback(
+    pdfBuffer: Buffer,
+    fileName: string,
+    filePath: string,
+    detectionType: "payment" | "expense",
+    operationContext?: { 
+      operationId: string; 
+      operationName: string; 
+      clientName?: string;
+      gmailMessageId?: string;
+      gmailAttachmentId?: string;
+    }
+  ): Promise<{ transactions: DetectedTransaction[]; method: "gemini" | "ocr" | "queued" }> {
+    // Level 1: Try Gemini AI
+    try {
+      const extractedText = await this.extractTextFromPDF(pdfBuffer);
+      if (extractedText && extractedText.trim().length >= 50) {
+        const transactions = await this.detectTransactionsFromText(extractedText, operationContext);
+        if (transactions.length > 0) {
+          console.log(`[Financial Detection] SUCCESS via Gemini: ${transactions.length} transactions found`);
+          return { transactions, method: "gemini" };
+        }
+      }
+    } catch (error: any) {
+      console.log(`[Financial Detection] Gemini failed: ${error.message}`);
+    }
+
+    // Level 2: Try OCR fallback
+    try {
+      const transactions = await this.detectWithOCRFallback(pdfBuffer, operationContext);
+      if (transactions.length > 0) {
+        console.log(`[Financial Detection] SUCCESS via OCR: ${transactions.length} transactions found`);
+        return { transactions, method: "ocr" };
+      }
+    } catch (error) {
+      console.log(`[Financial Detection] OCR failed: ${error}`);
+    }
+
+    // Level 3: Save to queue for manual review
+    await this.saveToProcessingQueue(pdfBuffer, fileName, filePath, detectionType, {
+      operationId: operationContext?.operationId,
+      gmailMessageId: operationContext?.gmailMessageId,
+      gmailAttachmentId: operationContext?.gmailAttachmentId,
+    });
+
+    console.log(`[Financial Detection] QUEUED for manual review: ${fileName}`);
+    return { transactions: [], method: "queued" };
+  }
+
   async createSuggestionFromTransaction(
     transaction: DetectedTransaction,
     sourceInfo: {
@@ -203,6 +372,7 @@ Return empty array [] if no transactions detected.`;
       operationId?: string;
       extractedText: string;
       attachmentHash?: string;
+      detectionMethod?: "gemini" | "ocr"; // How the transaction was detected
     }
   ): Promise<Omit<InsertFinancialSuggestion, "createdAt" | "updatedAt">> {
     // Check for duplicates
@@ -211,6 +381,14 @@ Return empty array [] if no transactions detected.`;
       sourceInfo.operationId,
       sourceInfo.attachmentHash
     );
+
+    const aiModel = sourceInfo.detectionMethod === "ocr" 
+      ? "tesseract-ocr-fallback" 
+      : "gemini-2.0-flash-exp";
+
+    const aiReasoning = sourceInfo.detectionMethod === "ocr"
+      ? `${transaction.reasoning}\n\n⚠️ Detected via OCR fallback (Gemini unavailable)`
+      : transaction.reasoning;
 
     return {
       type: transaction.type,
@@ -229,8 +407,8 @@ Return empty array [] if no transactions detected.`;
       bankAccountId: null,
       invoiceId: null,
       aiConfidence: transaction.confidence.toString(),
-      aiModel: "gemini-2.0-flash-exp",
-      aiReasoning: transaction.reasoning,
+      aiModel,
+      aiReasoning,
       extractedText: sourceInfo.extractedText.substring(0, 5000),
       reviewedById: null,
       reviewedAt: null,

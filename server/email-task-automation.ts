@@ -341,21 +341,41 @@ export class EmailTaskAutomation {
           continue;
         }
         
-        // Extraer texto del PDF
-        const text = await this.financialDetectionService.extractTextFromPDF(fileBuffer);
-
         // Obtener operación para contexto
         const operation = await storage.getOperation(operationId);
 
-        // Detectar transacciones
-        const detectedTransactions = await this.financialDetectionService.detectTransactionsFromText(
-          text,
+        // Determinar el tipo de detección basado en configuración
+        // Por defecto, intentamos detectar expenses. Si está habilitado payments, preferimos eso.
+        const detectionType = autoDetectPayments ? 'payment' : 'expense';
+
+        // Usar el método con fallback automático (Gemini -> OCR -> Queue)
+        const { transactions: detectedTransactions, method } = await this.financialDetectionService.detectWithFallback(
+          fileBuffer,
+          attachment.filename,
+          attachment.b2FileKey,
+          detectionType,
           operation ? {
             operationId: operation.id,
             operationName: operation.name,
             clientName: operation.clientId || undefined,
+            gmailMessageId: attachment.emailId,
+            gmailAttachmentId: attachment.id,
           } : undefined
         );
+
+        // Si fue enviado a la queue (método queued), no hay transacciones que procesar
+        if (method === 'queued') {
+          console.log(`[Financial Detection] 📋 File queued for manual review: ${attachment.filename}`);
+          continue;
+        }
+
+        // Extraer texto para guardarlo con la sugerencia
+        let text = '';
+        try {
+          text = await this.financialDetectionService.extractTextFromPDF(fileBuffer);
+        } catch (error) {
+          console.log(`[Financial Detection] Could not extract text from ${attachment.filename}`);
+        }
 
         // Crear sugerencias financieras con detección de duplicados
         for (const transaction of detectedTransactions) {
@@ -363,7 +383,7 @@ export class EmailTaskAutomation {
           if (transaction.type === 'payment' && !autoDetectPayments) continue;
           if (transaction.type === 'expense' && !autoDetectExpenses) continue;
 
-          // Usar el nuevo método que incluye verificación de duplicados
+          // Usar el nuevo método que incluye verificación de duplicados y método de detección
           const suggestionData = await this.financialDetectionService.createSuggestionFromTransaction(
             transaction,
             {
@@ -373,6 +393,7 @@ export class EmailTaskAutomation {
               operationId,
               extractedText: text,
               attachmentHash,
+              detectionMethod: method, // gemini o ocr
             }
           );
 
@@ -380,10 +401,12 @@ export class EmailTaskAutomation {
 
           suggestionsCreated++;
           
+          const methodLabel = method === 'gemini' ? '🤖 AI' : '📄 OCR';
+          
           if (suggestionData.isDuplicate) {
-            console.log(`[Financial Detection] ⚠️  Created DUPLICATE ${transaction.type} suggestion: ${transaction.description} (${transaction.amount} ${transaction.currency}) - ${suggestionData.duplicateReason}`);
+            console.log(`[Financial Detection] ⚠️  Created DUPLICATE ${transaction.type} suggestion via ${methodLabel}: ${transaction.description} (${transaction.amount} ${transaction.currency}) - ${suggestionData.duplicateReason}`);
           } else {
-            console.log(`[Financial Detection] ✅ Created ${transaction.type} suggestion: ${transaction.description} (${transaction.amount} ${transaction.currency})`);
+            console.log(`[Financial Detection] ✅ Created ${transaction.type} suggestion via ${methodLabel}: ${transaction.description} (${transaction.amount} ${transaction.currency})`);
           }
         }
 
