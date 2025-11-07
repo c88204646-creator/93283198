@@ -68,20 +68,35 @@ export class SmartGeminiService {
       systemInstruction: `Eres un asistente experto en análisis de correos electrónicos para logística y freight forwarding.
 
 Tu trabajo es analizar cadenas de correos y determinar:
-1. Qué tareas (tasks) son necesarias
-2. Qué notas importantes deben registrarse
-3. Si ya existe una tarea similar (evitar duplicados)
+1. Qué tareas (tasks) son necesarias y cuáles ya se completaron
+2. Qué notas profesionales y descriptivas deben registrarse
+3. Si las tareas existentes están vencidas o completadas
+4. Evitar duplicación de tareas
 
-REGLAS CRÍTICAS:
+REGLAS CRÍTICAS PARA TAREAS:
 - SOLO crea tareas si hay una acción clara pendiente
-- EVITA duplicar tareas que ya existen o que se mencionan en correos previos
-- Prioriza según urgencia del negocio
+- EVITA duplicar tareas similares que ya existen
+- Detecta cuando una tarea ya fue COMPLETADA en la cadena de correos
+- Detecta cuando una tarea está VENCIDA (fecha límite pasada)
+- Si una tarea tiene fecha límite pasada Y no hay evidencia de completado, marca como "overdue"
+- Si una tarea fue completada (hay confirmación en correos), marca como "completed"
 - Sé ESPECÍFICO en títulos y descripciones
-- Detecta cuando una tarea ya fue completada en la cadena de correos
-- Si no hay nada nuevo o importante, responde con listas vacías
+- Incluye fechas, nombres de personas, números de referencia
+- Prioriza según urgencia del negocio
 
-Ejemplo de tarea válida: "Enviar documentos originales de BL a cliente"
+REGLAS CRÍTICAS PARA NOTAS:
+- Las notas deben ser PROFESIONALES y DESCRIPTIVAS (mínimo 100 caracteres)
+- Incluye contexto completo: quién, qué, cuándo, por qué
+- Resume información importante de manera estructurada
+- Incluye números de referencia, fechas, montos, nombres
+- Evita notas genéricas o muy cortas
+- Las notas son para documentar el progreso y decisiones importantes
+
+Ejemplo de tarea válida: "Enviar BL original #ELL0003104/2025 a cliente Hishtil antes del 10/11/2025"
 Ejemplo de tarea INVÁLIDA: "Revisar correo" (muy genérico)
+
+Ejemplo de nota válida: "ECU Worldwide confirmó disponibilidad para cita de despacho terrestre el 06/11/2025. Se requiere confirmación antes del 05/11/2025 a las 13:00 hrs para evitar cargos adicionales. Citas de madrugada (12am-6am) tienen cargo extra. Contacto: Yohali (ECU)."
+Ejemplo de nota INVÁLIDA: "Se confirmó cita" (muy corta, sin contexto)
 
 Responde SIEMPRE en formato JSON válido.`
     });
@@ -213,14 +228,17 @@ Responde SIEMPRE en formato JSON válido.`
     // 3. Llamada a Gemini (solo cuando es necesario)
     console.log('[Smart Gemini] 🤖 Calling Gemini API - analyzing thread...');
     
+    const currentDate = new Date();
     const prompt = `Analiza esta cadena de correos sobre logística/freight forwarding y determina:
 
-THREAD DE CORREOS:
+FECHA ACTUAL: ${currentDate.toISOString()} (${currentDate.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })})
+
+THREAD DE CORREOS (ordenados cronológicamente):
 ${thread.messages.map((m, i) => `
 Correo ${i + 1}:
 De: ${m.from}
 Asunto: ${m.subject}
-Fecha: ${m.date.toISOString()}
+Fecha: ${m.date.toISOString()} (${m.date.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })})
 Contenido: ${m.snippet}
 ---`).join('\n')}
 
@@ -228,33 +246,45 @@ TAREAS EXISTENTES EN ESTA OPERACIÓN:
 ${existingTasks.length > 0 ? existingTasks.map(t => `- [${t.status}] ${t.title}`).join('\n') : 'Ninguna'}
 
 NOTAS EXISTENTES:
-${existingNotes.length > 0 ? existingNotes.map(n => `- ${n.content.substring(0, 100)}`).join('\n') : 'Ninguna'}
+${existingNotes.length > 0 ? existingNotes.map(n => `- ${n.content.substring(0, 150)}`).join('\n') : 'Ninguna'}
 
 Responde SOLO con un objeto JSON (sin markdown):
 {
   "tasks": [
     {
-      "title": "Título breve y accionable",
-      "description": "Descripción detallada",
+      "title": "Título específico con referencias (BL#, nombres, fechas)",
+      "description": "Descripción profesional y detallada del contexto y acción requerida",
       "priority": "low|medium|high|urgent",
       "confidence": 0-100,
-      "reasoning": "Por qué es necesaria esta tarea"
+      "reasoning": "Por qué es necesaria esta tarea",
+      "suggestedStatus": "pending|overdue|completed",
+      "isDuplicate": false
     }
   ],
   "notes": [
     {
-      "content": "Nota importante sobre el correo",
+      "content": "Nota profesional de mínimo 100 caracteres con contexto completo: quién, qué, cuándo, números de referencia, decisiones tomadas",
       "confidence": 0-100,
-      "reasoning": "Por qué es relevante"
+      "reasoning": "Por qué es relevante documentar esto"
+    }
+  ],
+  "statusUpdates": [
+    {
+      "taskTitle": "Título de tarea existente que cambió",
+      "newStatus": "completed|overdue",
+      "reasoning": "Evidencia en correos que justifica el cambio"
     }
   ]
 }
 
-IMPORTANTE:
-- NO dupliques tareas que ya existen
-- NO crees tareas genéricas
-- Solo tareas con confianza > ${this.minConfidenceThreshold}%
-- Si no hay nada nuevo, devuelve arrays vacíos`;
+INSTRUCCIONES CRÍTICAS:
+1. NOTAS: Deben tener mínimo 100 caracteres, ser profesionales y descriptivas
+2. TAREAS NUEVAS: Solo crea si NO existe una similar en la lista
+3. TAREAS VENCIDAS: Si la fecha límite pasó (comparar con FECHA ACTUAL) y no hay confirmación de completado, marcar suggestedStatus="overdue"
+4. TAREAS COMPLETADAS: Si encuentras confirmación en los correos, marcar suggestedStatus="completed"
+5. STATUS UPDATES: Actualiza estatus de tareas existentes según evidencia en correos
+6. DEDUPLICACIÓN: Marca isDuplicate=true si ya existe tarea similar
+7. Solo devuelve tareas/notas con confianza > ${this.minConfidenceThreshold}%`;
 
     try {
       const result = await this.model.generateContent(prompt);
