@@ -791,7 +791,33 @@ export const insertEmployeeSchema = createInsertSchema(employees).omit({ id: tru
   }),
   phone: z.string().optional(),
 });
-export const insertOperationSchema = createInsertSchema(operations).omit({ id: true, createdAt: true });
+export const insertOperationSchema = createInsertSchema(operations).omit({ id: true, createdAt: true }).extend({
+  startDate: z.union([z.string(), z.date()]).optional().nullable().transform((val) => {
+    if (!val) return null;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
+  endDate: z.union([z.string(), z.date()]).optional().nullable().transform((val) => {
+    if (!val) return null;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
+  pickUpDate: z.union([z.string(), z.date()]).optional().nullable().transform((val) => {
+    if (!val) return null;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
+  etd: z.union([z.string(), z.date()]).optional().nullable().transform((val) => {
+    if (!val) return null;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
+  eta: z.union([z.string(), z.date()]).optional().nullable().transform((val) => {
+    if (!val) return null;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
+});
 export const insertOperationEmployeeSchema = createInsertSchema(operationEmployees).omit({ id: true, createdAt: true });
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
 export const insertProposalSchema = createInsertSchema(proposals).omit({ id: true, createdAt: true });

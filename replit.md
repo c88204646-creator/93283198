@@ -20,7 +20,7 @@ Design preference: Logistics-focused iconography and terminology.
 - **Authentication**: Session-based using express-session with PostgreSQL store, bcrypt for password hashing.
 - **Authorization**: Role-based access control (admin, manager, employee) middleware.
 - **API Design**: RESTful endpoints, JSON format, error handling.
-- **Data Layer**: Drizzle ORM, Zod validation, schema-first design.
+- **Data Layer**: Drizzle ORM, Zod validation with automatic date transformation (strings to Date objects), schema-first design.
 
 #### Database Schema
 - **Core Tables**: `users`, `employees`, `clients`, `operations`, `invoices`, `proposals`, `expenses`, `leads`, `bank_accounts`, `chat_conversations`, `chat_messages`, `operationTasks`.
@@ -32,6 +32,7 @@ Design preference: Logistics-focused iconography and terminology.
 
 #### Core Features
 - **Integrated Financial Management**: Comprehensive banking module (accounts, transactions), payments linked to invoices and bank accounts, expenses linked to bank accounts, clickable accounts with detailed financial dashboards.
+- **Client Management**: Clickable client rows with detailed dashboards, currency field locked after creation to prevent conflicts with linked invoices/payments, comprehensive client operation statistics.
 - **Gmail Integration**: OAuth 2.0, background sync (messages, calendar events), multi-account support, email bodies and attachments stored in Backblaze B2 with deduplication, intelligent spam filtering.
 - **AI-Powered Assistance**:
     - **LiveChat Personal Assistant**: Optimistic updates, smart operation search by various references, proactive assistance, flexible search.

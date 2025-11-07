@@ -196,13 +196,7 @@ export default function OperationsCreatePage() {
   });
 
   const form = useForm<OperationFormData>({
-    resolver: zodResolver(insertOperationSchema.extend({
-      endDate: insertOperationSchema.shape.endDate.nullable(),
-      clientId: insertOperationSchema.shape.clientId.nullable(),
-      pickUpDate: insertOperationSchema.shape.pickUpDate.nullable(),
-      etd: insertOperationSchema.shape.etd.nullable(),
-      eta: insertOperationSchema.shape.eta.nullable(),
-    })),
+    resolver: zodResolver(insertOperationSchema),
     defaultValues: {
       name: "",
       description: "",
