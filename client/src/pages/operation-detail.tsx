@@ -28,6 +28,7 @@ import { insertPaymentSchema, insertExpenseSchema } from "@shared/schema";
 import { FileUploader } from "@/components/FileUploader";
 import { OperationAnalysisComponent } from "@/components/OperationAnalysis";
 import { TaskKanban } from "@/components/TaskKanban";
+import { FinancialOverview } from "@/components/FinancialOverview";
 import {
   Dialog,
   DialogContent,
@@ -325,6 +326,9 @@ export default function OperationDetail() {
             </div>
           </div>
         </div>
+
+        {/* Financial Overview */}
+        <FinancialOverview operationId={id!} />
 
         {/* Tabs mejorados */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
