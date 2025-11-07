@@ -10,13 +10,26 @@ Design preference: Logistics-focused iconography and terminology.
 
 ## Recent Updates (November 7, 2025)
 1. **Integrated Financial Management Tabs**: Added 4 new tabs to operation detail page for comprehensive financial tracking:
-   - **Payments Tab**: Manage payments linked directly to operations via `operationId` foreign key
-   - **Invoices Tab**: Track invoices associated with specific operations
-   - **Expenses Tab**: Monitor operation-specific expenses and costs
-   - **Client Tab**: Read-only preview of client information reusing UI from main clients module
-   - Modified `payments` table schema to include `operationId` column for direct operation linking
+   - **Payments Tab**: ✅ Full CRUD - Create, edit, delete payments linked directly to operations via `operationId` foreign key
+     - Payment methods: cash, transfer, check, card, other
+     - Real-time data fetching with TanStack Query
+     - Dialog-based forms for create/edit operations
+   - **Invoices Tab**: ✅ Read-only display - Track invoices associated with specific operations
+     - Displays invoice number, date, total, status
+     - Redirects to main invoices module for creation/editing (due to complexity with invoice items)
+   - **Expenses Tab**: ✅ Full CRUD - Create, edit, delete expenses linked directly to operations
+     - Categories: travel, supplies, equipment, services, other
+     - Status tracking: pending, approved, rejected, reimbursed
+     - Employee assignment with dropdown selection
+     - Optional receipt URL field
+   - **Client Tab**: ✅ Read-only preview of client information reusing UI from main clients module
+   - Backend support:
+     - Storage methods: `getPaymentsByOperation()`, `getInvoicesByOperation()`, `getExpensesByOperation()`
+     - API routes: `/api/operations/:id/payments`, `/api/operations/:id/invoices`, `/api/operations/:id/expenses`
+     - All routes support GET (list) and POST (create) operations
+     - Individual PATCH and DELETE routes use existing `/api/payments/:id`, `/api/expenses/:id` endpoints
    - Tab layout expanded to 9 columns to accommodate new financial modules
-   - All tabs follow consistent UI/UX patterns with empty states and action buttons
+   - All tabs follow consistent UI/UX patterns with empty states, loading states, and action buttons
 2. **LiveChat Personal Assistant - Optimizado y Mejorado**: Chat completamente funcional con respuestas rápidas e inteligentes:
    - **Optimistic Updates**: Mensajes del usuario aparecen INSTANTÁNEAMENTE antes de esperar respuesta del servidor
    - **Búsqueda Inteligente de Operaciones**: Entiende referencias imprecisas ("operación 0051", "51", "NAVI-0051")
