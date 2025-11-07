@@ -507,6 +507,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/operations/:id/financial-overview", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const operation = await storage.getOperation(id);
+
+      if (!operation) {
+        return res.status(404).json({ message: "Operation not found" });
+      }
+
+      const financialSummary = await storage.getOperationFinancialSummary(id);
+      res.json(financialSummary);
+    } catch (error) {
+      console.error("Get operation financial overview error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.post("/api/operations", requireAuth, async (req, res) => {
     try {
       const { employeeIds, ...operationData } = req.body;
