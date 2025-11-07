@@ -100,12 +100,12 @@ export function LiveChat() {
         className={cn(
           "fixed shadow-lg z-50 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700",
           isMobile 
-            ? "bottom-4 right-4 h-12 w-12 rounded-full" 
-            : "bottom-6 right-6 h-14 w-14 rounded-full"
+            ? "bottom-4 right-4 h-14 w-14 rounded-full" 
+            : "bottom-6 right-6 h-16 w-16 rounded-full"
         )}
         size="icon"
       >
-        <MessageCircle className={isMobile ? "h-5 w-5" : "h-6 w-6"} />
+        <MessageCircle className={isMobile ? "h-6 w-6" : "h-7 w-7"} />
       </Button>
     );
   }
@@ -115,16 +115,16 @@ export function LiveChat() {
       "fixed z-50 shadow-2xl transition-all duration-300 overflow-hidden flex flex-col",
       isMobile 
         ? isMinimized 
-          ? "inset-x-2 bottom-2 h-14" 
-          : "inset-x-2 bottom-2 top-2"
+          ? "bottom-4 right-4 left-4 h-16" 
+          : "bottom-4 right-4 left-4 h-[500px]"
         : isMinimized 
-          ? "bottom-6 right-6 h-16 w-96" 
-          : "bottom-6 right-6 h-[600px] w-96"
+          ? "bottom-6 right-6 h-16 w-[380px]" 
+          : "bottom-6 right-6 h-[520px] w-[380px]"
     )}>
       {/* Header */}
       <div className={cn(
         "flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 text-white shrink-0",
-        isMobile ? "px-3 py-2.5" : "px-4 py-4"
+        isMobile ? "px-3 py-3" : "px-4 py-3.5"
       )}>
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className={cn(
@@ -172,7 +172,7 @@ export function LiveChat() {
         <>
           {/* Messages */}
           <ScrollArea 
-            className={cn("flex-1 overflow-y-auto", isMobile ? "px-3 py-3" : "px-4 py-4")} 
+            className={cn("flex-1 overflow-y-auto", isMobile ? "px-3 py-2" : "px-4 py-3")} 
             ref={scrollRef}
           >
             {messages.length === 0 ? (
@@ -277,7 +277,7 @@ export function LiveChat() {
           </ScrollArea>
 
           {/* Input */}
-          <div className={cn("border-t shrink-0", isMobile ? "px-3 py-2" : "px-4 py-4")}>
+          <div className={cn("border-t shrink-0", isMobile ? "px-3 py-2.5" : "px-4 py-3")}>
             <form onSubmit={handleSendMessage} className="flex gap-2">
               <Input
                 value={inputMessage}
