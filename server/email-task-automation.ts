@@ -5,6 +5,7 @@
 
 import { storage } from './storage';
 import { smartGeminiService } from './smart-gemini-service';
+import { KnowledgeBaseService } from './knowledge-base-service';
 import type { GmailMessage, Operation } from '@shared/schema';
 
 interface ProcessingResult {
@@ -16,6 +17,11 @@ interface ProcessingResult {
 }
 
 export class EmailTaskAutomation {
+  private knowledgeBaseService: KnowledgeBaseService;
+  
+  constructor() {
+    this.knowledgeBaseService = new KnowledgeBaseService();
+  }
   
   /**
    * Procesa correos vinculados a una operación y crea tasks/notes automáticas
@@ -227,6 +233,32 @@ export class EmailTaskAutomation {
     
     const stats = smartGeminiService.getStats();
     console.log(`[Email Task Automation] 📊 Gemini Stats:`, stats);
+    
+    // 9. Guardar en knowledge base para aprendizaje continuo si fue exitoso
+    if (totalTasksCreated > 0 || totalNotesCreated > 0) {
+      try {
+        const operationFiles = await storage.getOperationFiles(operationId);
+        const knowledgeSummary = `📋 Procesamiento automático de correos:\n` +
+          `- ${linkedEmails.length} correos analizados\n` +
+          `- ${totalTasksCreated} tareas creadas automáticamente\n` +
+          `- ${totalNotesCreated} notas generadas\n` +
+          `- ${threadMap.size} hilos de conversación procesados\n\n` +
+          `Tipo de operación: ${operation.operationType || 'No especificado'}\n` +
+          `Categoría: ${operation.projectCategory || 'No especificada'}`;
+        
+        await this.knowledgeBaseService.saveKnowledge(
+          operation,
+          knowledgeSummary,
+          linkedEmails.length,
+          totalTasksCreated,
+          operationFiles.length
+        );
+        console.log(`[Email Task Automation] 💾 Saved to knowledge base for future learning`);
+      } catch (error) {
+        console.error('[Email Task Automation] Error saving to knowledge base:', error);
+        // No fallar el proceso si falla el guardado en knowledge base
+      }
+    }
     
     return {
       operationId,

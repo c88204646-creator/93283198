@@ -11,6 +11,8 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import crypto from 'crypto';
+import { KnowledgeBaseService } from './knowledge-base-service';
+import type { Operation } from '@shared/schema';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -72,8 +74,10 @@ export class SmartGeminiService {
   private minConfidenceThreshold = 60; // Solo crear si confianza > 60%
   private lastApiCallTime: number = 0;
   private minDelayBetweenCalls: number = 2000; // 2 segundos entre llamadas
+  private knowledgeBaseService: KnowledgeBaseService;
 
   constructor() {
+    this.knowledgeBaseService = new KnowledgeBaseService();
     this.model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash-exp',
       systemInstruction: `Eres un asistente experto en análisis de correos electrónicos para logística y freight forwarding.

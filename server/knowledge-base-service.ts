@@ -71,15 +71,20 @@ export class KnowledgeBaseService {
         }
       };
 
-      // Save to Backblaze
-      const b2Key = `knowledge-base/${Date.now()}-${operation.id}.json`;
+      // Save to Backblaze usando uploadOperationFile (reutilizando infraestructura existente)
+      const filename = `knowledge-${Date.now()}.json`;
       const buffer = Buffer.from(JSON.stringify(knowledgeDoc, null, 2), 'utf-8');
       
-      await backblazeStorage.uploadFile(buffer, b2Key, {
-        'content-type': 'application/json',
-        'x-knowledge-type': operation.operationType || 'unknown',
-        'x-knowledge-category': operation.projectCategory || 'unknown'
-      });
+      const uploadResult = await backblazeStorage.uploadOperationFile(
+        buffer,
+        filename,
+        'application/json',
+        operation.id,
+        'system', // Usuario del sistema
+        'knowledge-base' // Categoría especial para knowledge base
+      );
+      
+      const b2Key = uploadResult.fileKey;
 
       console.log(`[Knowledge] Saved to B2: ${b2Key}`);
 

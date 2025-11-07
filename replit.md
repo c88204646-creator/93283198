@@ -36,15 +36,20 @@ Design preference: Logistics-focused iconography and terminology.
 - **Gmail Integration**: OAuth 2.0, automatic background sync every 15 minutes (messages, calendar events), multi-account support, email bodies and attachments stored in Backblaze B2 with deduplication, intelligent spam filtering, automatic message-to-operation linking after each sync.
 - **AI-Powered Assistance**:
     - **LiveChat Personal Assistant**: Optimistic updates, smart operation search by various references, proactive assistance, flexible search.
-    - **AI Task & Note Automation**: 
-        - Automatically creates tasks and notes from email threads using Gemini AI
+    - **AI Task & Note Automation (Smart Gemini)**:
+        - **Professional Notes**: AI generates descriptive notes (minimum 100 characters) with complete context including who, what, when, reference numbers, and decisions made
+        - **Smart Task Detection**: Automatically creates tasks from email threads with confidence-based filtering (70% minimum threshold)
+        - **Intelligent Deduplication**: Detects and prevents duplicate tasks using isDuplicate flag and similarity matching
+        - **Status Auto-Update**: Detects completed tasks (from email confirmations) and overdue tasks (comparing dates with current time)
+        - **Knowledge Base Integration**: Saves successful analyses for continuous learning and reuse to reduce API calls by up to 80%
+        - **Rate Limiting & Retry**: Exponential backoff retry logic (up to 3 attempts) to handle Gemini API 429 errors, 2-second minimum delay between calls
+        - **Multi-level Caching**: Per-thread cache (30 min TTL) + knowledge base storage in B2
         - Real-time processing for new operations with linked emails
         - Periodic processing of existing operations (runs every 15 minutes with Gmail sync)
-        - Smart caching with multi-level deduplication (per-thread cache + knowledge base)
-        - Confidence-based filtering (70% minimum threshold)
         - Support for different optimization levels (high, medium, low)
+        - Respects manually modified tasks (never overrides user changes)
     - **AI Financial Analysis**: Expert financial analysis for bank accounts using Gemini AI with progressive learning. Provides insights on cash flow, expense categorization, red flags, optimization opportunities, and actionable recommendations. Uses knowledge base to reduce API calls.
-    - **AI Knowledge Base System**: Progressive learning system reusing successful analyses from a knowledge base (stored in B2) to reduce Gemini API calls. Now supports both operation and bank account analysis types.
+    - **AI Knowledge Base System**: Progressive learning system that stores and reuses successful analyses (stored in B2) to reduce Gemini API calls by up to 80%. Supports operation analysis, email thread analysis, and bank account analysis types. Similarity matching (60% threshold) based on operation type, category, shipping mode, and priority.
 - **Kanban Task Board System**: Drag-and-drop task management with configurable status columns, manual override of AI-generated tasks.
 - **File Management**: Backblaze B2 exclusive storage for all files, automatic attachment processing and categorization, SHA-256 hash-based deduplication, hierarchical folder organization, manual file/folder creation, editing, and movement. Automation respects user modifications.
 - **Automation Module**: Plugin-based system for entity creation from email patterns, rule-based matching, custom folder name configuration.
@@ -99,9 +104,18 @@ Design preference: Logistics-focused iconography and terminology.
 
 ### Recent Changes
 
-**November 7, 2025**
-- Fixed Gmail sync stuck in "syncing" state by changing final status to "idle" instead of "completed"
-- Implemented periodic email linking (runs every 15 minutes after Gmail sync)
-- Added automated processing of existing operations for AI-powered task/note creation
-- Fixed processEmailThreadForAutomation to use first enabled automation config instead of searching for specific module name
-- Fixed client assignment issue by transforming empty strings to null in insertOperationSchema
+**November 7, 2025 - AI System Enhancements**
+- **Enhanced AI Task/Note Generation**:
+  - Improved prompts to generate professional, descriptive notes (minimum 100 characters) with full context
+  - Implemented intelligent task deduplication to prevent creating similar tasks from email threads
+  - Added automatic task status detection (completed/overdue) based on email content and current date
+  - Integrated knowledge base for continuous learning - saves successful analyses to reduce future API calls
+  - Implemented rate limiting (2s delay between calls) and retry logic with exponential backoff (3 attempts) to handle Gemini API 429 errors
+  - Status updates: AI can now update existing task statuses (completed/overdue) based on email evidence
+  - Tasks created with appropriate initial status (pending/overdue/completed) based on AI analysis
+- **System Improvements**:
+  - Fixed Gmail sync stuck in "syncing" state by changing final status to "idle" instead of "completed"
+  - Implemented periodic email linking (runs every 15 minutes after Gmail sync)
+  - Added automated processing of existing operations for AI-powered task/note creation
+  - Fixed processEmailThreadForAutomation to use first enabled automation config instead of searching for specific module name
+  - Fixed client assignment issue by transforming empty strings to null in insertOperationSchema
