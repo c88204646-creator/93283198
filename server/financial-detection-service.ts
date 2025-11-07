@@ -6,7 +6,7 @@ import { financialSuggestions } from "@shared/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { CircuitBreaker } from "./circuit-breaker";
 import { BasicOCRExtractor } from "./basic-ocr-extractor";
-import { createRequire } from 'module';
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const circuitBreaker = new CircuitBreaker("gemini-financial-detection");
@@ -101,11 +101,27 @@ export class FinancialDetectionService {
 
   async extractTextFromPDF(buffer: Buffer): Promise<string> {
     try {
-      const require = createRequire(import.meta.url);
-      const pdfParse = require('pdf-parse/lib/pdf-parse.js');
+      const loadingTask = pdfjsLib.getDocument({
+        data: new Uint8Array(buffer),
+        useSystemFonts: true,
+      });
       
-      const data = await pdfParse(buffer);
-      return data.text;
+      const pdfDocument = await loadingTask.promise;
+      const numPages = pdfDocument.numPages;
+      const textPages: string[] = [];
+
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        const page = await pdfDocument.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        textPages.push(pageText);
+      }
+
+      const fullText = textPages.join('\n');
+      console.log(`[Financial Detection] ✅ Extracted ${fullText.length} characters from ${numPages} pages`);
+      return fullText;
     } catch (error) {
       console.error("[Financial Detection] Error extracting text from PDF:", error);
       throw new Error("Failed to extract text from PDF");
@@ -121,7 +137,7 @@ export class FinancialDetectionService {
     }
   ): Promise<DetectedTransaction[]> {
     // Check if circuit breaker allows the call
-    if (!circuitBreaker.canExecute()) {
+    if (!circuitBreaker.canMakeRequest()) {
       console.log("[Financial Detection] Circuit breaker OPEN - Gemini unavailable");
       throw new Error("Gemini API circuit breaker open");
     }

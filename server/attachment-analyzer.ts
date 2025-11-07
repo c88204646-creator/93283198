@@ -1,4 +1,4 @@
-import * as pdfParse from 'pdf-parse';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { createWorker } from 'tesseract.js';
 
 export class AttachmentAnalyzer {
@@ -13,8 +13,25 @@ export class AttachmentAnalyzer {
 
   static async extractTextFromPDF(buffer: Buffer): Promise<string> {
     try {
-      const data = await pdfParse(buffer);
-      return data.text.trim();
+      const loadingTask = pdfjsLib.getDocument({
+        data: new Uint8Array(buffer),
+        useSystemFonts: true,
+      });
+      
+      const pdfDocument = await loadingTask.promise;
+      const numPages = pdfDocument.numPages;
+      const textPages: string[] = [];
+
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        const page = await pdfDocument.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        textPages.push(pageText);
+      }
+
+      return textPages.join('\n').trim();
     } catch (error) {
       console.error('PDF parsing error:', error);
       return '';
