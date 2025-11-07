@@ -363,9 +363,8 @@ export class EmailTaskAutomation {
           } : undefined
         );
 
-        // Si fue enviado a la queue (método queued), no hay transacciones que procesar
-        if (method === 'queued') {
-          console.log(`[Financial Detection] 📋 File queued for manual review: ${attachment.filename}`);
+        // Si no se detectaron transacciones (ambos métodos fallaron), continuar
+        if (method === 'none') {
           continue;
         }
 
