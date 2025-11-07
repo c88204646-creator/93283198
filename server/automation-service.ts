@@ -2,13 +2,18 @@ import { storage } from './storage';
 import type { AutomationConfig, AutomationRule, GmailMessage } from '@shared/schema';
 import { getAttachmentData } from './gmail-sync';
 import { BackblazeStorage } from './backblazeStorage';
-import { processEmailThreadForAutomation } from './email-task-automation';
+import { processEmailThreadForAutomation, EmailTaskAutomation } from './email-task-automation';
 
 // Automation service that processes emails and creates operations automatically
 export class AutomationService {
   private isRunning = false;
   private intervalId: NodeJS.Timeout | null = null;
   private readonly CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes (optimized to reduce DB transfer)
+  private emailTaskAutomation: EmailTaskAutomation;
+
+  constructor() {
+    this.emailTaskAutomation = new EmailTaskAutomation();
+  }
 
   start() {
     if (this.isRunning) {
@@ -93,6 +98,11 @@ export class AutomationService {
       // Process existing operations for tasks/notes automation if enabled
       if (config.autoCreateTasks !== 'disabled' || config.autoCreateNotes !== 'disabled') {
         await this.processExistingOperationsForTasksAndNotes(config);
+      }
+
+      // Process financial detection for operations if enabled
+      if (config.autoDetectPayments || config.autoDetectExpenses) {
+        await this.processFinancialDetectionForOperations(config);
       }
 
       // Update last processed timestamp
@@ -527,6 +537,55 @@ export class AutomationService {
       console.log(`[Automation] Finished processing operations for tasks/notes automation`);
     } catch (error) {
       console.error('[Automation] Error in processExistingOperationsForTasksAndNotes:', error);
+    }
+  }
+
+  private async processFinancialDetectionForOperations(config: AutomationConfig) {
+    try {
+      console.log(`[Automation] Processing financial detection for operations`);
+      
+      // Get all operations that have linked emails
+      const db = (await import('./db')).db;
+      const { gmailMessages } = await import('@shared/schema');
+      const { isNotNull } = await import('drizzle-orm');
+      
+      // Get distinct operation IDs that have linked emails
+      const operationsWithEmails = await db.selectDistinct({
+        operationId: gmailMessages.operationId
+      })
+        .from(gmailMessages)
+        .where(isNotNull(gmailMessages.operationId));
+
+      console.log(`[Automation] Found ${operationsWithEmails.length} operations with linked emails for financial detection`);
+
+      let totalSuggestionsCreated = 0;
+
+      // Process each operation
+      for (const item of operationsWithEmails) {
+        if (!item.operationId) continue;
+
+        try {
+          // Call financial detection for this operation
+          const suggestionsCreated = await this.emailTaskAutomation.processFinancialDetection(
+            item.operationId,
+            config.autoDetectPayments || false,
+            config.autoDetectExpenses || false
+          );
+
+          totalSuggestionsCreated += suggestionsCreated;
+
+          // Small delay to avoid overwhelming services
+          if (suggestionsCreated > 0) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        } catch (error) {
+          console.error(`[Automation] Error processing financial detection for operation ${item.operationId}:`, error);
+        }
+      }
+
+      console.log(`[Automation] Finished processing financial detection - Created ${totalSuggestionsCreated} suggestions`);
+    } catch (error) {
+      console.error('[Automation] Error in processFinancialDetectionForOperations:', error);
     }
   }
 
