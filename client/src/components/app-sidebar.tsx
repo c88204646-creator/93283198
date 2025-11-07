@@ -13,7 +13,8 @@ import {
   Mail,
   MapPin,
   Calendar,
-  Zap
+  Zap,
+  Landmark
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
@@ -80,6 +81,11 @@ const menuItems: MenuItem[] = [
     title: "Expenses",
     url: "/expenses",
     icon: Receipt,
+  },
+  {
+    title: "Bank Accounts",
+    url: "/bank-accounts",
+    icon: Landmark,
   },
   {
     title: "Leads",

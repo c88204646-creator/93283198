@@ -23,6 +23,7 @@ import ProposalsPage from "./pages/proposals";
 import ExpensesPage from "./pages/expenses";
 import LeadsPage from "./pages/leads";
 import CustomFieldsPage from "./pages/custom-fields";
+import BankAccountsPage from "./pages/bank-accounts";
 import GmailPage from "./pages/gmail";
 import CalendarPage from "./pages/calendar";
 import AutomationPage from "./pages/automation";
@@ -116,6 +117,7 @@ function AppLayout() {
                 <Route path="/invoices" component={InvoicesPage} />
                 <Route path="/proposals" component={ProposalsPage} />
                 <Route path="/expenses" component={ExpensesPage} />
+                <Route path="/bank-accounts" component={BankAccountsPage} />
                 <Route path="/leads" component={LeadsPage} />
                 <Route path="/custom-fields" component={CustomFieldsPage} />
                 <Route path="/gmail" component={GmailPage} />
