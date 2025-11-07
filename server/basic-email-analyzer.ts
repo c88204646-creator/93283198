@@ -84,7 +84,14 @@ export class BasicEmailAnalyzer {
   /**
    * Analiza un thread de emails y extrae tasks/notes usando reglas
    */
-  async analyzeEmailThread(messages: EmailMessage[]): Promise<AnalysisResult> {
+  async analyzeEmailThread(
+    messages: EmailMessage[],
+    companyContext?: {
+      companyName?: string;
+      companyDomain?: string;
+      employeeEmails?: string[];
+    }
+  ): Promise<AnalysisResult> {
     const tasks: BasicTask[] = [];
     const notes: BasicNote[] = [];
 
@@ -93,11 +100,11 @@ export class BasicEmailAnalyzer {
       const fullText = `${message.subject} ${message.snippet} ${message.body || ''}`.toLowerCase();
       
       // Detectar tareas basadas en keywords
-      const detectedTasks = this.detectTasks(message, fullText);
+      const detectedTasks = this.detectTasks(message, fullText, companyContext);
       tasks.push(...detectedTasks);
 
       // Generar nota descriptiva del email
-      const note = this.generateNote(message, fullText);
+      const note = this.generateNote(message, fullText, companyContext);
       if (note) {
         notes.push(note);
       }
@@ -118,7 +125,15 @@ export class BasicEmailAnalyzer {
   /**
    * Detecta tareas pendientes basadas en keywords y patrones
    */
-  private detectTasks(message: EmailMessage, fullText: string): BasicTask[] {
+  private detectTasks(
+    message: EmailMessage, 
+    fullText: string,
+    companyContext?: {
+      companyName?: string;
+      companyDomain?: string;
+      employeeEmails?: string[];
+    }
+  ): BasicTask[] {
     const tasks: BasicTask[] = [];
 
     // Detectar nivel de urgencia
@@ -222,7 +237,15 @@ export class BasicEmailAnalyzer {
   /**
    * Genera una nota descriptiva del email
    */
-  private generateNote(message: EmailMessage, fullText: string): BasicNote | null {
+  private generateNote(
+    message: EmailMessage, 
+    fullText: string,
+    companyContext?: {
+      companyName?: string;
+      companyDomain?: string;
+      employeeEmails?: string[];
+    }
+  ): BasicNote | null {
     // Extraer información clave
     const trackingNumbers = this.extractMatches(fullText, this.patterns.tracking);
     const dates = this.extractMatches(fullText, this.patterns.date);
