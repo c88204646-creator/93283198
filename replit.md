@@ -8,7 +8,22 @@ Preferred communication style: Simple, everyday language (Spanish).
 Industry focus: Freight forwarding and logistics operations.
 Design preference: Logistics-focused iconography and terminology.
 
-## Recent Updates (November 6, 2025)
+## Recent Updates (November 7, 2025)
+1. **AI Knowledge Base System**: Implemented progressive learning system to dramatically reduce Gemini API usage:
+   - New `knowledgeBase` table indexes successful analyses with operation metadata
+   - Intelligent similarity matching (60%+ threshold) finds relevant prior analyses
+   - Successful analyses stored as JSON documents in Backblaze B2 for reuse
+   - System learns from each analysis and improves quality scores over time
+   - Logs clearly show: "🎓 REUSING KNOWLEDGE" vs "🤖 CALLING GEMINI API"
+   - Cache extended from 1 hour to 24 hours to further reduce API calls
+2. **Operation Analysis Service Enhanced**: 
+   - Before calling Gemini, system searches knowledge base for similar operations
+   - If match found (based on type, category, shipping mode, priority), adapts existing analysis
+   - Only calls Gemini when no similar case exists in knowledge base
+   - Each new Gemini-generated analysis is saved to knowledge base for future reuse
+   - Usage counter and quality score track effectiveness of each knowledge entry
+
+## Previous Updates (November 6, 2025)
 1. **Complete English Translation**: Operation files and automation modules fully translated to English including UI, error messages, categories, colors, and all user-facing text.
 2. **Custom Folder Names UI**: Added configuration interface in automation settings for custom folder naming, allowing users to personalize automatic file categorization folders.
 3. **Attachment Cleanup**: Removed 77 pending attachments from database to enable fresh re-download and processing via direct B2 upload during next Gmail sync.
@@ -56,6 +71,7 @@ Design preference: Logistics-focused iconography and terminology.
 - **Integration Tables**: `customFields`, `customFieldValues`, `gmailAccounts`, `gmailMessages`, `calendarEvents`.
 - **File Management Tables**: `operationFolders`, `operationFiles`, `gmailAttachments`.
 - **Automation Tables**: `automationConfigs` (with `customFolderNames` JSONB field for user-configurable folder names), `automationRules`, `automationLogs`.
+- **AI Tables**: `operationAnalyses` (24-hour cache for AI analysis), `knowledgeBase` (progressive learning system with B2 document storage).
 - **Patterns**: UUID primary keys, foreign key relationships, timestamp tracking, status enums, JSONB for metadata, B2 storage keys, SHA-256 file hashes.
 
 ### Core Features

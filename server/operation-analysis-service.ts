@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { storage } from './storage';
+import { knowledgeBaseService } from './knowledge-base-service';
 import type { OperationAnalysis } from '@shared/schema';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -58,7 +59,7 @@ LANGUAGE: Always respond in SPANISH (Español).`
       }
 
       // Get linked emails
-      const emails = await storage.getLinkedGmailMessages(operationId);
+      const emails = await storage.getGmailMessagesByOperation(operationId);
       console.log(`[Analysis] Found ${emails.length} linked emails`);
 
       // Get tasks and notes
@@ -69,7 +70,7 @@ LANGUAGE: Always respond in SPANISH (Español).`
       ]);
 
       // Prepare context for AI
-      const emailSummaries = emails.slice(0, 20).map((email, idx) => {
+      const emailSummaries = emails.slice(0, 20).map((email: any, idx: number) => {
         return `Email ${idx + 1}:
 From: ${email.from}
 To: ${email.to}
@@ -129,33 +130,68 @@ Based on this information, provide a comprehensive analysis of the operation's c
       console.log(`[Analysis] Generated ${analysis.length} characters of analysis`);
       return analysis;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Analysis] Error generating analysis:', error);
-      throw new Error(`Failed to generate analysis: ${error.message}`);
+      throw new Error(`Failed to generate analysis: ${error?.message || 'Unknown error'}`);
     }
   }
 
   /**
-   * Get cached analysis or generate new one
+   * Get cached analysis or generate new one (with knowledge base learning)
    */
   async getOrGenerateAnalysis(operationId: string): Promise<OperationAnalysis> {
     try {
-      // Check for existing, valid cache
+      // Check for existing, valid cache (24 hours)
       const existing = await storage.getOperationAnalysis(operationId);
       
       if (existing && existing.status === 'ready') {
         const now = new Date();
         const expiresAt = new Date(existing.expiresAt);
         
-        // Return cached if not expired
+        // Return cached if not expired (24 hours)
         if (expiresAt > now) {
           console.log(`[Analysis] Using cached analysis for operation ${operationId}`);
           return existing;
         }
       }
 
-      // Generate new analysis
-      console.log(`[Analysis] Generating fresh analysis for operation ${operationId}`);
+      // Get operation data for knowledge matching
+      const operation = await storage.getOperation(operationId);
+      if (!operation) {
+        throw new Error('Operation not found');
+      }
+
+      console.log(`[Analysis] Looking for similar knowledge for operation ${operationId}`);
+      
+      // Try to find similar knowledge first (LEARNING SYSTEM)
+      const similarKnowledge = await knowledgeBaseService.findSimilarKnowledge(operation);
+
+      if (similarKnowledge && similarKnowledge.score >= 60) {
+        console.log(`[Analysis] 🎓 REUSING KNOWLEDGE (score: ${similarKnowledge.score}%) - Saving Gemini API call!`);
+        
+        // Reuse existing knowledge
+        const adaptedAnalysis = await knowledgeBaseService.reuseKnowledge(
+          similarKnowledge.knowledge.id,
+          operation
+        );
+
+        if (adaptedAnalysis) {
+          // Save as cached analysis
+          const cachedAnalysis = await storage.createOperationAnalysis({
+            operationId,
+            analysis: adaptedAnalysis,
+            emailsAnalyzed: similarKnowledge.knowledge.emailCount,
+            status: 'ready',
+            generatedAt: new Date(),
+            expiresAt: new Date(Date.now() + 86400000) // 24 hour cache
+          });
+
+          return cachedAnalysis;
+        }
+      }
+
+      // No similar knowledge found - generate new with Gemini
+      console.log(`[Analysis] 🤖 CALLING GEMINI API - No similar knowledge found`);
       
       // Create pending record
       const pendingAnalysis = await storage.createOperationAnalysis({
@@ -164,14 +200,18 @@ Based on this information, provide a comprehensive analysis of the operation's c
         emailsAnalyzed: 0,
         status: 'generating',
         generatedAt: new Date(),
-        expiresAt: new Date(Date.now() + 3600000) // 1 hour expiration
+        expiresAt: new Date(Date.now() + 86400000) // 24 hour expiration
       });
 
       try {
-        // Get email count
-        const emails = await storage.getLinkedGmailMessages(operationId);
+        // Get context
+        const [emails, tasks, files] = await Promise.all([
+          storage.getGmailMessagesByOperation(operationId),
+          storage.getOperationTasks(operationId),
+          storage.getOperationFiles(operationId)
+        ]);
         
-        // Generate analysis
+        // Generate analysis with Gemini
         const analysis = await this.generateAnalysis(operationId);
 
         // Update with results
@@ -180,21 +220,31 @@ Based on this information, provide a comprehensive analysis of the operation's c
           emailsAnalyzed: emails.length,
           status: 'ready',
           generatedAt: new Date(),
-          expiresAt: new Date(Date.now() + 3600000) // 1 hour cache
+          expiresAt: new Date(Date.now() + 86400000) // 24 hour cache
         });
+
+        // 📚 SAVE TO KNOWLEDGE BASE for future reuse
+        console.log(`[Analysis] 💾 Saving to knowledge base for future learning...`);
+        await knowledgeBaseService.saveKnowledge(
+          operation,
+          analysis,
+          emails.length,
+          tasks.length,
+          files.length
+        );
 
         return completedAnalysis!;
 
-      } catch (error) {
+      } catch (error: any) {
         // Update with error
         await storage.updateOperationAnalysis(pendingAnalysis.id, {
           status: 'error',
-          errorMessage: error.message
+          errorMessage: error?.message || 'Unknown error'
         });
         throw error;
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Analysis] Error in getOrGenerateAnalysis:', error);
       throw error;
     }

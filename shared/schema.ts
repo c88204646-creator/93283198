@@ -443,6 +443,24 @@ export const operationAnalyses = pgTable("operation_analyses", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Knowledge Base table (learning system to reduce AI usage)
+export const knowledgeBase = pgTable("knowledge_base", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  b2Key: varchar("b2_key").notNull(), // JSON document in Backblaze with full analysis data
+  operationType: varchar("operation_type"), // air, sea, land, multimodal
+  projectCategory: varchar("project_category"), // import, export, domestic, etc.
+  shippingMode: varchar("shipping_mode"), // FCL, LCL, air freight, etc.
+  priority: varchar("priority"), // high, medium, low
+  emailCount: integer("email_count").notNull().default(0), // Number of emails in analyzed operation
+  taskCount: integer("task_count").notNull().default(0), // Number of tasks
+  fileCount: integer("file_count").notNull().default(0), // Number of files
+  tags: text("tags").array(), // Keywords for matching (e.g., "customs", "documentation", "delay")
+  usageCount: integer("usage_count").notNull().default(1), // How many times this knowledge was reused
+  qualityScore: integer("quality_score").notNull().default(5), // 1-10, improves with usage
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at").notNull().defaultNow(),
+});
+
 // LiveChat Conversations table
 export const chatConversations = pgTable("chat_conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -824,6 +842,14 @@ export type OperationFile = typeof operationFiles.$inferSelect;
 
 export type InsertOperationAnalysis = z.infer<typeof insertOperationAnalysisSchema>;
 export type OperationAnalysis = typeof operationAnalyses.$inferSelect;
+
+export const insertKnowledgeBaseSchema = createInsertSchema(knowledgeBase).omit({
+  id: true,
+  createdAt: true,
+  lastUsedAt: true,
+});
+export type InsertKnowledgeBase = z.infer<typeof insertKnowledgeBaseSchema>;
+export type KnowledgeBase = typeof knowledgeBase.$inferSelect;
 
 export type InsertChatConversation = z.infer<typeof insertChatConversationSchema>;
 export type ChatConversation = typeof chatConversations.$inferSelect;

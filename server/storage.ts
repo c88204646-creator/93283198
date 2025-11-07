@@ -6,7 +6,7 @@ import {
   invoiceItems, proposalItems, payments, customFields, customFieldValues,
   operationEmployees, gmailAccounts, gmailMessages, gmailAttachments, calendarEvents,
   automationConfigs, automationRules, automationLogs, operationNotes, operationTasks,
-  operationFolders, operationFiles, operationAnalyses, chatConversations, chatMessages,
+  operationFolders, operationFiles, operationAnalyses, knowledgeBase, chatConversations, chatMessages,
   type User, type InsertUser,
   type Client, type InsertClient,
   type Employee, type InsertEmployee,
@@ -33,6 +33,7 @@ import {
   type OperationFolder, type InsertOperationFolder,
   type OperationFile, type InsertOperationFile,
   type OperationAnalysis, type InsertOperationAnalysis,
+  type KnowledgeBase, type InsertKnowledgeBase,
   type ChatConversation, type InsertChatConversation,
   type ChatMessage, type InsertChatMessage,
 } from "@shared/schema";
@@ -155,6 +156,7 @@ export interface IStorage {
 
   // Gmail Messages
   getGmailMessages(accountId: string, limit?: number, offset?: number): Promise<GmailMessage[]>;
+  getGmailMessagesByOperation(operationId: string): Promise<GmailMessage[]>;
   getGmailMessage(id: string): Promise<GmailMessage | undefined>;
   getGmailMessageByMessageId(messageId: string): Promise<GmailMessage | undefined>;
   createGmailMessage(message: InsertGmailMessage): Promise<GmailMessage>;
@@ -709,6 +711,12 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(gmailMessages.date))
       .limit(Math.min(limit, 100))
       .offset(offset);
+  }
+
+  async getGmailMessagesByOperation(operationId: string): Promise<GmailMessage[]> {
+    return await db.select().from(gmailMessages)
+      .where(eq(gmailMessages.operationId, operationId))
+      .orderBy(desc(gmailMessages.date));
   }
 
   async getGmailMessage(id: string): Promise<GmailMessage | undefined> {
