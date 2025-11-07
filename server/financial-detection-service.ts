@@ -101,26 +101,8 @@ export class FinancialDetectionService {
 
   async extractTextFromPDF(buffer: Buffer): Promise<string> {
     try {
-      // pdf-parse exports its parser as a namespace module
-      // We need to import and access the actual function
-      const pdfParseModule: any = await import('pdf-parse');
-      
-      // Debug: see what's in the module
-      console.log("[Financial Detection] DEBUG Module keys:", Object.keys(pdfParseModule).slice(0, 15));
-      console.log("[Financial Detection] DEBUG PDFParse type:", typeof pdfParseModule.PDFParse);
-      
-      // The actual parser function is the default export when using CommonJS,
-      // but when imported as ESM it becomes a callable object
-      // Try different ways to access it
-      const pdfParse = pdfParseModule.default || pdfParseModule.PDFParse || pdfParseModule;
-      
-      // If it's still not a function, we need to call it differently
-      if (typeof pdfParse !== 'function') {
-        // pdf-parse might be exporting a namespace, try to access the main function
-        console.error("[Financial Detection] DEBUG pdfParse type:", typeof pdfParse);
-        console.error("[Financial Detection] DEBUG Available keys:", Object.keys(pdfParse || {}).slice(0, 20));
-        throw new Error("Could not find pdf-parse function in module");
-      }
+      const require = createRequire(import.meta.url);
+      const pdfParse = require('pdf-parse');
       
       const data = await pdfParse(buffer);
       return data.text;
