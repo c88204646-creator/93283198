@@ -178,100 +178,85 @@ export default function OperationDetail() {
           </span>
         </nav>
 
-        {/* Header mejorado con diseño logístico profesional */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-slate-900 dark:via-slate-900 dark:to-blue-950/20 border border-slate-200/60 dark:border-slate-700/60 shadow-2xl">
-          {/* Iconos de fondo decorativos - Tema logístico */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.03] dark:opacity-[0.05]">
-            <Package className="absolute top-8 right-16 w-32 h-32 text-blue-600 rotate-12" />
-            <Ship className="absolute bottom-12 left-20 w-40 h-40 text-blue-600 -rotate-6" />
-            <Plane className="absolute top-1/2 right-1/4 w-28 h-28 text-blue-600 rotate-45" />
-            <Truck className="absolute bottom-8 right-12 w-24 h-24 text-blue-600 -rotate-12" />
-            <MapPin className="absolute top-16 left-1/3 w-20 h-20 text-blue-600" />
-          </div>
+        {/* Header profesional compacto */}
+        <div className="relative overflow-hidden rounded-lg bg-gradient-to-br from-white via-slate-50/50 to-blue-50/20 dark:from-slate-900 dark:via-slate-900 dark:to-slate-800 border border-slate-200/80 dark:border-slate-700/60 shadow-md">
+          {/* Patrón de fondo sutil */}
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808008_1px,transparent_1px),linear-gradient(to_bottom,#80808008_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
+          
+          {/* Acento superior */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500" />
 
-          {/* Patrón de cuadrícula sutil */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
-
-          <div className="relative p-6 md:p-8">
-            <div className="flex flex-col md:flex-row items-start gap-6">
-              {/* Botón de retorno */}
+          <div className="relative p-4 md:p-5">
+            <div className="flex flex-col md:flex-row items-start gap-4">
+              {/* Botón de retorno compacto */}
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => navigate('/operations')}
                 data-testid="button-back"
-                className="shrink-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm hover:bg-white dark:hover:bg-slate-800 border-slate-300 dark:border-slate-600 shadow-sm"
+                className="shrink-0 h-8 w-8 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm hover:bg-white dark:hover:bg-slate-800 border-slate-300/60 dark:border-slate-600/60"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4" />
               </Button>
 
               {/* Contenido principal */}
-              <div className="flex-1 space-y-5 w-full min-w-0">
-                {/* Badges superiores */}
-                <div className="flex items-start gap-2 flex-wrap">
-                  <div className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg shadow-md">
-                    {getOperationTypeIcon(operation.operationType)}
-                    <span className="text-sm font-semibold uppercase tracking-wide">{operation.operationType}</span>
+              <div className="flex-1 space-y-3 w-full min-w-0">
+                {/* Fila superior: Título y badges */}
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50 truncate" data-testid="text-operation-name">
+                      {operation.name}
+                    </h1>
+                    {client && (
+                      <div className="flex items-center gap-2 mt-1.5 text-xs text-slate-600 dark:text-slate-400">
+                        <UserIcon className="w-3 h-3" />
+                        <span>{client.name}</span>
+                      </div>
+                    )}
                   </div>
-                  <Badge className={`${getStatusColor(operation.status)} text-sm px-4 py-2 shadow-sm`} data-testid="badge-status">
-                    {operation.status === 'planning' ? 'Planificación' : 
-                     operation.status === 'in-progress' ? 'En Progreso' : 
-                     operation.status === 'completed' ? 'Completado' : 
-                     'Cancelado'}
-                  </Badge>
-                  {operation.priority && (
-                    <Badge className={`${getPriorityColor(operation.priority)} text-sm px-4 py-2 shadow-sm`} data-testid="badge-priority">
-                      {operation.priority === 'low' ? 'Baja' : 
-                       operation.priority === 'medium' ? 'Media' : 
-                       operation.priority === 'high' ? 'Alta' : 
-                       'Urgente'}
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Título de operación */}
-                <div className="space-y-3">
-                  <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-50" data-testid="text-operation-name">
-                    {operation.name}
-                  </h1>
                   
-                  {/* Descripción con scroll */}
-                  {operation.description && (
-                    <div className="relative">
-                      <ScrollArea className="max-h-24 pr-4">
-                        <p className="text-sm md:text-base text-slate-600 dark:text-slate-400 leading-relaxed whitespace-pre-wrap" data-testid="text-description">
-                          {operation.description}
-                        </p>
-                      </ScrollArea>
-                      {operation.description.length > 200 && (
-                        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-slate-50 via-slate-50/80 to-transparent dark:from-slate-900 dark:via-slate-900/80 pointer-events-none" />
-                      )}
+                  {/* Badges organizados */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 bg-blue-500/10 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300 px-2.5 py-1 rounded-md border border-blue-500/20">
+                      {getOperationTypeIcon(operation.operationType)}
+                      <span className="text-xs font-semibold uppercase">{operation.operationType}</span>
                     </div>
-                  )}
+                    <Badge className={`${getStatusColor(operation.status)} text-xs px-2.5 py-1`} data-testid="badge-status">
+                      {operation.status === 'planning' ? 'Planificación' : 
+                       operation.status === 'in-progress' ? 'En Progreso' : 
+                       operation.status === 'completed' ? 'Completado' : 
+                       'Cancelado'}
+                    </Badge>
+                    {operation.priority && (
+                      <Badge className={`${getPriorityColor(operation.priority)} text-xs px-2.5 py-1`} data-testid="badge-priority">
+                        {operation.priority === 'low' ? 'Baja' : 
+                         operation.priority === 'medium' ? 'Media' : 
+                         operation.priority === 'high' ? 'Alta' : 
+                         'Urgente'}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
 
-                {/* Información del cliente */}
-                {client && (
-                  <div className="inline-flex items-center gap-3 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm px-4 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                      <UserIcon className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">Cliente:</span>
-                      <span className="text-slate-900 dark:text-slate-100 font-medium">{client.name}</span>
-                    </div>
+                {/* Descripción compacta */}
+                {operation.description && (
+                  <div className="relative">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed" data-testid="text-description">
+                      {operation.description}
+                    </p>
                   </div>
                 )}
               </div>
 
-              {/* Botón de edición */}
+              {/* Botón de edición compacto */}
               <Button
                 onClick={() => navigate(`/operations/edit/${id}`)}
                 data-testid="button-edit"
-                className="shrink-0 w-full md:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                size="sm"
+                className="shrink-0 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md transition-all"
               >
-                <Edit2 className="w-4 h-4 mr-2" />
-                Editar Operación
+                <Edit2 className="w-3.5 h-3.5 mr-1.5" />
+                <span className="text-xs font-medium">Editar</span>
               </Button>
             </div>
           </div>
