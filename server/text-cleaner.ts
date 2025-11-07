@@ -1,11 +1,11 @@
 /**
- * Utilidad para limpiar y transformar texto conversacional en contenido profesional
+ * Utilidad para interpretar y transformar texto conversacional en contenido profesional
  * Usado para mejorar tareas y notas existentes
  */
 
 export class TextCleaner {
   /**
-   * Limpia texto de conversaciones y lo transforma a contenido profesional
+   * Limpia texto ELIMINANDO toda conversación y dejando solo datos clave
    */
   static cleanConversationalText(text: string): string {
     if (!text || text.trim().length === 0) {
@@ -14,46 +14,51 @@ export class TextCleaner {
 
     let cleaned = text;
 
-    // 1. Eliminar saludos completos (al inicio o en medio)
-    cleaned = cleaned.replace(/(^|\s)(buen[ao]s?\s+(dia|tarde|noche|dias)|hola|hello|hi|dear|estimad[ao])\s+[a-z]+(\s|,|:)/gi, ' ');
+    // 1. Eliminar saludos COMPLETOS (ej: "Buen dia Alexis")
+    cleaned = cleaned.replace(/^(buen[ao]s?\s+(dia|tarde|noche|dias)\s+[a-z]+|hola\s+[a-z]+|hello\s+[a-z]+|dear\s+[a-z]+|estimad[ao]\s+[a-z]+)/gi, '');
     
-    // 2. Eliminar frases conversacionales comunes y transformarlas
+    // 2. Eliminar frases conversacionales completas
     cleaned = cleaned
+      .replace(/nos\s+ayudas?\s+(con|a)\s+(la|el|los|las)\s+/gi, '')
       .replace(/ya\s+(solicite|solicité|envie|envié|mande|mandé)/gi, 'Solicitado')
-      .replace(/en\s+cuanto\s+(la|lo|los|las)\s+(tenga|reciba|tengamos|recibamos)/gi, 'Pendiente de recibir')
-      .replace(/te\s+(la|lo|los|las)\s+(comparto|envio|envío|mando)/gi, 'para compartir')
-      .replace(/nos\s+ayudas?\s+(con|a)/gi, 'Requerido')
+      .replace(/en\s+cuanto\s+(la|lo|los|las)\s+(tenga|reciba)/gi, 'Pendiente de recibir')
+      .replace(/te\s+(la|lo|los|las)\s+(comparto|envio|envío|mando)/gi, 'para enviar')
       .replace(/por\s+favor/gi, '')
       .replace(/quedo\s+atent[ao].*/gi, '')
-      .replace(/quedamos?\s+(a\s+la\s+orden|al\s+pendiente).*/gi, '')
+      .replace(/quedamos?\s+al?\s+(la\s+orden|pendiente).*/gi, '')
       .replace(/\/\s*I[''']ll?\s+pending.*/gi, '')
       .replace(/best\s+regards.*/gi, '')
       .replace(/atentamente.*/gi, '')
       .replace(/saludos.*/gi, '')
-      .replace(/regards.*/gi, '');
+      .replace(/regards.*/gi, '')
+      .replace(/este\s+contenedor\s+/gi, 'Contenedor ')
+      .replace(/según\s+(correo\s+de\s+)?la\s+naviera:?/gi, '. Confirmado por naviera.');
     
-    // 3. Convertir referencias informales a formales
+    // 3. Convertir referencias informales
     cleaned = cleaned
       .replace(/\bal\s+AA\b/gi, 'al agente aduanal')
-      .replace(/\bAA\b/gi, 'Agente aduanal');
+      .replace(/\bAA\b/gi, 'agente aduanal');
     
-    // 4. Eliminar frases que terminan con ":"
-    cleaned = cleaned.replace(/según\s+correo\s+de\s+la\s+naviera:/gi, '. Confirmado por naviera.');
-    
-    // 5. Limpiar espacios múltiples y puntuación
+    // 4. Limpiar espacios múltiples y puntuación
     cleaned = cleaned
       .replace(/\s+/g, ' ')
       .replace(/\s+,/g, ',')
       .replace(/\s+\./g, '.')
       .replace(/\.+/g, '.')
+      .replace(/\s+:/g, ':')
       .trim();
+    
+    // 5. Si queda muy corto o solo quedaron partículas, retornar mensaje genérico
+    if (cleaned.length < 15 || cleaned.match(/^(Solicitado|Pendiente|para enviar)\.?$/i)) {
+      return 'Comunicación registrada.';
+    }
     
     // 6. Capitalizar primera letra
     if (cleaned.length > 0) {
       cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
     }
 
-    // 7. Asegurar que termina con punto si no tiene puntuación final
+    // 7. Asegurar punto final
     if (cleaned.length > 0 && !cleaned.match(/[.!?]$/)) {
       cleaned += '.';
     }
