@@ -127,6 +127,24 @@ export const invoices = pgTable("invoices", {
   dueDate: timestamp("due_date").notNull(),
   paidDate: timestamp("paid_date"),
   notes: text("notes"),
+  
+  // CFDI 4.0 Fields (Mexican Tax Invoices)
+  folioFiscal: text("folio_fiscal"), // UUID del comprobante fiscal (unique identifier)
+  issuerRFC: text("issuer_rfc"), // RFC del emisor
+  issuerName: text("issuer_name"), // Nombre del emisor
+  issuerRegimenFiscal: text("issuer_regimen_fiscal"), // Régimen fiscal del emisor
+  lugarExpedicion: text("lugar_expedicion"), // Código postal de expedición
+  metodoPago: text("metodo_pago"), // PUE (pago único) o PPD (pago diferido)
+  formaPago: text("forma_pago"), // 01=Efectivo, 03=Transferencia, 99=Por definir, etc.
+  ordenCompra: text("orden_compra"), // Orden de compra (NAVI-XXXXXX)
+  tipoComprobante: text("tipo_comprobante"), // I=Ingreso, E=Egreso, T=Traslado, P=Pago
+  usoCFDI: text("uso_cfdi"), // G03=Gastos en general, etc.
+  exportacion: text("exportacion"), // 01=No aplica, 02=Definitivo, etc.
+  
+  // Automation fields
+  createdAutomatically: boolean("created_automatically").notNull().default(false),
+  sourceInvoiceAttachmentId: varchar("source_invoice_attachment_id"), // Attachment de donde se creó
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -203,6 +221,15 @@ export const invoiceItems = pgTable("invoice_items", {
   quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull().default("1"),
   unitPrice: decimal("unit_price", { precision: 12, scale: 2 }).notNull(),
   amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  
+  // CFDI 4.0 / SAT Fields (Mexican Tax Invoices)
+  satProductCode: text("sat_product_code"), // Código SAT de producto/servicio (8 dígitos)
+  satUnitCode: text("sat_unit_code"), // Clave de unidad SAT (E48=Unidad de servicio, H87=Pieza, etc.)
+  satTaxObject: text("sat_tax_object"), // 01=Sin objeto de impuesto, 02=Con objeto de impuesto, etc.
+  identification: text("identification"), // No Identificación adicional (CALLAO, PR - MANZANILLO, MX)
+  taxRate: decimal("tax_rate", { precision: 5, scale: 4 }), // Tasa de impuesto (0.16 para IVA 16%)
+  taxAmount: decimal("tax_amount", { precision: 12, scale: 2 }), // Monto del impuesto
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -409,6 +436,8 @@ export const automationConfigs = pgTable("automation_configs", {
   financialDetectionConfidence: integer("financial_detection_confidence").notNull().default(75), // Minimum confidence (0-100) to create suggestion
   // Client auto-assignment settings
   autoAssignClients: boolean("auto_assign_clients").notNull().default(false), // Automatically detect clients from invoices and assign to operations
+  // Invoice auto-assignment settings
+  autoAssignInvoices: boolean("auto_assign_invoices").notNull().default(false), // Automatically detect and create invoices from Facturama PDFs
   settings: jsonb("settings"), // Module-specific settings
   lastProcessedAt: timestamp("last_processed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
