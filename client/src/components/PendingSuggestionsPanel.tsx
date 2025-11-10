@@ -29,32 +29,42 @@ interface FinancialSuggestion {
   description: string;
   date: string;
   aiConfidence: string;
-  aiAnalysis: string;
+  aiReasoning: string;
+  extractedText: string;
   status: string;
   isDuplicate: boolean;
   duplicateReason?: string;
   relatedSuggestionId?: string;
+  gmailMessageId?: string;
+  gmailAttachmentId?: string;
+  attachmentHash?: string;
   createdAt: string;
 }
 
-interface PendingSuggestionsPanelProps {
-  type: 'payment' | 'expense';
-  operationId?: string;
+interface GmailAttachment {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  b2FileKey?: string;
 }
 
-export function PendingSuggestionsPanel({ type, operationId }: PendingSuggestionsPanelProps) {
+interface PendingSuggestionsPanelProps {
+  operationId: string; // Ahora es requerido - siempre se muestra en contexto de una operación
+}
+
+export function PendingSuggestionsPanel({ operationId }: PendingSuggestionsPanelProps) {
   const { toast } = useToast();
   const [selectedSuggestion, setSelectedSuggestion] = useState<FinancialSuggestion | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectDialog, setShowRejectDialog] = useState(false);
 
-  // Build query parameters
+  // Build query parameters - solo filtramos por operación
   const queryParams = new URLSearchParams();
-  if (type) queryParams.append('type', type);
-  if (operationId) queryParams.append('operationId', operationId);
+  queryParams.append('operationId', operationId);
 
   const { data: suggestions = [], isLoading } = useQuery<FinancialSuggestion[]>({
-    queryKey: ['/api/financial-suggestions/pending', type, operationId],
+    queryKey: ['/api/financial-suggestions/pending', operationId],
     queryFn: async () => {
       const url = `/api/financial-suggestions/pending?${queryParams.toString()}`;
       const response = await fetch(url, { credentials: 'include' });
@@ -62,6 +72,12 @@ export function PendingSuggestionsPanel({ type, operationId }: PendingSuggestion
       return response.json();
     },
     refetchInterval: 30000,
+  });
+
+  // Fetch attachment details when a suggestion is selected
+  const { data: attachment } = useQuery<GmailAttachment>({
+    queryKey: ['/api/gmail/attachments', selectedSuggestion?.gmailAttachmentId],
+    enabled: !!selectedSuggestion?.gmailAttachmentId,
   });
 
   const approveMutation = useMutation({
@@ -116,8 +132,27 @@ export function PendingSuggestionsPanel({ type, operationId }: PendingSuggestion
     return null; // No mostrar nada si está cargando o no hay sugerencias
   }
 
-  const title = type === 'payment' ? 'Pagos Detectados' : 'Gastos Detectados';
-  const description = `${suggestions.length} ${type === 'payment' ? 'pago' : 'gasto'}${suggestions.length > 1 ? 's' : ''} pendiente${suggestions.length > 1 ? 's' : ''} de validación`;
+  const paymentCount = suggestions.filter(s => s.type === 'payment').length;
+  const expenseCount = suggestions.filter(s => s.type === 'expense').length;
+  
+  const title = 'Transacciones Detectadas';
+  let description = '';
+  if (paymentCount > 0 && expenseCount > 0) {
+    description = `${paymentCount} pago${paymentCount > 1 ? 's' : ''} y ${expenseCount} gasto${expenseCount > 1 ? 's' : ''} pendientes de validación`;
+  } else if (paymentCount > 0) {
+    description = `${paymentCount} pago${paymentCount > 1 ? 's' : ''} pendiente${paymentCount > 1 ? 's' : ''} de validación`;
+  } else {
+    description = `${expenseCount} gasto${expenseCount > 1 ? 's' : ''} pendiente${expenseCount > 1 ? 's' : ''} de validación`;
+  }
+  
+  const getEvidencePreview = (suggestion: FinancialSuggestion) => {
+    if (suggestion.gmailAttachmentId) {
+      return 'Evidencia: Adjunto de correo';
+    } else if (suggestion.gmailMessageId) {
+      return 'Evidencia: Mensaje de correo';
+    }
+    return 'Sin evidencia';
+  };
 
   return (
     <>
@@ -266,9 +301,67 @@ export function PendingSuggestionsPanel({ type, operationId }: PendingSuggestion
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Análisis de IA</p>
                     <div className="bg-muted p-3 rounded-lg text-sm">
-                      {selectedSuggestion.aiAnalysis}
+                      {selectedSuggestion.aiReasoning}
                     </div>
                   </div>
+
+                  {/* Evidencia Section */}
+                  {(selectedSuggestion.gmailAttachmentId || selectedSuggestion.gmailMessageId) && (
+                    <>
+                      <Separator />
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2 font-semibold">Evidencia</p>
+                        <div className="space-y-2">
+                          {attachment && (
+                            <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                              <CardContent className="p-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded">
+                                    {attachment.mimeType.includes('pdf') ? (
+                                      <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"/>
+                                      </svg>
+                                    ) : (
+                                      <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd"/>
+                                      </svg>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{attachment.filename}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {attachment.mimeType} • {(attachment.size / 1024).toFixed(1)} KB
+                                    </p>
+                                  </div>
+                                  {attachment.b2FileKey && (
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      onClick={() => window.open(`/api/gmail/attachments/${selectedSuggestion.gmailAttachmentId}/download`, '_blank')}
+                                      data-testid="button-view-evidence"
+                                    >
+                                      Ver archivo
+                                    </Button>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )}
+                          {selectedSuggestion.gmailMessageId && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => window.open(`/operations/${selectedSuggestion.operationId}?tab=emails&messageId=${selectedSuggestion.gmailMessageId}`, '_blank')}
+                              data-testid="button-view-email"
+                            >
+                              Ver correo completo
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <div className="grid grid-cols-2 gap-4 text-xs">
                     <div>
