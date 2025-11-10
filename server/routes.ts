@@ -1505,7 +1505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { accountId } = req.params;
       const userId = req.session.userId!;
-      const limit = parseInt(req.query.limit as string || '100');
+      const limit = parseInt(req.query.limit as string || '500');
       const offset = parseInt(req.query.offset as string || '0');
 
       const account = await storage.getGmailAccount(accountId);

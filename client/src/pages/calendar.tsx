@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -156,6 +157,7 @@ export default function Calendar() {
   const [showEventDialog, setShowEventDialog] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [locationCoords, setLocationCoords] = useState<[number, number] | null>(null);
+  const [accountFilter, setAccountFilter] = useState<string>("all"); // Filtro por cuenta
 
   const { data: events = [], isLoading } = useQuery<CalendarEvent[]>({
     queryKey: ["/api/calendar/events"],
@@ -240,15 +242,25 @@ export default function Calendar() {
   const calendarEnd = endOfWeek(monthEnd, { locale: es });
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
+  // Filtrar eventos según la cuenta seleccionada
+  const filteredEvents = accountFilter === "all" 
+    ? events 
+    : events.filter(event => {
+        if (accountFilter === "local") {
+          return !event.gmailAccountId; // Eventos locales (sin cuenta)
+        }
+        return event.gmailAccountId === accountFilter; // Eventos de cuenta específica
+      });
+
   // Filtrar eventos del día seleccionado
-  const selectedDayEvents = events.filter(event => {
+  const selectedDayEvents = filteredEvents.filter(event => {
     const eventDate = parseISO(event.startTime.toString());
     return isSameDay(eventDate, selectedDate);
   });
 
   // Función para obtener eventos de un día específico
   const getEventsForDay = (day: Date) => {
-    return events.filter(event => {
+    return filteredEvents.filter(event => {
       const eventDate = parseISO(event.startTime.toString());
       return isSameDay(eventDate, day);
     });
@@ -274,13 +286,31 @@ export default function Calendar() {
               </p>
             </div>
           </div>
-          <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
-            <DialogTrigger asChild>
-              <Button className="w-full sm:w-auto gap-1.5 sm:gap-2" size="sm" data-testid="button-create-event">
-                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span className="text-xs sm:text-sm">Nuevo Evento</span>
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Filtro por cuenta */}
+            {gmailAccounts.length > 0 && (
+              <Select value={accountFilter} onValueChange={setAccountFilter}>
+                <SelectTrigger className="w-[200px] h-8" data-testid="select-account-filter">
+                  <SelectValue placeholder="Todas las cuentas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">📅 Todas las cuentas</SelectItem>
+                  <SelectItem value="local">📌 Solo eventos locales</SelectItem>
+                  {gmailAccounts.map((account: any) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      📧 {account.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
+              <DialogTrigger asChild>
+                <Button className="w-full sm:w-auto gap-1.5 sm:gap-2" size="sm" data-testid="button-create-event">
+                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  <span className="text-xs sm:text-sm">Nuevo Evento</span>
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" data-testid="dialog-event">
               <DialogHeader>
                 <DialogTitle className="text-lg flex items-center gap-2">
@@ -559,10 +589,21 @@ export default function Calendar() {
                 >
                   <CardContent className="p-2 sm:p-2.5 space-y-1.5 sm:space-y-2">
                     <div className="flex items-start justify-between gap-1.5 sm:gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-xs sm:text-sm line-clamp-2">{event.title}</h4>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-start gap-2 flex-wrap">
+                          <h4 className="font-semibold text-xs sm:text-sm line-clamp-2 flex-1">{event.title}</h4>
+                          {event.gmailAccountId ? (
+                            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">
+                              📧 {gmailAccounts.find((acc: any) => acc.id === event.gmailAccountId)?.email || 'Google'}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
+                              📌 Local
+                            </Badge>
+                          )}
+                        </div>
                         {event.description && (
-                          <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 line-clamp-2">
+                          <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-2">
                             {event.description}
                           </p>
                         )}
