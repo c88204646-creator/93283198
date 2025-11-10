@@ -1594,9 +1594,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         attachments.map(async (attachment) => {
           let signedUrl: string | null = null;
           
-          if (attachment.objectKey && backblazeStorage.isAvailable()) {
+          if (attachment.b2Key && backblazeStorage.isAvailable()) {
             try {
-              signedUrl = await backblazeStorage.getSignedUrl(attachment.objectKey, 1800);
+              signedUrl = await backblazeStorage.getSignedUrl(attachment.b2Key, 1800);
             } catch (error) {
               console.error(`Error generating signed URL for attachment ${attachment.id}:`, error);
             }
