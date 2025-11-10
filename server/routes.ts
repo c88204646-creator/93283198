@@ -1579,14 +1579,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Fallback: If no B2 URLs, generate data URLs from database content
+      // Fallback: If no B2 URLs, use database body endpoint
       if (!htmlBodyUrl && message.bodyHtml) {
-        const htmlBase64 = Buffer.from(message.bodyHtml, 'utf-8').toString('base64');
-        htmlBodyUrl = `data:text/html;base64,${htmlBase64}`;
+        htmlBodyUrl = `/api/gmail/messages/${id}/body/html`;
       }
       if (!textBodyUrl && message.bodyText) {
-        const textBase64 = Buffer.from(message.bodyText, 'utf-8').toString('base64');
-        textBodyUrl = `data:text/plain;base64,${textBase64}`;
+        textBodyUrl = `/api/gmail/messages/${id}/body/text`;
       }
 
       // Generate signed URLs for attachments
