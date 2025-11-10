@@ -3,6 +3,13 @@ import { pgTable, text, varchar, timestamp, integer, decimal, jsonb, boolean } f
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Session table (managed by connect-pg-simple for express-session)
+export const session = pgTable("session", {
+  sid: varchar("sid").primaryKey().notNull(),
+  sess: jsonb("sess").notNull(),
+  expire: timestamp("expire").notNull(),
+});
+
 // Users table with role-based access
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -490,10 +497,10 @@ export const bankAccountAnalyses = pgTable("bank_account_analyses", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-// Knowledge Base table (learning system to reduce AI usage for both operations and bank accounts)
+// Knowledge Base table (learning system to reduce AI usage for operations, bank accounts, email linking, and financial detection)
 export const knowledgeBase = pgTable("knowledge_base", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  type: varchar("type").notNull().default("operation"), // 'operation' or 'bank_account'
+  type: varchar("type").notNull().default("operation"), // 'operation', 'bank_account', 'email_linking', 'financial_detection'
   b2Key: varchar("b2_key").notNull(), // JSON document in Backblaze with full analysis data
   // For operations:
   operationType: varchar("operation_type"), // air, sea, land, multimodal
@@ -507,10 +514,20 @@ export const knowledgeBase = pgTable("knowledge_base", {
   accountType: varchar("account_type"), // checking, savings, investment
   currency: varchar("currency"), // MXN, USD, EUR, CAD
   transactionCount: integer("transaction_count").notNull().default(0), // Number of transactions analyzed
+  // For email linking patterns:
+  linkingPattern: text("linking_pattern"), // Pattern that successfully linked email to operation (e.g., "subject:NAVI-", "content:COT-")
+  linkingMethod: varchar("linking_method"), // 'subject', 'content', 'attachment_ocr', 'sender_email', 'combined'
+  successRate: decimal("success_rate", { precision: 5, scale: 2 }), // Success rate of this pattern (0.00-100.00)
+  // For financial detection patterns:
+  detectionPattern: text("detection_pattern"), // Pattern that successfully detected transaction (e.g., keywords, layout)
+  detectionMethod: varchar("detection_method"), // 'gemini', 'ocr', 'regex', 'ml_model'
+  transactionType: varchar("transaction_type"), // 'payment' or 'expense'
+  accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }), // How accurate this pattern is (0.00-100.00)
+  approvalRate: decimal("approval_rate", { precision: 5, scale: 2 }), // % of suggestions using this pattern that get approved
   // Common fields:
-  tags: text("tags").array(), // Keywords for matching (e.g., "customs", "high-expenses", "positive-trend")
+  tags: text("tags").array(), // Keywords for matching (e.g., "customs", "high-expenses", "positive-trend", "facturama", "payment-screenshot")
   usageCount: integer("usage_count").notNull().default(1), // How many times this knowledge was reused
-  qualityScore: integer("quality_score").notNull().default(5), // 1-10, improves with usage
+  qualityScore: integer("quality_score").notNull().default(5), // 1-10, improves with usage and approval rate
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastUsedAt: timestamp("last_used_at").notNull().defaultNow(),
 });
