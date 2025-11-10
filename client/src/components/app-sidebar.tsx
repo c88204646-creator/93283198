@@ -14,7 +14,8 @@ import {
   MapPin,
   Calendar,
   Zap,
-  Landmark
+  Landmark,
+  Brain
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth-context";
@@ -106,6 +107,11 @@ const menuItems: MenuItem[] = [
     title: "Automation",
     url: "/automation",
     icon: Zap,
+  },
+  {
+    title: "Learning Center",
+    url: "/learning-center",
+    icon: Brain,
   },
   {
     title: "Custom Fields",

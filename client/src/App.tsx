@@ -30,6 +30,7 @@ import GmailPage from "./pages/gmail";
 import CalendarPage from "./pages/calendar";
 import AutomationPage from "./pages/automation";
 import OperationFilesPage from "./pages/operation-files";
+import LearningCenterPage from "./pages/learning-center";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
   const { user, isLoading } = useAuth();
@@ -129,6 +130,7 @@ function AppLayout() {
                 <Route path="/gmail" component={GmailPage} />
                 <Route path="/calendar" component={CalendarPage} />
                 <Route path="/automation" component={AutomationPage} />
+                <Route path="/learning-center" component={LearningCenterPage} />
                 <Route path="/" component={RootRedirect} />
                 <Route component={NotFound} />
               </Switch>
