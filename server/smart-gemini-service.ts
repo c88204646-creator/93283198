@@ -14,6 +14,7 @@ import crypto from 'crypto';
 import { KnowledgeBaseService } from './knowledge-base-service';
 import { CircuitBreaker } from './circuit-breaker';
 import { BasicEmailAnalyzer } from './basic-email-analyzer';
+import { TaskLearningService } from './task-learning-service';
 import type { Operation } from '@shared/schema';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -79,6 +80,7 @@ export class SmartGeminiService {
   private knowledgeBaseService: KnowledgeBaseService;
   private circuitBreaker: CircuitBreaker;
   private basicAnalyzer: BasicEmailAnalyzer;
+  private learningService: TaskLearningService;
 
   constructor() {
     this.knowledgeBaseService = new KnowledgeBaseService();
@@ -88,6 +90,7 @@ export class SmartGeminiService {
       timeout: 60000
     });
     this.basicAnalyzer = new BasicEmailAnalyzer();
+    this.learningService = new TaskLearningService();
     this.model = genAI.getGenerativeModel({ 
       model: 'gemini-2.0-flash-exp',
       systemInstruction: `Eres un asistente experto en análisis de correos para logística empresarial.
@@ -232,7 +235,7 @@ Responde en JSON con: {"tasks": [...], "notes": [...]}`
    */
   async analyzeEmailThread(
     thread: EmailThread,
-    existingTasks: { title: string; status: string }[] = [],
+    existingTasks: { title: string; status: string; id?: string }[] = [],
     existingNotes: { content: string }[] = [],
     companyContext?: {
       companyName?: string;
@@ -271,7 +274,61 @@ Responde en JSON con: {"tasks": [...], "notes": [...]}`
       };
     }
 
-    // 3. Llamada a Gemini (solo cuando es necesario)
+    // 3. 🎓 PRIORIDAD 1: Task Learning Service (patrones aprendidos)
+    console.log('[Smart Gemini] 🎓 Intentando con Task Learning Service (sistema propio)...');
+    try {
+      const learningResult = await this.learningService.analyzeUsingLearnedPatterns(
+        thread.messages.map(m => ({
+          id: m.id,
+          from: m.from,
+          subject: m.subject,
+          snippet: m.snippet,
+          date: m.date
+        })),
+        existingTasks,
+        existingNotes,
+        companyContext
+      );
+      
+      if (learningResult && learningResult.confidence >= 70) {
+        console.log(`[Smart Gemini] ✅ Usando Task Learning Service (${learningResult.tasks.length} tasks, ${learningResult.notes.length} notes, confidence: ${learningResult.confidence}%)`);
+        
+        const result = {
+          tasks: learningResult.tasks.map(t => ({
+            title: t.title,
+            description: t.description,
+            priority: t.priority,
+            confidence: t.confidence,
+            reasoning: t.reasoning,
+            suggestedStatus: t.suggestedStatus
+          })),
+          notes: learningResult.notes.map(n => ({
+            content: n.content,
+            confidence: n.confidence,
+            reasoning: n.reasoning
+          })),
+          statusUpdates: learningResult.statusUpdates,
+          shouldSkip: false,
+          cacheKey: threadHash,
+          usedCache: false
+        };
+        
+        // Cachear resultado
+        this.cache.set(threadHash, {
+          result,
+          timestamp: new Date(),
+          threadHash
+        });
+        
+        return result;
+      } else if (learningResult) {
+        console.log(`[Smart Gemini] ⚠️  Task Learning Service tiene baja confianza (${learningResult.confidence}%) - Intentando con Gemini AI...`);
+      }
+    } catch (error) {
+      console.log('[Smart Gemini] ⚠️  Task Learning Service falló - Intentando con Gemini AI...', error);
+    }
+
+    // 4. 🤖 PRIORIDAD 2: Llamada a Gemini AI (solo si Learning Service no funcionó)
     console.log('[Smart Gemini] 🤖 Calling Gemini API - analyzing thread...');
     
     const currentDate = new Date();

@@ -336,45 +336,72 @@ export class BasicEmailAnalyzer {
       if (ref) title += ` ${ref}`;
       if (date && !ref) title += ` para ${date}`;
       
-      // Descripción: TRANSFORMAR conversación a contenido profesional
+      // Descripción: TRANSFORMAR conversación a contenido profesional AGRESIVO
       let description = message.snippet;
       
-      // 1. Eliminar saludos
-      description = description.replace(/(^|\s)(buen[ao]s?\s+(dia|tarde|noche|dias)|hola|hello|hi|dear|estimad[ao])\s+[a-z]+(\s|,|:)/gi, ' ');
+      // 1. ELIMINAR TODO saludo/despedida al inicio
+      description = description.replace(/^(buen[ao]s?\s+(dia|tarde|noche|dias)|hola|hello|hi|dear|estimad[ao])\s+[a-záéíóúñ]+[,:\s]*/gi, '');
       
-      // 2. Transformar frases conversacionales
+      // 2. TRANSFORMAR frases conversacionales a lenguaje objetivo
       description = description
-        .replace(/ya\s+(solicite|solicité|envie|envié)/gi, 'Solicitado')
-        .replace(/en\s+cuanto\s+(la|lo|los|las)\s+(tenga|reciba)/gi, 'Pendiente')
-        .replace(/te\s+(la|lo|los|las)\s+(comparto|envio|envío|mando)/gi, 'para enviar')
+        .replace(/ya\s+(solicité|solicite|solicito|envié|envie|envío|mandé|mande|mando)/gi, 'Solicitado')
+        .replace(/en\s+cuanto\s+(la|lo|los|las)\s+(tenga|reciba|tengamos|recibamos)/gi, 'Pendiente de recibir')
+        .replace(/te\s+(la|lo|los|las)\s+(comparto|envío|envio|mando|enviaré|enviare)/gi, 'Se enviará')
+        .replace(/cuando\s+puedas/gi, 'Lo antes posible')
+        .replace(/si\s+puedes/gi, 'Se requiere')
+        .replace(/favor\s+de/gi, 'Requerido')
+        .replace(/por\s+favor/gi, '')
+        .replace(/I'?ll?\s+pending/gi, 'Pendiente')
+        .replace(/I'?ll?\s+send/gi, 'Se enviará')
+        .replace(/please/gi, '')
+        .replace(/kindly/gi, '')
+        
+        // Eliminar TODAS las despedidas completas
         .replace(/quedo\s+atent[ao].*/gi, '')
         .replace(/quedamos?\s+(a\s+la\s+orden|al\s+pendiente).*/gi, '')
-        .replace(/\/\s*I[''']ll?\s+pending.*/gi, '')
+        .replace(/best\s+regards.*/gi, '')
+        .replace(/atentamente.*/gi, '')
         .replace(/saludos.*/gi, '')
         .replace(/regards.*/gi, '')
-        .replace(/atentamente.*/gi, '');
+        .replace(/thank\s+you.*/gi, '')
+        .replace(/gracias.*/gi, '');
       
-      // 3. Convertir abreviaciones
+      // 3. Eliminar PRONOMBRES de segunda persona (te, ti, you, your, tu, tus)
+      description = description
+        .replace(/\b(te|ti)\b/gi, '')
+        .replace(/\byou\b/gi, '')
+        .replace(/\byour\b/gi, '')
+        .replace(/\btu\b/gi, '')
+        .replace(/\btus\b/gi, '');
+      
+      // 4. Convertir abreviaciones a texto completo
       description = description
         .replace(/\bal\s+AA\b/gi, 'al agente aduanal')
-        .replace(/\bAA\b/gi, 'Agente aduanal');
+        .replace(/\bAA\b/gi, 'Agente aduanal')
+        .replace(/\bECU\b/gi, 'ECU')
+        .replace(/\binfo\b/gi, 'información')
+        .replace(/\bdoc\b/gi, 'documento')
+        .replace(/\bdocs\b/gi, 'documentos');
       
-      // 4. Limpiar y capitalizar
+      // 5. Limpiar espacios múltiples, puntuación y capitalizar
       description = description
         .replace(/\s+/g, ' ')
+        .replace(/\s+,/g, ',')
+        .replace(/\s+\./g, '.')
         .trim()
         .slice(0, 100);
       
+      // Capitalizar primera letra
       if (description.length > 0) {
         description = description.charAt(0).toUpperCase() + description.slice(1);
       }
       
-      // Si queda muy corto o solo saludos, generar descripción genérica
-      if (description.length < 20 || description.match(/^(buen|hola|hello|dear)/i)) {
-        description = `Acción de ${actionTypes.join(' y ')} requerida`;
-        if (ref || date) {
-          description += ` - ${ref || date}`;
-        }
+      // Si queda muy corto o solo saludos/despedidas, generar descripción ESTRUCTURADA
+      if (description.length < 15 || description.match(/^(buen|hola|hello|dear|estimad|salud|regard)/i)) {
+        description = `${actionTypes[0].charAt(0).toUpperCase() + actionTypes[0].slice(1)} requerido`;
+        if (ref) description += ` - ${ref}`;
+        if (date && !ref) description += ` - ${date}`;
+        if (!ref && !date && amounts.length > 0) description += ` - ${amounts[0]}`;
       }
 
       tasks.push({

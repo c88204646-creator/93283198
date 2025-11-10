@@ -107,10 +107,10 @@ export class EmailTaskAutomation {
         }))
       };
       
-      // Analizar con Smart Gemini
+      // Analizar con Smart Gemini (ahora usa Task Learning Service PRIMERO)
       const analysis = await smartGeminiService.analyzeEmailThread(
         thread,
-        existingTasks.map(t => ({ title: t.title, status: t.status })),
+        existingTasks.map(t => ({ title: t.title, status: t.status, id: t.id })),
         existingNotes.map(n => ({ content: n.content })),
         companyContext
       );
