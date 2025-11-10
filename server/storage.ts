@@ -288,6 +288,10 @@ export interface IStorage {
   approveFinancialSuggestion(id: string, userId: string): Promise<FinancialSuggestion | undefined>;
   rejectFinancialSuggestion(id: string, userId: string, reason: string): Promise<FinancialSuggestion | undefined>;
   deleteFinancialSuggestion(id: string): Promise<void>;
+
+  // Knowledge Base methods
+  getKnowledgeBaseStats(): Promise<any>;
+  getKnowledgeBaseEntries(type?: string): Promise<KnowledgeBase[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1419,6 +1423,49 @@ export class DatabaseStorage implements IStorage {
 
   async deleteFinancialSuggestion(id: string): Promise<void> {
     await db.delete(financialSuggestions).where(eq(financialSuggestions.id, id));
+  }
+
+  // Knowledge Base methods
+  async getKnowledgeBaseStats(): Promise<any> {
+    const all = await db.select().from(knowledgeBase);
+    
+    const totalPatterns = all.length;
+    const activePatterns = all.filter(k => k.qualityScore >= 5).length;
+    const totalReused = all.reduce((sum, k) => sum + k.usageCount, 0);
+    
+    // Calculate average accuracy for financial detection patterns
+    const financialPatterns = all.filter(k => k.type === 'financial_detection' && k.accuracyScore);
+    const avgAccuracy = financialPatterns.length > 0
+      ? Math.round(financialPatterns.reduce((sum, k) => sum + parseFloat(k.accuracyScore?.toString() || '0'), 0) / financialPatterns.length)
+      : 0;
+    
+    // Calculate average approval rate
+    const patternsWithApproval = all.filter(k => k.approvalRate);
+    const avgApprovalRate = patternsWithApproval.length > 0
+      ? Math.round(patternsWithApproval.reduce((sum, k) => sum + parseFloat(k.approvalRate?.toString() || '0'), 0) / patternsWithApproval.length)
+      : 0;
+    
+    // API calls saved = total reused - total patterns (first use doesn't save a call)
+    const apiCallsSaved = Math.max(0, totalReused - totalPatterns);
+
+    return {
+      totalPatterns,
+      activePatterns,
+      totalReused,
+      avgAccuracy,
+      avgApprovalRate,
+      apiCallsSaved,
+    };
+  }
+
+  async getKnowledgeBaseEntries(type?: string): Promise<KnowledgeBase[]> {
+    if (type) {
+      return db.select().from(knowledgeBase)
+        .where(eq(knowledgeBase.type, type))
+        .orderBy(desc(knowledgeBase.qualityScore), desc(knowledgeBase.usageCount));
+    }
+    return db.select().from(knowledgeBase)
+      .orderBy(desc(knowledgeBase.qualityScore), desc(knowledgeBase.usageCount));
   }
 }
 

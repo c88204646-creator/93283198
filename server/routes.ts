@@ -3097,6 +3097,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get knowledge base statistics for Learning Center
+  app.get("/api/knowledge-base/stats", requireAuth, async (req, res) => {
+    try {
+      const stats = await storage.getKnowledgeBaseStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Get knowledge base stats error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get all knowledge base entries with filtering
+  app.get("/api/knowledge-base", requireAuth, async (req, res) => {
+    try {
+      const { type } = req.query;
+      const entries = await storage.getKnowledgeBaseEntries(type as string);
+      res.json(entries);
+    } catch (error) {
+      console.error("Get knowledge base entries error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
