@@ -34,9 +34,18 @@ interface BasicNote {
   source: 'rule-based';
 }
 
+interface ExecutiveSummary {
+  businessContext: string;
+  stakeholders: string[];
+  riskFlags: string[];
+  keyMilestones: string[];
+  pendingDependencies: string[];
+}
+
 interface AnalysisResult {
   tasks: BasicTask[];
   notes: BasicNote[];
+  executiveSummary?: ExecutiveSummary;
   method: 'rule-based';
 }
 
@@ -113,12 +122,142 @@ export class BasicEmailAnalyzer {
     // Deduplicar tasks similares
     const uniqueTasks = this.deduplicateTasks(tasks);
 
-    console.log(`[Basic Analyzer] ✅ Analyzed ${messages.length} messages: ${uniqueTasks.length} tasks, ${notes.length} notes`);
+    // Generar resumen ejecutivo
+    const executiveSummary = this.generateExecutiveSummary(messages, uniqueTasks, notes, companyContext);
+
+    console.log(`[Basic Analyzer] ✅ Analyzed ${messages.length} messages: ${uniqueTasks.length} tasks, ${notes.length} notes, executive summary generated`);
 
     return {
       tasks: uniqueTasks,
       notes,
+      executiveSummary,
       method: 'rule-based'
+    };
+  }
+
+  /**
+   * Genera un resumen ejecutivo autoexplicativo para cualquier empleado
+   */
+  private generateExecutiveSummary(
+    messages: EmailMessage[],
+    tasks: BasicTask[],
+    notes: BasicNote[],
+    companyContext?: {
+      companyName?: string;
+      companyDomain?: string;
+      employeeEmails?: string[];
+    }
+  ): ExecutiveSummary {
+    const allText = messages.map(m => `${m.subject} ${m.snippet} ${m.body || ''}`).join(' ').toLowerCase();
+    
+    // Extraer stakeholders (emails únicos mencionados)
+    const emailMatches = this.extractMatches(allText, this.patterns.email);
+    const uniqueStakeholders = [...new Set(emailMatches)]
+      .filter(email => {
+        // Filtrar emails internos si tenemos contexto
+        if (companyContext?.employeeEmails) {
+          return !companyContext.employeeEmails.some(internal => 
+            email.toLowerCase().includes(internal.toLowerCase())
+          );
+        }
+        return true;
+      })
+      .slice(0, 5); // Máximo 5 stakeholders
+
+    // Detectar riesgos/alertas
+    const riskFlags: string[] = [];
+    if (this.containsKeywords(allText, this.actionKeywords.urgent)) {
+      riskFlags.push('ALERTA: Marcado como URGENTE - requiere atención inmediata');
+    }
+    if (this.containsKeywords(allText, this.actionKeywords.pending)) {
+      riskFlags.push('PENDIENTE: Acciones pendientes identificadas');
+    }
+    if (tasks.filter(t => t.priority === 'urgent').length > 0) {
+      riskFlags.push(`CRÍTICO: ${tasks.filter(t => t.priority === 'urgent').length} tareas urgentes detectadas`);
+    }
+    if (this.containsKeywords(allText, this.actionKeywords.payment)) {
+      riskFlags.push('FINANCIERO: Asunto relacionado con pagos/facturación');
+    }
+    if (messages.length > 10) {
+      riskFlags.push('COMUNICACIÓN: Thread extenso - conversación con múltiples intercambios');
+    }
+
+    // Detectar hitos clave (fechas mencionadas)
+    const dateMatches = this.extractMatches(allText, this.patterns.date);
+    const keyMilestones = [...new Set(dateMatches)].slice(0, 5);
+
+    // Detectar dependencias pendientes
+    const pendingDependencies: string[] = [];
+    if (this.containsKeywords(allText, this.actionKeywords.confirm)) {
+      pendingDependencies.push('Confirmación requerida de stakeholders');
+    }
+    if (this.containsKeywords(allText, this.actionKeywords.send)) {
+      pendingDependencies.push('Envío de documentos/información pendiente');
+    }
+    if (this.containsKeywords(allText, ['aa', 'agente aduanal', 'customs'])) {
+      pendingDependencies.push('Coordinación con agente aduanal');
+    }
+    if (this.containsKeywords(allText, ['cliente', 'customer', 'client'])) {
+      pendingDependencies.push('Respuesta o acción del cliente');
+    }
+    if (this.containsKeywords(allText, ['carrier', 'transportista', 'naviera'])) {
+      pendingDependencies.push('Coordinación con transportista/naviera');
+    }
+
+    // Generar contexto de negocio profesional y autoexplicativo
+    let businessContext = 'Esta operación logística involucra';
+    
+    // Detectar tipo de operación
+    if (this.containsKeywords(allText, ['importación', 'import'])) {
+      businessContext += ' un proceso de importación';
+    } else if (this.containsKeywords(allText, ['exportación', 'export'])) {
+      businessContext += ' un proceso de exportación';
+    } else if (this.containsKeywords(allText, ['shipment', 'envío', 'embarque'])) {
+      businessContext += ' una operación de envío';
+    } else {
+      businessContext += ' gestión logística';
+    }
+
+    // Agregar información de tracking si existe
+    const trackingNumbers = this.extractMatches(allText, this.patterns.tracking);
+    if (trackingNumbers.length > 0) {
+      businessContext += ` con referencia ${trackingNumbers[0]}`;
+    }
+
+    // Agregar stakeholders principales
+    if (uniqueStakeholders.length > 0) {
+      businessContext += `. Participantes externos: ${uniqueStakeholders.slice(0, 3).join(', ')}`;
+    }
+
+    // Agregar fechas clave
+    if (keyMilestones.length > 0) {
+      businessContext += `. Fechas relevantes: ${keyMilestones.slice(0, 2).join(', ')}`;
+    }
+
+    businessContext += `. Total de comunicaciones: ${messages.length} mensajes`;
+
+    // Agregar estado actual basado en tareas
+    if (tasks.length > 0) {
+      const urgentCount = tasks.filter(t => t.priority === 'urgent').length;
+      const highCount = tasks.filter(t => t.priority === 'high').length;
+      
+      if (urgentCount > 0) {
+        businessContext += `. Estado: ${urgentCount} acción(es) urgente(s) pendiente(s)`;
+      } else if (highCount > 0) {
+        businessContext += `. Estado: ${highCount} acción(es) de alta prioridad pendiente(s)`;
+      } else if (tasks.length > 0) {
+        businessContext += `. Estado: ${tasks.length} acción(es) pendiente(s)`;
+      } else {
+        businessContext += `. Estado: Sin acciones pendientes detectadas`;
+      }
+    }
+
+    return {
+      businessContext,
+      stakeholders: uniqueStakeholders,
+      riskFlags: riskFlags.length > 0 ? riskFlags : ['Sin alertas detectadas'],
+      keyMilestones: keyMilestones.length > 0 ? keyMilestones : ['No se detectaron fechas específicas'],
+      pendingDependencies: pendingDependencies.length > 0 ? pendingDependencies : ['No se detectaron dependencias externas']
     };
   }
 
