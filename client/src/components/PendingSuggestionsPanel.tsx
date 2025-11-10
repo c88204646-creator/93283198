@@ -128,21 +128,19 @@ export function PendingSuggestionsPanel({ operationId }: PendingSuggestionsPanel
     }
   });
 
-  if (isLoading || suggestions.length === 0) {
-    return null; // No mostrar nada si está cargando o no hay sugerencias
-  }
-
   const paymentCount = suggestions.filter(s => s.type === 'payment').length;
   const expenseCount = suggestions.filter(s => s.type === 'expense').length;
   
-  const title = 'Transacciones Detectadas';
+  const title = 'Detección Automática de Transacciones';
   let description = '';
-  if (paymentCount > 0 && expenseCount > 0) {
-    description = `${paymentCount} pago${paymentCount > 1 ? 's' : ''} y ${expenseCount} gasto${expenseCount > 1 ? 's' : ''} pendientes de validación`;
+  if (suggestions.length === 0) {
+    description = 'Sistema activo - No se detectaron transacciones pendientes en esta operación';
+  } else if (paymentCount > 0 && expenseCount > 0) {
+    description = `${paymentCount} pago${paymentCount > 1 ? 's' : ''} y ${expenseCount} gasto${expenseCount > 1 ? 's' : ''} detectados automáticamente - Pendientes de validación`;
   } else if (paymentCount > 0) {
-    description = `${paymentCount} pago${paymentCount > 1 ? 's' : ''} pendiente${paymentCount > 1 ? 's' : ''} de validación`;
+    description = `${paymentCount} pago${paymentCount > 1 ? 's' : ''} detectado${paymentCount > 1 ? 's' : ''} automáticamente - Pendiente${paymentCount > 1 ? 's' : ''} de validación`;
   } else {
-    description = `${expenseCount} gasto${expenseCount > 1 ? 's' : ''} pendiente${expenseCount > 1 ? 's' : ''} de validación`;
+    description = `${expenseCount} gasto${expenseCount > 1 ? 's' : ''} detectado${expenseCount > 1 ? 's' : ''} automáticamente - Pendiente${expenseCount > 1 ? 's' : ''} de validación`;
   }
   
   const getEvidencePreview = (suggestion: FinancialSuggestion) => {
@@ -167,70 +165,89 @@ export function PendingSuggestionsPanel({ operationId }: PendingSuggestionsPanel
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {suggestions.map((suggestion) => (
-              <Card
-                key={suggestion.id}
-                className="hover:bg-accent/50 transition-colors cursor-pointer"
-                onClick={() => setSelectedSuggestion(suggestion)}
-                data-testid={`suggestion-${suggestion.id}`}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className={`mt-1 p-2 rounded-full shrink-0 ${
-                      suggestion.type === 'payment' 
-                        ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-                        : 'bg-red-500/10 text-red-600 dark:text-red-400'
-                    }`}>
-                      {suggestion.type === 'payment' ? (
-                        <DollarSign className="h-4 w-4" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <p className="font-medium text-sm">
-                          {suggestion.type === 'payment' ? 'Pago recibido' : 'Gasto detectado'}
-                        </p>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {suggestion.isDuplicate && (
-                            <Badge variant="destructive" className="text-xs flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              Duplicado
-                            </Badge>
-                          )}
-                          <Badge variant="outline" className="text-xs">
-                            {parseInt(suggestion.aiConfidence)}% confianza
-                          </Badge>
-                        </div>
+          {suggestions.length === 0 ? (
+            <div className="text-center py-8 px-4">
+              <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+              </div>
+              <h3 className="font-semibold text-base mb-2">Sistema de Detección Activo</h3>
+              <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                El sistema está monitoreando automáticamente los correos vinculados a esta operación en busca de facturas, 
+                recibos de pago y documentos financieros. Cuando se detecte una transacción, aparecerá aquí para tu revisión.
+              </p>
+              <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span>Escaneando cada 15 minutos</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {suggestions.map((suggestion) => (
+                <Card
+                  key={suggestion.id}
+                  className="hover:bg-accent/50 transition-colors cursor-pointer"
+                  onClick={() => setSelectedSuggestion(suggestion)}
+                  data-testid={`suggestion-${suggestion.id}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className={`mt-1 p-2 rounded-full shrink-0 ${
+                        suggestion.type === 'payment' 
+                          ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                          : 'bg-red-500/10 text-red-600 dark:text-red-400'
+                      }`}>
+                        {suggestion.type === 'payment' ? (
+                          <DollarSign className="h-4 w-4" />
+                        ) : (
+                          <TrendingDown className="h-4 w-4" />
+                        )}
                       </div>
-                      <p className="text-lg font-bold mt-1">
-                        {suggestion.amount} {suggestion.currency}
-                      </p>
-                      <p className="text-sm text-muted-foreground truncate mt-1">
-                        {suggestion.description}
-                      </p>
-                      {suggestion.isDuplicate && suggestion.duplicateReason && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
-                          <AlertTriangle className="h-3 w-3" />
-                          {suggestion.duplicateReason}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <p className="font-medium text-sm">
+                            {suggestion.type === 'payment' ? 'Pago recibido' : 'Gasto detectado'}
+                          </p>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {suggestion.isDuplicate && (
+                              <Badge variant="destructive" className="text-xs flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Duplicado
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className="text-xs">
+                              {parseInt(suggestion.aiConfidence)}% confianza
+                            </Badge>
+                          </div>
+                        </div>
+                        <p className="text-lg font-bold mt-1">
+                          {suggestion.amount} {suggestion.currency}
                         </p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Detectado: {new Date(suggestion.createdAt).toLocaleDateString('es-ES', {
-                          day: 'numeric',
-                          month: 'short',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
+                        <p className="text-sm text-muted-foreground truncate mt-1">
+                          {suggestion.description}
+                        </p>
+                        {suggestion.isDuplicate && suggestion.duplicateReason && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            {suggestion.duplicateReason}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Detectado: {new Date(suggestion.createdAt).toLocaleDateString('es-ES', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
