@@ -233,7 +233,7 @@ function ModuleConfigurationDialog({
   });
 
   const updateConfigMutation = useMutation({
-    mutationFn: async ({ isEnabled, accounts, employees, attachments, tasks, notes, optimization, detectPayments, detectExpenses, folderNames, compName, compDomain, empEmails }: { isEnabled?: boolean; accounts?: string[]; employees?: string[]; attachments?: boolean; tasks?: string; notes?: string; optimization?: string; detectPayments?: boolean; detectExpenses?: boolean; folderNames?: Record<string, string>; compName?: string; compDomain?: string; empEmails?: string[] }) => {
+    mutationFn: async ({ isEnabled, accounts, employees, attachments, tasks, notes, optimization, detectPayments, detectExpenses, assignClients, folderNames, compName, compDomain, empEmails }: { isEnabled?: boolean; accounts?: string[]; employees?: string[]; attachments?: boolean; tasks?: string; notes?: string; optimization?: string; detectPayments?: boolean; detectExpenses?: boolean; assignClients?: boolean; folderNames?: Record<string, string>; compName?: string; compDomain?: string; empEmails?: string[] }) => {
       return apiRequest("PATCH", `/api/automation/configs/${config!.id}`, {
         isEnabled,
         selectedGmailAccounts: accounts,
