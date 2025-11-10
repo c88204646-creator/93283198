@@ -70,12 +70,23 @@ export class AutomationService {
    */
   private async processClientAutoAssignment() {
     try {
+      // Verificar si hay alguna config con autoAssignClients habilitado
+      const configs = await storage.getEnabledAutomationConfigs();
+      const clientAssignmentEnabled = configs.some(c => c.autoAssignClients === true);
+      
+      if (!clientAssignmentEnabled) {
+        // No hacer nada si está deshabilitado
+        return;
+      }
+      
       console.log('[Automation] 📋 Procesando asignación automática de clientes...');
       
       const result = await clientAutoAssignmentService.processUnassignedOperations();
       
       if (result.assigned > 0 || result.created > 0) {
         console.log(`[Automation] ✅ Asignación de clientes completada: ${result.assigned} asignados, ${result.created} nuevos creados`);
+      } else {
+        console.log('[Automation] ℹ️  No se encontraron operaciones para asignar clientes');
       }
       
     } catch (error) {

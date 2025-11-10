@@ -17,6 +17,8 @@ import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { queryCache } from "./cache";
 import { backblazeStorage } from "./backblazeStorage";
+import { clientAutoAssignmentService } from "./client-auto-assignment-service";
+import { facturamaInvoiceExtractor } from "./facturama-invoice-extractor";
 
 const PgSession = ConnectPgSimple(session);
 
@@ -3123,6 +3125,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get knowledge base entries error:", error);
       res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // 🆕 TEST: Process operation for client auto-assignment from invoice
+  app.post("/api/operations/:id/test-client-assignment", requireAuth, async (req, res) => {
+    try {
+      const { id: operationId } = req.params;
+      
+      console.log(`[TEST] Processing operation ${operationId} for client auto-assignment...`);
+      
+      // Get operation
+      const operation = await storage.getOperation(operationId);
+      if (!operation) {
+        return res.status(404).json({ message: "Operation not found" });
+      }
+      
+      // Get attachments
+      const attachments = await storage.getOperationAttachmentsByOperationId(operationId);
+      
+      // Filter PDF attachments that might be invoices
+      const invoiceCandidates = attachments.filter(att => 
+        att.filename.toLowerCase().includes('factura') ||
+        att.filename.toLowerCase().includes('invoice') ||
+        att.filename.toLowerCase().endsWith('.pdf')
+      );
+      
+      if (invoiceCandidates.length === 0) {
+        return res.json({
+          success: false,
+          message: "No se encontraron archivos PDF de facturas en esta operación",
+          attachmentCount: attachments.length
+        });
+      }
+      
+      console.log(`[TEST] Found ${invoiceCandidates.length} invoice candidates`);
+      
+      const results = [];
+      
+      // Try each attachment
+      for (const attachment of invoiceCandidates) {
+        console.log(`[TEST] Processing attachment: ${attachment.filename}`);
+        
+        const result = await clientAutoAssignmentService.processAttachmentForClientAssignment(
+          operationId,
+          attachment.id,
+          attachment.filename,
+          attachment.b2Key
+        );
+        
+        results.push({
+          filename: attachment.filename,
+          ...result
+        });
+        
+        // If successful, stop processing
+        if (result.success) {
+          break;
+        }
+      }
+      
+      // Get updated operation
+      const updatedOperation = await storage.getOperation(operationId);
+      
+      res.json({
+        success: results.some(r => r.success),
+        results,
+        operation: updatedOperation,
+        message: results.some(r => r.success) 
+          ? "Cliente asignado exitosamente" 
+          : "No se pudo asignar cliente desde las facturas encontradas"
+      });
+      
+    } catch (error: any) {
+      console.error("[TEST] Error processing client assignment:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Error interno del servidor",
+        error: error?.message 
+      });
+    }
+  });
+
+  // 🆕 TEST: Extract invoice data from attachment (diagnostic)
+  app.get("/api/operations/:operationId/attachments/:attachmentId/extract-invoice", requireAuth, async (req, res) => {
+    try {
+      const { operationId, attachmentId } = req.params;
+      
+      console.log(`[TEST] Extracting invoice data from attachment ${attachmentId}...`);
+      
+      // Get attachment
+      const attachments = await storage.getOperationAttachmentsByOperationId(operationId);
+      const attachment = attachments.find(a => a.id === attachmentId);
+      
+      if (!attachment) {
+        return res.status(404).json({ message: "Attachment not found" });
+      }
+      
+      // Download file from B2
+      const fileBuffer = await backblazeStorage.downloadFile(attachment.b2Key);
+      
+      // Extract invoice data
+      const invoiceData = await facturamaInvoiceExtractor.extractInvoiceData(
+        fileBuffer,
+        attachment.filename
+      );
+      
+      if (!invoiceData) {
+        return res.json({
+          success: false,
+          message: "No se pudo extraer datos de factura del archivo",
+          filename: attachment.filename
+        });
+      }
+      
+      res.json({
+        success: true,
+        invoiceData,
+        filename: attachment.filename
+      });
+      
+    } catch (error: any) {
+      console.error("[TEST] Error extracting invoice data:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Error interno del servidor",
+        error: error?.message 
+      });
     }
   });
 

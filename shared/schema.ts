@@ -407,6 +407,8 @@ export const automationConfigs = pgTable("automation_configs", {
   autoDetectPayments: boolean("auto_detect_payments").notNull().default(false), // Automatically detect payments from emails/PDFs
   autoDetectExpenses: boolean("auto_detect_expenses").notNull().default(false), // Automatically detect expenses from emails/PDFs
   financialDetectionConfidence: integer("financial_detection_confidence").notNull().default(75), // Minimum confidence (0-100) to create suggestion
+  // Client auto-assignment settings
+  autoAssignClients: boolean("auto_assign_clients").notNull().default(false), // Automatically detect clients from invoices and assign to operations
   settings: jsonb("settings"), // Module-specific settings
   lastProcessedAt: timestamp("last_processed_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
