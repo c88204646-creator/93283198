@@ -1562,7 +1562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get attachments
       const attachments = await storage.getGmailAttachments(id);
 
-      // Generate signed URLs for email body
+      // Generate signed URLs for email body or use inline data
       let htmlBodyUrl: string | null = null;
       let textBodyUrl: string | null = null;
 
@@ -1577,6 +1577,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (error) {
           console.error("Error generating signed URLs for email body:", error);
         }
+      }
+
+      // Fallback: If no B2 URLs, generate data URLs from database content
+      if (!htmlBodyUrl && message.bodyHtml) {
+        const htmlBase64 = Buffer.from(message.bodyHtml, 'utf-8').toString('base64');
+        htmlBodyUrl = `data:text/html;base64,${htmlBase64}`;
+      }
+      if (!textBodyUrl && message.bodyText) {
+        const textBase64 = Buffer.from(message.bodyText, 'utf-8').toString('base64');
+        textBodyUrl = `data:text/plain;base64,${textBase64}`;
       }
 
       // Generate signed URLs for attachments
