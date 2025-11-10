@@ -31,6 +31,21 @@ export const clients = pgTable("clients", {
   currency: text("currency").notNull().default("USD"), // MXN, USD, ARS
   status: text("status").notNull().default("active"), // active, inactive, potential
   notes: text("notes"),
+  
+  // Datos fiscales mexicanos (Facturama/CFDI)
+  rfc: text("rfc"), // RFC del cliente (ej: VIRC790309SH5)
+  razonSocial: text("razon_social"), // Razón social (puede ser diferente de name)
+  codigoPostal: text("codigo_postal"), // CP del cliente
+  regimenFiscal: text("regimen_fiscal"), // Código de régimen fiscal (ej: 612)
+  usoCFDI: text("uso_cfdi"), // Uso del CFDI (ej: G03)
+  ciudad: text("ciudad"), // Ciudad del cliente
+  estado: text("estado"), // Estado del cliente
+  pais: text("pais").default("México"), // País del cliente
+  
+  // Metadata de creación automática
+  createdFromInvoice: boolean("created_from_invoice").default(false), // Si fue creado desde factura
+  sourceInvoiceAttachmentId: text("source_invoice_attachment_id"), // ID del attachment que originó la creación
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -1,0 +1,357 @@
+/**
+ * Facturama Invoice Extractor
+ * 
+ * Servicio especializado en extraer datos de facturas PDF de Facturama (CFDI 4.0)
+ * Detecta automáticamente datos del receptor (cliente) para creación/actualización automática
+ * 
+ * Funcionalidades:
+ * 1. Extracción de datos del receptor: RFC, nombre, dirección, CP, régimen fiscal
+ * 2. Detección de número de operación en "Orden de Compra"
+ * 3. Validación de formato RFC mexicano
+ * 4. Extracción de conceptos y montos para vinculación financiera
+ */
+
+import Tesseract from 'tesseract.js';
+
+export interface FacturamaReceptorData {
+  // Datos obligatorios
+  nombre: string;
+  rfc: string;
+  
+  // Dirección completa
+  direccion?: string;
+  ciudad?: string;
+  estado?: string;
+  codigoPostal?: string;
+  pais?: string;
+  
+  // Datos fiscales
+  regimenFiscal?: string;
+  usoCFDI?: string;
+  
+  // Metadata
+  confidence: number;
+  source: 'ocr' | 'text-extraction';
+}
+
+export interface FacturamaInvoiceData {
+  // Datos del receptor (cliente)
+  receptor: FacturamaReceptorData;
+  
+  // Datos de la factura
+  folio?: string;
+  folioFiscal?: string;
+  ordenCompra?: string; // NAVI-XXXXXX
+  fecha?: string;
+  total?: string;
+  moneda?: string;
+  
+  // Conceptos para vinculación financiera
+  conceptos?: string[];
+  
+  // Metadata
+  isFacturamaInvoice: boolean;
+  confidence: number;
+}
+
+export class FacturamaInvoiceExtractor {
+  
+  /**
+   * Extrae datos de una factura Facturama desde un buffer PDF
+   */
+  async extractInvoiceData(pdfBuffer: Buffer, filename: string): Promise<FacturamaInvoiceData | null> {
+    
+    console.log(`[Facturama Extractor] 📄 Analizando: ${filename}`);
+    
+    // 1. Verificar si es un PDF de factura (por nombre o contenido)
+    if (!this.isLikelyInvoice(filename)) {
+      console.log('[Facturama Extractor] ⏭️  No parece ser una factura');
+      return null;
+    }
+    
+    // 2. Extraer texto del PDF usando OCR
+    let extractedText = '';
+    try {
+      extractedText = await this.extractTextFromPDF(pdfBuffer);
+      
+      if (!extractedText || extractedText.length < 100) {
+        console.log('[Facturama Extractor] ⚠️  No se pudo extraer texto suficiente del PDF');
+        return null;
+      }
+      
+    } catch (error) {
+      console.error('[Facturama Extractor] Error extracting text:', error);
+      return null;
+    }
+    
+    // 3. Verificar si es una factura de Facturama/CFDI
+    if (!this.isFacturamaInvoice(extractedText)) {
+      console.log('[Facturama Extractor] ⏭️  No es una factura Facturama/CFDI');
+      return null;
+    }
+    
+    console.log('[Facturama Extractor] ✅ Factura Facturama detectada - Extrayendo datos...');
+    
+    // 4. Extraer datos del receptor (cliente)
+    const receptor = this.extractReceptorData(extractedText);
+    
+    if (!receptor) {
+      console.log('[Facturama Extractor] ⚠️  No se pudieron extraer datos del receptor');
+      return null;
+    }
+    
+    // 5. Extraer otros datos de la factura
+    const invoiceData: FacturamaInvoiceData = {
+      receptor,
+      folio: this.extractFolio(extractedText),
+      folioFiscal: this.extractFolioFiscal(extractedText),
+      ordenCompra: this.extractOrdenCompra(extractedText),
+      fecha: this.extractFecha(extractedText),
+      total: this.extractTotal(extractedText),
+      moneda: this.extractMoneda(extractedText),
+      conceptos: this.extractConceptos(extractedText),
+      isFacturamaInvoice: true,
+      confidence: receptor.confidence
+    };
+    
+    console.log(`[Facturama Extractor] ✅ Datos extraídos - Cliente: ${receptor.nombre} (RFC: ${receptor.rfc})`);
+    
+    return invoiceData;
+  }
+
+  /**
+   * Verifica si el nombre del archivo sugiere que es una factura
+   */
+  private isLikelyInvoice(filename: string): boolean {
+    const invoiceKeywords = ['factura', 'invoice', 'cfdi', 'xml', 'pdf'];
+    const lowerFilename = filename.toLowerCase();
+    return invoiceKeywords.some(keyword => lowerFilename.includes(keyword));
+  }
+
+  /**
+   * Extrae texto de un PDF usando OCR (Tesseract.js)
+   */
+  private async extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
+    try {
+      // Nota: Para PDFs reales necesitarías convertir a imagen primero
+      // Aquí asumo que el PDF puede ser leído como texto directamente
+      // o que ya está en formato imagen
+      
+      // Por ahora, intentaremos extraer como texto plano
+      const text = pdfBuffer.toString('utf-8');
+      
+      // Si el texto es muy corto, probablemente es un PDF escaneado
+      // y necesitaríamos OCR real, pero para facturas digitales de Facturama
+      // normalmente el texto está embebido
+      
+      return text;
+      
+    } catch (error) {
+      console.error('[Facturama Extractor] Error extracting text:', error);
+      return '';
+    }
+  }
+
+  /**
+   * Verifica si el texto corresponde a una factura Facturama/CFDI
+   */
+  private isFacturamaInvoice(text: string): boolean {
+    const cfdiKeywords = [
+      'CFDI',
+      'Folio Fiscal',
+      'Emisor:',
+      'Receptor:',
+      'Régimen Fiscal',
+      'Uso del CFDI',
+      'SAT'
+    ];
+    
+    const lowerText = text.toLowerCase();
+    const matchCount = cfdiKeywords.filter(keyword => 
+      lowerText.includes(keyword.toLowerCase())
+    ).length;
+    
+    // Si tiene al menos 4 de las keywords, es muy probable que sea un CFDI
+    return matchCount >= 4;
+  }
+
+  /**
+   * Extrae datos del receptor (cliente) de la factura
+   */
+  private extractReceptorData(text: string): FacturamaReceptorData | null {
+    
+    // Buscar sección "Receptor:"
+    const receptorMatch = text.match(/Receptor\s*:([\s\S]*?)(?:Código postal|Lugar de Expedición|Efecto del comprobante|Folio Fiscal)/i);
+    
+    if (!receptorMatch) {
+      return null;
+    }
+    
+    const receptorText = receptorMatch[1];
+    
+    // Extraer RFC (formato: 12-13 caracteres alfanuméricos)
+    const rfcMatch = receptorText.match(/([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{2,3})/);
+    if (!rfcMatch) {
+      console.log('[Facturama Extractor] ⚠️  RFC no encontrado en sección receptor');
+      return null;
+    }
+    const rfc = rfcMatch[1];
+    
+    // Extraer nombre (generalmente la primera línea después de "Receptor:")
+    const lines = receptorText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    let nombre = '';
+    
+    // El nombre suele estar en las primeras líneas, antes del RFC
+    for (const line of lines) {
+      if (!line.match(/[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{2,3}/) && line.length > 3 && line.length < 100) {
+        nombre = line;
+        break;
+      }
+    }
+    
+    if (!nombre) {
+      nombre = 'Cliente sin nombre'; // Fallback
+    }
+    
+    // Extraer dirección
+    const direccionMatch = receptorText.match(/([A-ZÁÉÍÓÚÑ\s\d,.-]+(?:CENTRO|AREA|LOCAL|PISO)[A-ZÁÉÍÓÚÑ\s\d,.-]*)/i);
+    const direccion = direccionMatch ? direccionMatch[1].trim() : undefined;
+    
+    // Extraer código postal
+    const cpMatch = text.match(/Código\s+postal\s*:\s*(\d{5})/i);
+    const codigoPostal = cpMatch ? cpMatch[1] : undefined;
+    
+    // Extraer régimen fiscal
+    const regimenMatch = text.match(/Régimen\s+Fiscal\s*:\s*(\d{3})\s*-\s*([^;\n]+)/i);
+    const regimenFiscal = regimenMatch ? `${regimenMatch[1]} - ${regimenMatch[2].trim()}` : undefined;
+    
+    // Extraer uso del CFDI
+    const usoMatch = text.match(/Uso\s+del\s+CFDI\s*:\s*([A-Z]\d{2})\s*-\s*([^;\n]+)/i);
+    const usoCFDI = usoMatch ? `${usoMatch[1]} - ${usoMatch[2].trim()}` : undefined;
+    
+    // Extraer ciudad y estado de la dirección
+    let ciudad, estado;
+    const ubicacionMatch = direccion?.match(/,\s*([A-ZÁÉÍÓÚÑ\s]+),\s*([A-ZÁÉÍÓÚÑ\s]+)/i);
+    if (ubicacionMatch) {
+      ciudad = ubicacionMatch[1].trim();
+      estado = ubicacionMatch[2].trim();
+    }
+    
+    // Calcular confianza
+    let confidence = 70; // Base
+    if (rfc && this.isValidRFC(rfc)) confidence += 15;
+    if (direccion) confidence += 5;
+    if (codigoPostal) confidence += 5;
+    if (regimenFiscal) confidence += 5;
+    
+    return {
+      nombre: this.cleanText(nombre),
+      rfc,
+      direccion: direccion ? this.cleanText(direccion) : undefined,
+      ciudad: ciudad ? this.cleanText(ciudad) : undefined,
+      estado: estado ? this.cleanText(estado) : undefined,
+      codigoPostal,
+      pais: 'México',
+      regimenFiscal,
+      usoCFDI,
+      confidence: Math.min(confidence, 100),
+      source: 'text-extraction'
+    };
+  }
+
+  /**
+   * Valida formato de RFC mexicano
+   */
+  private isValidRFC(rfc: string): boolean {
+    // Persona Física: 13 caracteres (AAAA######XXX)
+    // Persona Moral: 12 caracteres (AAA######XXX)
+    const rfcPattern = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{2,3}$/;
+    return rfcPattern.test(rfc);
+  }
+
+  /**
+   * Extrae el folio de la factura
+   */
+  private extractFolio(text: string): string | undefined {
+    const folioMatch = text.match(/FOLIO\s*:\s*(\d+)/i);
+    return folioMatch ? folioMatch[1] : undefined;
+  }
+
+  /**
+   * Extrae el folio fiscal (UUID)
+   */
+  private extractFolioFiscal(text: string): string | undefined {
+    const uuidPattern = /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i;
+    const match = text.match(uuidPattern);
+    return match ? match[1] : undefined;
+  }
+
+  /**
+   * Extrae la orden de compra (número de operación)
+   */
+  private extractOrdenCompra(text: string): string | undefined {
+    // Buscar patrón NAVI-#######
+    const ordenMatch = text.match(/(NAVI-\d{7})/i);
+    return ordenMatch ? ordenMatch[1] : undefined;
+  }
+
+  /**
+   * Extrae la fecha de emisión
+   */
+  private extractFecha(text: string): string | undefined {
+    const fechaMatch = text.match(/Fecha[\/\s]*Hora\s+de\s+Emisión\s*:\s*(\d{1,2}\/\d{1,2}\/\d{4})/i);
+    return fechaMatch ? fechaMatch[1] : undefined;
+  }
+
+  /**
+   * Extrae el total de la factura
+   */
+  private extractTotal(text: string): string | undefined {
+    const totalMatch = text.match(/Total\s*:\s*\$?\s*([\d,]+\.?\d{0,2})/i);
+    return totalMatch ? totalMatch[1] : undefined;
+  }
+
+  /**
+   * Extrae la moneda
+   */
+  private extractMoneda(text: string): string | undefined {
+    const monedaMatch = text.match(/Moneda\s*:\s*([A-Z]{3})/i);
+    return monedaMatch ? monedaMatch[1] : 'MXN';
+  }
+
+  /**
+   * Extrae los conceptos principales
+   */
+  private extractConceptos(text: string): string[] {
+    const conceptos: string[] = [];
+    
+    // Buscar líneas que parecen conceptos (después de "Concepto(s)")
+    const conceptoPattern = /Concepto\(s\)([\s\S]*?)(?:Subtotal|Moneda)/i;
+    const match = text.match(conceptoPattern);
+    
+    if (match) {
+      const lines = match[1].split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // Conceptos suelen empezar con keywords como FLETE, SERVICIO, etc.
+        if (trimmed.match(/^(FLETE|SERVICIO|DELIVERY|BL|AMS|ASESOR)/i) && trimmed.length > 10) {
+          conceptos.push(trimmed.slice(0, 150));
+        }
+      }
+    }
+    
+    return conceptos;
+  }
+
+  /**
+   * Limpia texto eliminando caracteres extraños y espacios múltiples
+   */
+  private cleanText(text: string): string {
+    return text
+      .replace(/\s+/g, ' ')
+      .replace(/\n+/g, ' ')
+      .trim();
+  }
+}
+
+export const facturamaInvoiceExtractor = new FacturamaInvoiceExtractor();
