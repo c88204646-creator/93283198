@@ -434,7 +434,6 @@ export default function Calendar() {
               </form>
             </DialogContent>
           </Dialog>
-          </div>
         </div>
       </div>
 
