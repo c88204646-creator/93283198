@@ -246,6 +246,38 @@ Based on this information, provide a comprehensive analysis of the operation's c
       analysis += `\nComunicaciones registradas: ${emails.length} correos electrónicos\n`;
       analysis += `Archivos adjuntos: ${files.length} documentos\n\n`;
 
+      // ACTUALIZACIONES CLAVE (Key Updates)
+      analysis += '**ACTUALIZACIONES CLAVE**\n\n';
+      if (emails.length > 0) {
+        // Mostrar los emails más recientes (hasta 3)
+        const recentEmails = emails
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, 3);
+        
+        if (recentEmails.length > 0) {
+          recentEmails.forEach((email, idx) => {
+            const emailDate = new Date(email.date).toLocaleDateString('es-ES');
+            analysis += `${idx + 1}. ${emailDate} - ${email.subject}\n`;
+            if (email.snippet) {
+              analysis += `   ${email.snippet.substring(0, 100)}${email.snippet.length > 100 ? '...' : ''}\n`;
+            }
+          });
+          analysis += '\n';
+        }
+      } else {
+        analysis += 'No se han registrado actualizaciones recientes vía correo electrónico.\n\n';
+      }
+
+      // Agregar notas recientes si existen
+      if (notes.length > 0) {
+        const recentNotes = notes.slice(0, 2);
+        analysis += 'Notas internas recientes:\n';
+        recentNotes.forEach((note, idx) => {
+          analysis += `${idx + 1}. ${note.content.substring(0, 120)}${note.content.length > 120 ? '...' : ''}\n`;
+        });
+        analysis += '\n';
+      }
+
       // RIESGOS Y ALERTAS (Risk Flags)
       analysis += '**RIESGOS Y ALERTAS**\n\n';
       if (executiveSummary?.riskFlags && executiveSummary.riskFlags.length > 0) {
