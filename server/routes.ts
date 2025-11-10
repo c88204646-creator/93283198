@@ -1566,35 +1566,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get attachments
       const attachments = await storage.getGmailAttachments(id);
 
-      // Generate signed URLs for email body or use inline data
+      // Use backend proxy endpoints instead of direct B2 URLs (avoids CORS issues)
       let htmlBodyUrl: string | null = null;
       let textBodyUrl: string | null = null;
 
       console.log(`[Email Content] Message has bodyHtmlB2Key: ${!!message.bodyHtmlB2Key}, bodyHtml: ${!!message.bodyHtml}, bodyTextB2Key: ${!!message.bodyTextB2Key}, bodyText: ${!!message.bodyText}`);
 
-      if (backblazeStorage.isAvailable()) {
-        try {
-          if (message.bodyHtmlB2Key) {
-            htmlBodyUrl = await backblazeStorage.getSignedUrl(message.bodyHtmlB2Key, 1800); // 30 min
-            console.log(`[Email Content] Generated B2 signed URL for HTML body: ${htmlBodyUrl.substring(0, 50)}...`);
-          }
-          if (message.bodyTextB2Key) {
-            textBodyUrl = await backblazeStorage.getSignedUrl(message.bodyTextB2Key, 1800);
-            console.log(`[Email Content] Generated B2 signed URL for text body: ${textBodyUrl.substring(0, 50)}...`);
-          }
-        } catch (error) {
-          console.error("Error generating signed URLs for email body:", error);
-        }
-      }
-
-      // Fallback: If no B2 URLs, use database body endpoint
-      if (!htmlBodyUrl && message.bodyHtml) {
+      // Always use backend proxy endpoints for email bodies (B2 or database)
+      if (message.bodyHtmlB2Key || message.bodyHtml) {
         htmlBodyUrl = `/api/gmail/messages/${id}/body/html`;
-        console.log(`[Email Content] Using fallback DB endpoint for HTML: ${htmlBodyUrl}`);
+        console.log(`[Email Content] Using backend proxy for HTML body`);
       }
-      if (!textBodyUrl && message.bodyText) {
+      if (message.bodyTextB2Key || message.bodyText) {
         textBodyUrl = `/api/gmail/messages/${id}/body/text`;
-        console.log(`[Email Content] Using fallback DB endpoint for text: ${textBodyUrl}`);
+        console.log(`[Email Content] Using backend proxy for text body`);
       }
 
       console.log(`[Email Content] Final URLs - htmlBodyUrl: ${htmlBodyUrl}, textBodyUrl: ${textBodyUrl}, attachments: ${attachments.length}`);
