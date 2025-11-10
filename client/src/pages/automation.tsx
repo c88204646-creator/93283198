@@ -764,7 +764,7 @@ function SettingsTab({
 
           <div className="mt-6 p-4 bg-green-500/5 border border-green-500/20 rounded-lg">
             <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              💰 AI Financial Detection (NEW)
+              💰 Financial Transaction Detection
               <Badge variant="outline" className="text-xs">Beta</Badge>
             </h4>
             <p className="text-xs text-muted-foreground mb-4">
@@ -797,11 +797,29 @@ function SettingsTab({
                   data-testid="switch-auto-detect-expenses"
                 />
               </div>
+              {(autoDetectPayments || autoDetectExpenses) && (
+                <div className="mt-3 p-3 bg-blue-500/5 rounded-md text-xs text-muted-foreground">
+                  ℹ️ Detected transactions will require your approval before being added to the system.
+                  You'll see notifications in the header when new transactions are detected.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 p-4 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              👥 Client Detection & Assignment
+              <Badge variant="outline" className="text-xs">Automatic</Badge>
+            </h4>
+            <p className="text-xs text-muted-foreground mb-4">
+              Automatically creates and assigns clients from invoice PDFs (Facturama format)
+            </p>
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label className="text-sm font-medium">Auto-assign Clients</Label>
+                  <Label className="text-sm font-medium">Auto-assign Clients from Invoices</Label>
                   <p className="text-xs text-muted-foreground">
-                    Automatically detect and assign clients from invoice PDFs (Facturama)
+                    Extracts complete fiscal data (RFC, address, tax regime) and creates/links clients
                   </p>
                 </div>
                 <Switch
@@ -810,10 +828,10 @@ function SettingsTab({
                   data-testid="switch-auto-assign-clients"
                 />
               </div>
-              {(autoDetectPayments || autoDetectExpenses || autoAssignClients) && (
+              {autoAssignClients && (
                 <div className="mt-3 p-3 bg-blue-500/5 rounded-md text-xs text-muted-foreground">
-                  ℹ️ {autoAssignClients && 'Client assignments will be made automatically from invoice data. '} 
-                  {(autoDetectPayments || autoDetectExpenses) && 'Detected transactions will require your approval before being added to the system.'}
+                  ℹ️ Client assignments will be made automatically from invoice data. 
+                  The system will match existing clients by RFC or create new ones with complete fiscal information.
                 </div>
               )}
             </div>
