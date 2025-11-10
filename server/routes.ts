@@ -1549,13 +1549,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const userId = req.session.userId!;
 
+      console.log(`[Email Content] Loading content for message ${id}`);
+
       const message = await storage.getGmailMessage(id);
       if (!message) {
+        console.log(`[Email Content] Message ${id} not found`);
         return res.status(404).json({ message: "Message not found" });
       }
 
       const account = await storage.getGmailAccount(message.gmailAccountId);
       if (!account || account.userId !== userId) {
+        console.log(`[Email Content] Message ${id} access denied`);
         return res.status(404).json({ message: "Message not found" });
       }
 
@@ -1566,13 +1570,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let htmlBodyUrl: string | null = null;
       let textBodyUrl: string | null = null;
 
+      console.log(`[Email Content] Message has bodyHtmlB2Key: ${!!message.bodyHtmlB2Key}, bodyHtml: ${!!message.bodyHtml}, bodyTextB2Key: ${!!message.bodyTextB2Key}, bodyText: ${!!message.bodyText}`);
+
       if (backblazeStorage.isAvailable()) {
         try {
           if (message.bodyHtmlB2Key) {
             htmlBodyUrl = await backblazeStorage.getSignedUrl(message.bodyHtmlB2Key, 1800); // 30 min
+            console.log(`[Email Content] Generated B2 signed URL for HTML body: ${htmlBodyUrl.substring(0, 50)}...`);
           }
           if (message.bodyTextB2Key) {
             textBodyUrl = await backblazeStorage.getSignedUrl(message.bodyTextB2Key, 1800);
+            console.log(`[Email Content] Generated B2 signed URL for text body: ${textBodyUrl.substring(0, 50)}...`);
           }
         } catch (error) {
           console.error("Error generating signed URLs for email body:", error);
@@ -1582,10 +1590,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Fallback: If no B2 URLs, use database body endpoint
       if (!htmlBodyUrl && message.bodyHtml) {
         htmlBodyUrl = `/api/gmail/messages/${id}/body/html`;
+        console.log(`[Email Content] Using fallback DB endpoint for HTML: ${htmlBodyUrl}`);
       }
       if (!textBodyUrl && message.bodyText) {
         textBodyUrl = `/api/gmail/messages/${id}/body/text`;
+        console.log(`[Email Content] Using fallback DB endpoint for text: ${textBodyUrl}`);
       }
+
+      console.log(`[Email Content] Final URLs - htmlBodyUrl: ${htmlBodyUrl}, textBodyUrl: ${textBodyUrl}, attachments: ${attachments.length}`);
+
 
       // Generate signed URLs for attachments
       const attachmentsWithUrls = await Promise.all(
