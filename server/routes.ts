@@ -2942,7 +2942,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Financial Suggestions routes
   app.get("/api/financial-suggestions/pending", requireAuth, async (req, res) => {
     try {
-      const suggestions = await storage.getAllPendingFinancialSuggestions();
+      const { type, operationId } = req.query;
+      let suggestions = await storage.getAllPendingFinancialSuggestions();
+      
+      // Filter by type if provided
+      if (type && (type === 'payment' || type === 'expense')) {
+        suggestions = suggestions.filter(s => s.type === type);
+      }
+      
+      // Filter by operationId if provided
+      if (operationId && typeof operationId === 'string') {
+        suggestions = suggestions.filter(s => s.operationId === operationId);
+      }
+      
       res.json(suggestions);
     } catch (error) {
       console.error("Get pending financial suggestions error:", error);

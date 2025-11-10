@@ -129,40 +129,91 @@ export class BasicOCRExtractor {
   private extractFieldsFromText(text: string): ExtractedData {
     const data: ExtractedData = {};
 
-    // Extract amount
-    for (const pattern of this.patterns.amount) {
-      const match = pattern.exec(text);
-      if (match) {
+    // Extract amount - collect ALL matches and choose the best one
+    const amountCandidates: Array<{ value: number; priority: number; source: string }> = [];
+    
+    // Priority patterns for amounts (Total, Monto, Amount should have highest priority)
+    const priorityPatterns = [
+      { pattern: /(?:Total|Monto|Amount)(?:\s*:)?\s*\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/gi, priority: 100 },
+      { pattern: /(?:USD|MXN|EUR)\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/gi, priority: 90 },
+      { pattern: /(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)\s*(?:USD|MXN|EUR)/gi, priority: 85 },
+      { pattern: /\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/gi, priority: 50 },
+    ];
+
+    // Process all patterns
+    for (const { pattern, priority } of priorityPatterns) {
+      let match;
+      const regex = new RegExp(pattern.source, pattern.flags);
+      while ((match = regex.exec(text)) !== null) {
         const amountStr = match[1] || match[0];
         const cleanAmount = amountStr.replace(/[^0-9.]/g, '');
-        const amount = parseFloat(cleanAmount);
+        const value = parseFloat(cleanAmount);
         
-        if (!isNaN(amount) && amount > 0) {
-          data.amount = amount;
-          break;
+        if (!isNaN(value) && value > 0) {
+          amountCandidates.push({
+            value,
+            priority,
+            source: match[0]
+          });
         }
       }
     }
 
-    // Extract currency
+    // Choose best amount: highest priority, then highest value
+    if (amountCandidates.length > 0) {
+      amountCandidates.sort((a, b) => {
+        // First by priority
+        if (b.priority !== a.priority) {
+          return b.priority - a.priority;
+        }
+        // Then by value (higher amounts are more likely to be the total)
+        return b.value - a.value;
+      });
+      
+      data.amount = amountCandidates[0].value;
+      console.log('[OCR] Selected amount:', amountCandidates[0].value, 'from', amountCandidates.length, 'candidates');
+    }
+
+    // Extract currency - try to find it near the amount
+    const currencyMatches: string[] = [];
     for (const pattern of this.patterns.currency) {
-      const match = pattern.exec(text);
-      if (match) {
-        data.currency = (match[1] || match[0]).toUpperCase().substring(0, 3);
-        break;
+      let match;
+      const regex = new RegExp(pattern.source, pattern.flags);
+      while ((match = regex.exec(text)) !== null) {
+        const currency = (match[1] || match[0]).toUpperCase().substring(0, 3);
+        if (['USD', 'MXN', 'EUR', 'GBP', 'CAD'].includes(currency)) {
+          currencyMatches.push(currency);
+        }
       }
+    }
+
+    // If multiple currencies found, use the most common one
+    if (currencyMatches.length > 0) {
+      const currencyCount: Record<string, number> = {};
+      currencyMatches.forEach(curr => {
+        currencyCount[curr] = (currencyCount[curr] || 0) + 1;
+      });
+      
+      // Get most frequent currency
+      const mostFrequent = Object.entries(currencyCount)
+        .sort(([, a], [, b]) => b - a)[0][0];
+      
+      data.currency = mostFrequent;
+      console.log('[OCR] Selected currency:', mostFrequent, 'from matches:', currencyMatches);
     }
 
     // If no currency found but found amount, check for symbols
     if (!data.currency && data.amount) {
-      if (text.includes('$') && text.match(/USD/i)) {
+      if (text.match(/USD/i)) {
         data.currency = 'USD';
-      } else if (text.includes('$') && text.match(/MXN/i)) {
+      } else if (text.match(/MXN/i)) {
         data.currency = 'MXN';
-      } else if (text.includes('€')) {
+      } else if (text.includes('€') || text.match(/EUR/i)) {
         data.currency = 'EUR';
       } else if (text.includes('$')) {
-        data.currency = 'USD'; // Default assumption
+        // Count $ symbols - if many, likely USD
+        const dollarCount = (text.match(/\$/g) || []).length;
+        data.currency = dollarCount > 2 ? 'USD' : 'MXN'; // Multiple $ usually means USD document
       }
     }
 
