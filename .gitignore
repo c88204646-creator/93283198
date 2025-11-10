@@ -4,3 +4,18 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Archivos sensibles - NO SUBIR A GIT
+attached_assets/
+*.pdf
+*.xml
+*.xlsx
+*.xls
+*.doc
+*.docx
+
+# Logs y temporales
+*.log
+/tmp/
+.env.local
+.env.*.local
