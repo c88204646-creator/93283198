@@ -437,6 +437,12 @@ export const backblazeStorage = {
     }
     return backblazeStorageInstance.uploadEmailBody(emailId, bodyText, bodyHtml);
   },
+  async uploadAttachment(data: Buffer, filename: string, mimeType: string, emailId: string, attachmentId: string, extractedText?: string) {
+    if (!backblazeStorageInstance) {
+      backblazeStorageInstance = new BackblazeStorage();
+    }
+    return backblazeStorageInstance.uploadAttachment(data, filename, mimeType, emailId, attachmentId, extractedText);
+  },
   async uploadEmailAttachment(data: Buffer, filename: string, mimeType: string) {
     if (!backblazeStorageInstance) {
       backblazeStorageInstance = new BackblazeStorage();
