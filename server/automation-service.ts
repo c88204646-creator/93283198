@@ -3,6 +3,7 @@ import type { AutomationConfig, AutomationRule, GmailMessage } from '@shared/sch
 import { getAttachmentData } from './gmail-sync';
 import { BackblazeStorage } from './backblazeStorage';
 import { processEmailThreadForAutomation, EmailTaskAutomation } from './email-task-automation';
+import { clientAutoAssignmentService } from './client-auto-assignment-service';
 
 // Automation service that processes emails and creates operations automatically
 export class AutomationService {
@@ -55,8 +56,30 @@ export class AutomationService {
       for (const config of configs) {
         await this.processConfigAutomation(config);
       }
+      
+      // 🆕 Procesamiento adicional: Asignación automática de clientes desde facturas
+      await this.processClientAutoAssignment();
+      
     } catch (error) {
       console.error('Error processing automations:', error);
+    }
+  }
+
+  /**
+   * Procesa operaciones sin cliente asignado para detectar facturas y asignar automáticamente
+   */
+  private async processClientAutoAssignment() {
+    try {
+      console.log('[Automation] 📋 Procesando asignación automática de clientes...');
+      
+      const result = await clientAutoAssignmentService.processUnassignedOperations();
+      
+      if (result.assigned > 0 || result.created > 0) {
+        console.log(`[Automation] ✅ Asignación de clientes completada: ${result.assigned} asignados, ${result.created} nuevos creados`);
+      }
+      
+    } catch (error) {
+      console.error('[Automation] Error en processClientAutoAssignment:', error);
     }
   }
 
