@@ -4,10 +4,57 @@ import * as gmailSync from './gmail-sync';
 let syncInterval: NodeJS.Timeout | null = null;
 
 /**
+ * Recupera cuentas atascadas en estado 'syncing'
+ * Una cuenta se considera atascada si lleva más de 30 minutos en estado 'syncing'
+ */
+async function recoverStuckAccounts() {
+  try {
+    const allUsers = await storage.getAllUsers();
+    const allAccounts: any[] = [];
+    
+    for (const user of allUsers) {
+      const accounts = await storage.getAllGmailAccounts(user.id);
+      allAccounts.push(...accounts);
+    }
+
+    const stuckAccounts = allAccounts.filter(acc => {
+      if (acc.syncStatus !== 'syncing') return false;
+      
+      // Si no hay lastSyncAt, considerarla atascada
+      if (!acc.lastSyncAt) return true;
+      
+      // Verificar si lleva más de 30 minutos en 'syncing'
+      const lastSyncTime = new Date(acc.lastSyncAt).getTime();
+      const now = Date.now();
+      const thirtyMinutesAgo = now - (30 * 60 * 1000);
+      
+      return lastSyncTime < thirtyMinutesAgo;
+    });
+
+    if (stuckAccounts.length > 0) {
+      console.log(`[Gmail Auto-Sync] Found ${stuckAccounts.length} stuck account(s), resetting...`);
+      
+      for (const account of stuckAccounts) {
+        await storage.updateGmailAccount(account.id, {
+          syncStatus: 'active',
+          errorMessage: 'Recovered from stuck syncing state'
+        });
+        console.log(`[Gmail Auto-Sync] Reset account ${account.email} from 'syncing' to 'active'`);
+      }
+    }
+  } catch (error) {
+    console.error('[Gmail Auto-Sync] Error recovering stuck accounts:', error);
+  }
+}
+
+/**
  * Sincroniza automáticamente todas las cuentas Gmail habilitadas
  */
 async function syncAllGmailAccounts() {
   try {
+    // Primero, recuperar cuentas atascadas
+    await recoverStuckAccounts();
+    
     // Obtener todas las cuentas habilitadas de todos los usuarios
     const allUsers = await storage.getAllUsers();
     
