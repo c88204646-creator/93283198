@@ -175,6 +175,9 @@ function ModuleConfigurationDialog({
   const [autoDetectExpenses, setAutoDetectExpenses] = useState<boolean>(
     config?.autoDetectExpenses || false
   );
+  const [autoAssignClients, setAutoAssignClients] = useState<boolean>(
+    config?.autoAssignClients || false
+  );
   const [customFolderNames, setCustomFolderNames] = useState<Record<string, string>>(
     (config?.customFolderNames as Record<string, string>) || {}
   );
@@ -206,6 +209,7 @@ function ModuleConfigurationDialog({
         aiOptimizationLevel,
         autoDetectPayments,
         autoDetectExpenses,
+        autoAssignClients,
         customFolderNames: sanitizedNames,
         companyName: companyName.trim(),
         companyDomain: companyDomain.trim(),
@@ -240,6 +244,7 @@ function ModuleConfigurationDialog({
         aiOptimizationLevel: optimization,
         autoDetectPayments: detectPayments,
         autoDetectExpenses: detectExpenses,
+        autoAssignClients: assignClients,
         customFolderNames: folderNames,
         companyName: compName,
         companyDomain: compDomain,
@@ -293,6 +298,7 @@ function ModuleConfigurationDialog({
         optimization: aiOptimizationLevel, 
         detectPayments: autoDetectPayments, 
         detectExpenses: autoDetectExpenses, 
+        assignClients: autoAssignClients,
         folderNames: sanitizedFolderNames,
         compName: companyName.trim(),
         compDomain: companyDomain.trim(),
@@ -375,6 +381,7 @@ function ModuleConfigurationDialog({
               aiOptimizationLevel={aiOptimizationLevel}
               autoDetectPayments={autoDetectPayments}
               autoDetectExpenses={autoDetectExpenses}
+              autoAssignClients={autoAssignClients}
               companyName={companyName}
               companyDomain={companyDomain}
               employeeEmails={employeeEmails}
@@ -386,6 +393,7 @@ function ModuleConfigurationDialog({
               onAiOptimizationLevelChange={setAiOptimizationLevel}
               onAutoDetectPaymentsChange={setAutoDetectPayments}
               onAutoDetectExpensesChange={setAutoDetectExpenses}
+              onAutoAssignClientsChange={setAutoAssignClients}
               onCompanyNameChange={setCompanyName}
               onCompanyDomainChange={setCompanyDomain}
               onEmployeeEmailsChange={setEmployeeEmails}
@@ -425,6 +433,7 @@ function SettingsTab({
   aiOptimizationLevel,
   autoDetectPayments,
   autoDetectExpenses,
+  autoAssignClients,
   companyName,
   companyDomain,
   employeeEmails,
@@ -437,6 +446,7 @@ function SettingsTab({
   onAiOptimizationLevelChange,
   onAutoDetectPaymentsChange,
   onAutoDetectExpensesChange,
+  onAutoAssignClientsChange,
   onCompanyNameChange,
   onCompanyDomainChange,
   onEmployeeEmailsChange,
@@ -457,6 +467,7 @@ function SettingsTab({
   aiOptimizationLevel: string;
   autoDetectPayments: boolean;
   autoDetectExpenses: boolean;
+  autoAssignClients: boolean;
   companyName: string;
   companyDomain: string;
   employeeEmails: string;
@@ -469,6 +480,7 @@ function SettingsTab({
   onAiOptimizationLevelChange: (level: string) => void;
   onAutoDetectPaymentsChange: (enabled: boolean) => void;
   onAutoDetectExpensesChange: (enabled: boolean) => void;
+  onAutoAssignClientsChange: (enabled: boolean) => void;
   onCompanyNameChange: (name: string) => void;
   onCompanyDomainChange: (domain: string) => void;
   onEmployeeEmailsChange: (emails: string) => void;
@@ -785,10 +797,23 @@ function SettingsTab({
                   data-testid="switch-auto-detect-expenses"
                 />
               </div>
-              {(autoDetectPayments || autoDetectExpenses) && (
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">Auto-assign Clients</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Automatically detect and assign clients from invoice PDFs (Facturama)
+                  </p>
+                </div>
+                <Switch
+                  checked={autoAssignClients}
+                  onCheckedChange={onAutoAssignClientsChange}
+                  data-testid="switch-auto-assign-clients"
+                />
+              </div>
+              {(autoDetectPayments || autoDetectExpenses || autoAssignClients) && (
                 <div className="mt-3 p-3 bg-blue-500/5 rounded-md text-xs text-muted-foreground">
-                  ℹ️ Detected transactions will require your approval before being added to the system.
-                  You'll see notifications in the header when new transactions are detected.
+                  ℹ️ {autoAssignClients && 'Client assignments will be made automatically from invoice data. '} 
+                  {(autoDetectPayments || autoDetectExpenses) && 'Detected transactions will require your approval before being added to the system.'}
                 </div>
               )}
             </div>
