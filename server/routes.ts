@@ -2036,6 +2036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aiOptimizationLevel: aiOptimizationLevel || 'high',
         autoDetectPayments: autoDetectPayments || false,
         autoDetectExpenses: autoDetectExpenses || false,
+        autoAssignClients: autoAssignClients || false,
         companyName: companyName || '',
         companyDomain: companyDomain || '',
         employeeEmails: employeeEmails || [],
@@ -2058,7 +2059,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Config not found" });
       }
 
-      const { moduleDescription, isEnabled, selectedGmailAccounts, defaultEmployees, processAttachments, autoCreateTasks, autoCreateNotes, aiOptimizationLevel, autoDetectPayments, autoDetectExpenses, companyName, companyDomain, employeeEmails } = req.body;
+      const { moduleDescription, isEnabled, selectedGmailAccounts, defaultEmployees, processAttachments, autoCreateTasks, autoCreateNotes, aiOptimizationLevel, autoDetectPayments, autoDetectExpenses, autoAssignClients, companyName, companyDomain, employeeEmails } = req.body;
       const updated = await storage.updateAutomationConfig(id, {
         moduleDescription,
         isEnabled,
@@ -2070,6 +2071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aiOptimizationLevel,
         autoDetectPayments,
         autoDetectExpenses,
+        autoAssignClients,
         companyName,
         companyDomain,
         employeeEmails,
