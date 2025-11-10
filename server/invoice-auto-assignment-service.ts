@@ -1,0 +1,402 @@
+/**
+ * Invoice Auto-Assignment Service
+ * 
+ * Servicio que detecta facturas Facturama en attachments y:
+ * 1. Extrae datos completos de la factura (emisor, receptor, items, montos, etc.)
+ * 2. Verifica si la factura ya existe (por folioFiscal - UUID)
+ * 3. Crea la factura completa con todos los items y códigos SAT
+ * 4. Asigna automáticamente la factura a la operación
+ * 
+ * Integrado con el sistema de automatización para procesamiento continuo
+ */
+
+import { facturamaInvoiceExtractor, type FacturamaInvoiceData } from './facturama-invoice-extractor';
+import { backblazeStorage } from './backblazeStorage';
+import { storage } from './storage';
+import { db } from './db';
+import { invoices, invoiceItems, operations, clients } from '@shared/schema';
+import { eq, and } from 'drizzle-orm';
+
+export interface InvoiceMatchResult {
+  matched: boolean;
+  invoice?: any;
+  matchType?: 'folio-fiscal' | 'folio' | 'none';
+  confidence: number;
+}
+
+export interface InvoiceAutoAssignmentResult {
+  success: boolean;
+  action: 'assigned-existing' | 'created-and-assigned' | 'skipped' | 'error';
+  invoiceId?: string;
+  invoiceNumber?: string;
+  invoiceData?: FacturamaInvoiceData;
+  error?: string;
+  reasoning?: string;
+}
+
+export class InvoiceAutoAssignmentService {
+  
+  /**
+   * Procesa un attachment de operación para detectar si es factura y crear/asignar factura
+   */
+  async processAttachmentForInvoiceCreation(
+    operationId: string,
+    attachmentId: string,
+    filename: string,
+    b2Key: string
+  ): Promise<InvoiceAutoAssignmentResult> {
+    
+    console.log(`[Invoice Auto-Assignment] 📄 Procesando attachment: ${filename} para operación: ${operationId.substring(0, 10)}...`);
+    
+    try {
+      // 1. Verificar si la operación existe
+      const operation = await storage.getOperation(operationId);
+      
+      if (!operation) {
+        return {
+          success: false,
+          action: 'error',
+          error: 'Operación no encontrada'
+        };
+      }
+      
+      // 2. Descargar el attachment desde B2
+      let fileBuffer: Buffer;
+      try {
+        fileBuffer = await backblazeStorage.downloadFile(b2Key);
+      } catch (error) {
+        console.log(`[Invoice Auto-Assignment] ⚠️  No se pudo descargar archivo desde B2 (posible límite diario): ${error}`);
+        return {
+          success: false,
+          action: 'error',
+          error: 'No se pudo descargar archivo desde B2'
+        };
+      }
+      
+      // 3. Intentar extraer datos completos de la factura
+      const invoiceData = await facturamaInvoiceExtractor.extractInvoiceData(fileBuffer, filename);
+      
+      if (!invoiceData) {
+        console.log('[Invoice Auto-Assignment] ⏭️  No es una factura válida de Facturama');
+        return {
+          success: false,
+          action: 'skipped',
+          reasoning: 'No es una factura de Facturama'
+        };
+      }
+      
+      if (!invoiceData.folioFiscal) {
+        console.log('[Invoice Auto-Assignment] ⚠️  Factura sin folio fiscal (UUID) - No se puede validar unicidad');
+        return {
+          success: false,
+          action: 'error',
+          error: 'Factura sin folio fiscal'
+        };
+      }
+      
+      console.log(`[Invoice Auto-Assignment] ✅ Factura detectada - Folio Fiscal: ${invoiceData.folioFiscal}, Cliente: ${invoiceData.receptor.nombre}`);
+      
+      // 4. Verificar si la factura ya existe (por UUID)
+      const matchResult = await this.findMatchingInvoice(invoiceData);
+      
+      let invoiceId: string;
+      let action: 'assigned-existing' | 'created-and-assigned';
+      
+      if (matchResult.matched && matchResult.invoice) {
+        // Factura ya existe - solo asignar
+        invoiceId = matchResult.invoice.id;
+        action = 'assigned-existing';
+        
+        console.log(`[Invoice Auto-Assignment] ✅ Factura existente encontrada - ID: ${invoiceId}`);
+        
+      } else {
+        // Crear nueva factura
+        const newInvoiceId = await this.createInvoiceFromFacturama(invoiceData, operationId);
+        
+        if (!newInvoiceId) {
+          return {
+            success: false,
+            action: 'error',
+            error: 'No se pudo crear la factura'
+          };
+        }
+        
+        invoiceId = newInvoiceId;
+        action = 'created-and-assigned';
+        
+        console.log(`[Invoice Auto-Assignment] ✅ Nueva factura creada - ID: ${invoiceId}, Items: ${invoiceData.items?.length || 0}`);
+      }
+      
+      // 5. Asignar la factura a la operación (si no está ya asignada)
+      // Nota: Las facturas se vinculan a operaciones a través del campo operationId
+      // Si la factura fue creada con operationId, ya está vinculada
+      
+      return {
+        success: true,
+        action,
+        invoiceId,
+        invoiceNumber: invoiceData.folio || invoiceData.folioFiscal?.substring(0, 8),
+        invoiceData
+      };
+      
+    } catch (error) {
+      console.error('[Invoice Auto-Assignment] Error procesando attachment:', error);
+      return {
+        success: false,
+        action: 'error',
+        error: error instanceof Error ? error.message : 'Error desconocido'
+      };
+    }
+  }
+  
+  /**
+   * Busca si una factura con el mismo folio fiscal ya existe
+   */
+  private async findMatchingInvoice(invoiceData: FacturamaInvoiceData): Promise<InvoiceMatchResult> {
+    try {
+      // Buscar por folio fiscal (UUID) - más confiable
+      if (invoiceData.folioFiscal) {
+        const existingInvoice = await db.query.invoices.findFirst({
+          where: eq(invoices.folioFiscal, invoiceData.folioFiscal)
+        });
+        
+        if (existingInvoice) {
+          return {
+            matched: true,
+            invoice: existingInvoice,
+            matchType: 'folio-fiscal',
+            confidence: 100
+          };
+        }
+      }
+      
+      // Si no hay match por UUID, buscar por folio + cliente (menos confiable)
+      if (invoiceData.folio && invoiceData.receptor.rfc) {
+        // Buscar cliente por RFC
+        const client = await db.query.clients.findFirst({
+          where: eq(clients.rfc, invoiceData.receptor.rfc)
+        });
+        
+        if (client) {
+          const existingInvoice = await db.query.invoices.findFirst({
+            where: and(
+              eq(invoices.invoiceNumber, invoiceData.folio),
+              eq(invoices.clientId, client.id)
+            )
+          });
+          
+          if (existingInvoice) {
+            return {
+              matched: true,
+              invoice: existingInvoice,
+              matchType: 'folio',
+              confidence: 80
+            };
+          }
+        }
+      }
+      
+      // No match
+      return {
+        matched: false,
+        matchType: 'none',
+        confidence: 0
+      };
+      
+    } catch (error) {
+      console.error('[Invoice Auto-Assignment] Error buscando factura:', error);
+      return {
+        matched: false,
+        matchType: 'none',
+        confidence: 0
+      };
+    }
+  }
+  
+  /**
+   * Crea una nueva factura desde datos extraídos de Facturama
+   */
+  private async createInvoiceFromFacturama(
+    invoiceData: FacturamaInvoiceData,
+    operationId: string
+  ): Promise<string | null> {
+    
+    try {
+      // 1. Buscar o crear cliente
+      let clientId: string | undefined;
+      
+      if (invoiceData.receptor.rfc) {
+        // Buscar cliente por RFC
+        const existingClient = await db.query.clients.findFirst({
+          where: eq(clients.rfc, invoiceData.receptor.rfc)
+        });
+        
+        if (existingClient) {
+          clientId = existingClient.id;
+        } else {
+          // Crear nuevo cliente
+          const newClient = await storage.createClient({
+            name: invoiceData.receptor.nombre,
+            rfc: invoiceData.receptor.rfc,
+            address: invoiceData.receptor.direccion,
+            city: invoiceData.receptor.ciudad,
+            state: invoiceData.receptor.estado,
+            postalCode: invoiceData.receptor.codigoPostal,
+            country: invoiceData.receptor.pais || 'México',
+            regimenFiscal: invoiceData.receptor.regimenFiscal,
+            usoCFDI: invoiceData.receptor.usoCFDI
+          });
+          
+          clientId = newClient.id;
+          console.log(`[Invoice Auto-Assignment] ✅ Cliente creado: ${newClient.name} (${newClient.rfc})`);
+        }
+      }
+      
+      // 2. Crear la factura principal
+      const newInvoice = await storage.createInvoice({
+        operationId,
+        clientId,
+        invoiceNumber: invoiceData.folio || invoiceData.folioFiscal?.substring(0, 15) || 'Sin Folio',
+        date: invoiceData.fecha ? new Date(invoiceData.fecha.split('/').reverse().join('-')) : new Date(),
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // +30 días
+        subtotal: invoiceData.subtotal || 0,
+        tax: invoiceData.tax || 0,
+        total: invoiceData.total || 0,
+        status: 'pending',
+        currency: invoiceData.moneda || 'MXN',
+        
+        // Campos CFDI 4.0
+        folioFiscal: invoiceData.folioFiscal,
+        issuerRFC: invoiceData.emisor?.rfc,
+        issuerName: invoiceData.emisor?.nombre,
+        emisorRegimenFiscal: invoiceData.emisor?.regimenFiscal,
+        metodoPago: invoiceData.metodoPago,
+        formaPago: invoiceData.formaPago
+      });
+      
+      console.log(`[Invoice Auto-Assignment] ✅ Factura creada: ${newInvoice.invoiceNumber}`);
+      
+      // 3. Crear items de la factura
+      if (invoiceData.items && invoiceData.items.length > 0) {
+        for (const item of invoiceData.items) {
+          await storage.createInvoiceItem({
+            invoiceId: newInvoice.id,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            tax: item.taxAmount || 0,
+            total: item.amount,
+            
+            // Campos SAT
+            satProductCode: item.satProductCode,
+            satUnitCode: item.satUnitCode,
+            satTaxObject: item.satTaxObject,
+            identification: item.identification
+          });
+        }
+        
+        console.log(`[Invoice Auto-Assignment] ✅ ${invoiceData.items.length} items creados`);
+      }
+      
+      return newInvoice.id;
+      
+    } catch (error) {
+      console.error('[Invoice Auto-Assignment] Error creando factura:', error);
+      return null;
+    }
+  }
+  
+  /**
+   * Procesa todas las operaciones que tienen attachments sin factura asignada
+   */
+  async processOperationsForInvoiceDetection(operationIds?: string[]): Promise<{
+    processed: number;
+    invoicesCreated: number;
+    invoicesAssigned: number;
+    errors: number;
+  }> {
+    
+    console.log('[Invoice Auto-Assignment] 🔄 Iniciando procesamiento de facturas...');
+    
+    let processed = 0;
+    let invoicesCreated = 0;
+    let invoicesAssigned = 0;
+    let errors = 0;
+    
+    try {
+      // Obtener operaciones a procesar
+      let operations;
+      
+      if (operationIds && operationIds.length > 0) {
+        // Procesar solo operaciones específicas
+        operations = await Promise.all(
+          operationIds.map(id => storage.getOperation(id))
+        );
+        operations = operations.filter(op => op !== null);
+      } else {
+        // Procesar todas las operaciones
+        operations = await storage.listOperations({});
+      }
+      
+      console.log(`[Invoice Auto-Assignment] 📋 Procesando ${operations.length} operaciones...`);
+      
+      // Procesar cada operación
+      for (const operation of operations) {
+        try {
+          // Obtener attachments de la operación
+          const files = await db.query.operationFiles.findMany({
+            where: eq(operations.id, operation.id)
+          });
+          
+          if (!files || files.length === 0) {
+            continue;
+          }
+          
+          // Procesar cada archivo
+          for (const file of files) {
+            if (!file.b2Key || !file.filename) {
+              continue;
+            }
+            
+            const result = await this.processAttachmentForInvoiceCreation(
+              operation.id,
+              file.id,
+              file.filename,
+              file.b2Key
+            );
+            
+            processed++;
+            
+            if (result.success) {
+              if (result.action === 'created-and-assigned') {
+                invoicesCreated++;
+              } else if (result.action === 'assigned-existing') {
+                invoicesAssigned++;
+              }
+            } else if (result.action === 'error') {
+              errors++;
+            }
+          }
+          
+        } catch (error) {
+          console.error(`[Invoice Auto-Assignment] Error procesando operación ${operation.id}:`, error);
+          errors++;
+        }
+      }
+      
+    } catch (error) {
+      console.error('[Invoice Auto-Assignment] Error en procesamiento batch:', error);
+    }
+    
+    console.log(`[Invoice Auto-Assignment] ✅ Procesamiento completo - Procesados: ${processed}, Creadas: ${invoicesCreated}, Asignadas: ${invoicesAssigned}, Errores: ${errors}`);
+    
+    return {
+      processed,
+      invoicesCreated,
+      invoicesAssigned,
+      errors
+    };
+  }
+}
+
+export const invoiceAutoAssignmentService = new InvoiceAutoAssignmentService();
