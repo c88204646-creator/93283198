@@ -3008,6 +3008,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to approve suggestion" });
       }
 
+      // 🎓 LEARN FROM APPROVED SUGGESTION
+      const { knowledgeBaseService } = await import('./knowledge-base-service');
+      knowledgeBaseService.learnFromApprovedSuggestion(id).catch(err => {
+        console.error('[Learning] Error learning from approved suggestion:', err);
+      });
+
       if (suggestion.type === 'payment') {
         const payment = await storage.createPayment({
           operationId: suggestion.operationId,
@@ -3065,6 +3071,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const rejected = await storage.rejectFinancialSuggestion(id, userId, reason || 'No reason provided');
+      
+      // 🎓 LEARN FROM REJECTED SUGGESTION
+      const { knowledgeBaseService } = await import('./knowledge-base-service');
+      knowledgeBaseService.learnFromRejectedSuggestion(id, reason || 'No reason provided').catch(err => {
+        console.error('[Learning] Error learning from rejected suggestion:', err);
+      });
+
       res.json({ message: "Financial suggestion rejected", suggestion: rejected });
     } catch (error) {
       console.error("Reject financial suggestion error:", error);
