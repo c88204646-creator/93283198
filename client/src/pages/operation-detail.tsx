@@ -29,6 +29,7 @@ import { FileUploader } from "@/components/FileUploader";
 import { OperationAnalysisComponent } from "@/components/OperationAnalysis";
 import { TaskKanban } from "@/components/TaskKanban";
 import { FinancialOverview } from "@/components/FinancialOverview";
+import { PendingSuggestionsPanel } from "@/components/PendingSuggestionsPanel";
 import {
   Dialog,
   DialogContent,
@@ -453,6 +454,9 @@ function InformationTab({ operation, client, employees }: { operation: Operation
     <div className="space-y-6">
       {/* AI-Powered Operation Analysis */}
       <OperationAnalysisComponent operationId={operation.id} />
+
+      {/* AI-Detected Financial Transactions - Pending Validation */}
+      <PendingSuggestionsPanel operationId={operation.id} />
 
       {/* Existing Information Cards */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">

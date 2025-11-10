@@ -5,7 +5,6 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PendingSuggestionsPanel } from "@/components/PendingSuggestionsPanel";
 import {
   Table,
   TableBody,
@@ -256,8 +255,6 @@ export default function BankAccountDetailPage() {
           <Badge variant="outline">{account.currency}</Badge>
         </div>
       </div>
-
-      <PendingSuggestionsPanel type="payment" operationId={account.id} />
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

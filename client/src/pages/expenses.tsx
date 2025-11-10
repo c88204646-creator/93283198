@@ -4,7 +4,6 @@ import { Plus, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
-import { PendingSuggestionsPanel } from "@/components/PendingSuggestionsPanel";
 import {
   Dialog,
   DialogContent,
@@ -405,8 +404,6 @@ export default function ExpensesPage() {
           </DialogContent>
         </Dialog>
       </div>
-
-      <PendingSuggestionsPanel type="expense" />
 
       <DataTable
         data={expenses}
