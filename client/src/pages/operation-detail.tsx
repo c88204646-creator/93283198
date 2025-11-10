@@ -1658,90 +1658,111 @@ function EmailsTab({ operationId, operation }: {
                   <p className="text-muted-foreground italic text-center py-8">Sin contenido</p>
                 )}
 
-                {/* Attachments - Siempre visible si hay adjuntos */}
+                {/* Attachments - Slider Horizontal */}
                 {emailContent?.attachments && emailContent.attachments.length > 0 && (
                   <div className="pt-4 border-t">
                     <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                       <Paperclip className="w-4 h-4" />
                       Archivos Adjuntos ({emailContent.attachments.filter((a: any) => !a.isInline).length > 0 ? emailContent.attachments.filter((a: any) => !a.isInline).length : emailContent.attachments.length})
                     </h3>
-                    <div className="space-y-2">
-                      {emailContent.attachments.map((attachment: any, index: number) => {
-                        // Siempre mostrar adjuntos que no son inline, y también los inline si no hay otros
-                        const shouldShow = !attachment.isInline || emailContent.attachments.filter((a: any) => !a.isInline).length === 0;
-                        if (!shouldShow) return null;
+                    {/* Slider horizontal con scroll */}
+                    <div className="relative">
+                      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/30">
+                        {emailContent.attachments.map((attachment: any, index: number) => {
+                          // Siempre mostrar adjuntos que no son inline, y también los inline si no hay otros
+                          const shouldShow = !attachment.isInline || emailContent.attachments.filter((a: any) => !a.isInline).length === 0;
+                          if (!shouldShow) return null;
 
-                        const Icon = getFileIcon(attachment.mimeType);
-                        const isImage = attachment.mimeType.startsWith('image/');
-                        const isPdf = attachment.mimeType === 'application/pdf';
+                          const Icon = getFileIcon(attachment.mimeType);
+                          const isImage = attachment.mimeType.startsWith('image/');
+                          const isPdf = attachment.mimeType === 'application/pdf';
 
-                        return (
-                          <div 
-                            key={attachment.id || index} 
-                            className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:shadow-md transition-all group" 
-                            data-testid={`card-attachment-${attachment.id}`}
-                          >
-                            {/* Thumbnail más grande para imágenes */}
-                            {isImage && attachment.signedUrl ? (
-                              <div className="w-16 h-16 rounded overflow-hidden bg-muted flex-shrink-0 cursor-pointer" onClick={() => window.open(attachment.signedUrl, '_blank')}>
-                                <img
-                                  src={attachment.signedUrl}
-                                  alt={attachment.filename}
-                                  className="w-full h-full object-cover hover:scale-110 transition-transform"
-                                  loading="lazy"
-                                />
-                              </div>
-                            ) : (
-                              <div className="w-16 h-16 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                <Icon className="w-7 h-7 text-primary" />
-                              </div>
-                            )}
-
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate mb-1" title={attachment.filename}>
-                                {attachment.filename}
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <p className="text-xs text-muted-foreground">
-                                  {formatFileSize(attachment.size)}
-                                </p>
-                                {attachment.isInline && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                                    Inline
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex gap-1 flex-shrink-0">
-                              {(isImage || isPdf) && attachment.signedUrl && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-9 w-9 p-0"
-                                  onClick={() => window.open(attachment.signedUrl, '_blank')}
-                                  data-testid={`button-preview-${attachment.id}`}
-                                  title="Vista previa"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                              )}
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-9 w-9 p-0"
-                                onClick={() => {
+                          return (
+                            <div 
+                              key={attachment.id || index} 
+                              className="flex-shrink-0 w-48 rounded-lg border bg-card hover-elevate transition-all group cursor-pointer" 
+                              data-testid={`card-attachment-${attachment.id}`}
+                              onClick={() => {
+                                if ((isImage || isPdf) && attachment.signedUrl) {
+                                  window.open(attachment.signedUrl, '_blank');
+                                } else {
                                   window.open(`/api/gmail/attachments/${attachment.id}/download`, '_blank');
-                                }}
-                                data-testid={`button-download-${attachment.id}`}
-                                title="Descargar"
-                              >
-                                <Download className="w-4 h-4" />
-                              </Button>
+                                }
+                              }}
+                            >
+                              {/* Thumbnail grande */}
+                              <div className="relative w-full h-32 rounded-t-lg overflow-hidden bg-muted">
+                                {isImage && attachment.signedUrl ? (
+                                  <img
+                                    src={attachment.signedUrl}
+                                    alt={attachment.filename}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    loading="lazy"
+                                  />
+                                ) : isPdf && attachment.signedUrl ? (
+                                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20">
+                                    <FileText className="w-12 h-12 text-red-600 dark:text-red-400 mb-1" />
+                                    <span className="text-xs font-medium text-red-600 dark:text-red-400">PDF</span>
+                                  </div>
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5">
+                                    <Icon className="w-12 h-12 text-primary" />
+                                  </div>
+                                )}
+                                
+                                {/* Botones de acción superpuestos */}
+                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {(isImage || isPdf) && attachment.signedUrl && (
+                                    <Button
+                                      size="icon"
+                                      variant="secondary"
+                                      className="h-7 w-7 shadow-lg"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(attachment.signedUrl, '_blank');
+                                      }}
+                                      data-testid={`button-preview-${attachment.id}`}
+                                      title="Vista previa"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="icon"
+                                    variant="secondary"
+                                    className="h-7 w-7 shadow-lg"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      window.open(`/api/gmail/attachments/${attachment.id}/download`, '_blank');
+                                    }}
+                                    data-testid={`button-download-${attachment.id}`}
+                                    title="Descargar"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                  </Button>
+                                </div>
+                              </div>
+
+                              {/* Info del archivo */}
+                              <div className="p-3">
+                                <p className="text-sm font-medium truncate mb-1" title={attachment.filename}>
+                                  {attachment.filename}
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatFileSize(attachment.size)}
+                                  </p>
+                                  {attachment.isInline && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                                      Inline
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 )}
