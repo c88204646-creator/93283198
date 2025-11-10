@@ -339,20 +339,47 @@ export class EmailTaskAutomation {
     );
 
     const attachments = allAttachments.flat();
-    const pdfAttachments = attachments.filter((att: any) => 
-      att.mimeType === 'application/pdf' || att.filename?.toLowerCase().endsWith('.pdf')
-    );
+    
+    // EXPANDIDO: Procesar TODOS los tipos de archivos financieros, no solo PDFs
+    const financialAttachments = attachments.filter((att: any) => {
+      if (!att.filename || !att.mimeType) return false;
+      
+      const lowerFilename = att.filename.toLowerCase();
+      const lowerMimeType = att.mimeType.toLowerCase();
+      
+      // PDFs
+      if (lowerMimeType === 'application/pdf' || lowerFilename.endsWith('.pdf')) return true;
+      
+      // Imágenes (facturas escaneadas, capturas de pantalla de pagos)
+      if (lowerMimeType.startsWith('image/')) return true;
+      
+      // Excel/CSV (reportes de gastos, listados de pagos)
+      if (lowerMimeType.includes('spreadsheet') || 
+          lowerMimeType.includes('excel') ||
+          lowerFilename.endsWith('.xlsx') ||
+          lowerFilename.endsWith('.xls') ||
+          lowerFilename.endsWith('.csv')) return true;
+      
+      // Word (facturas, recibos)
+      if (lowerMimeType.includes('document') ||
+          lowerMimeType.includes('word') ||
+          lowerFilename.endsWith('.docx') ||
+          lowerFilename.endsWith('.doc')) return true;
+      
+      return false;
+    });
 
-    if (pdfAttachments.length === 0) {
-      console.log(`[Financial Detection] No PDF attachments found`);
-      return 0;
+    if (financialAttachments.length === 0) {
+      console.log(`[Financial Detection] No financial documents found in attachments`);
+      // Continuar para analizar el contenido de los correos
+    } else {
+      console.log(`[Financial Detection] Found ${financialAttachments.length} financial documents to analyze (PDFs: ${financialAttachments.filter(a => a.mimeType === 'application/pdf').length}, Images: ${financialAttachments.filter(a => a.mimeType?.startsWith('image/')).length}, Other: ${financialAttachments.filter(a => !a.mimeType?.startsWith('image/') && a.mimeType !== 'application/pdf').length})`);
     }
-
-    console.log(`[Financial Detection] Found ${pdfAttachments.length} PDF attachments to analyze`);
 
     let suggestionsCreated = 0;
 
-    for (const attachment of pdfAttachments) {
+    // PASO 1: Procesar archivos adjuntos
+    for (const attachment of financialAttachments) {
       try {
         // Descargar el archivo de B2
         if (!attachment.b2Key) {
@@ -406,9 +433,18 @@ export class EmailTaskAutomation {
         // Extraer texto para guardarlo con la sugerencia
         let text = '';
         try {
-          text = await this.financialDetectionService.extractTextFromPDF(fileBuffer);
+          // Determinar el método de extracción según el tipo de archivo
+          const isImage = attachment.mimeType?.startsWith('image/');
+          
+          if (isImage) {
+            // Para imágenes, usar OCR directamente
+            text = await this.financialDetectionService.extractTextFromImage(fileBuffer);
+          } else {
+            // Para PDFs y otros documentos
+            text = await this.financialDetectionService.extractTextFromPDF(fileBuffer);
+          }
         } catch (error) {
-          console.log(`[Financial Detection] Could not extract text from ${attachment.filename}`);
+          console.log(`[Financial Detection] Could not extract text from ${attachment.filename}:`, error);
         }
 
         // Crear sugerencias financieras con detección de duplicados

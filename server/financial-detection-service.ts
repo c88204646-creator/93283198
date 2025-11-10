@@ -99,6 +99,18 @@ export class FinancialDetectionService {
     }
   }
 
+  async extractTextFromImage(buffer: Buffer): Promise<string> {
+    try {
+      console.log('[Financial Detection] Extracting text from image using OCR...');
+      const text = await ocrExtractor.extractTextFromImage(buffer);
+      console.log(`[Financial Detection] Extracted ${text.length} characters from image via OCR`);
+      return text;
+    } catch (error) {
+      console.error('[Financial Detection] Error extracting text from image:', error);
+      throw error;
+    }
+  }
+
   async extractTextFromPDF(buffer: Buffer): Promise<string> {
     try {
       const loadingTask = pdfjsLib.getDocument({
@@ -259,7 +271,7 @@ Return empty array [] if no transactions detected.`;
    * 3. If both fail, log and continue (no manual queue needed - user reviews all suggestions anyway)
    */
   async detectWithFallback(
-    pdfBuffer: Buffer,
+    fileBuffer: Buffer,
     fileName: string,
     filePath: string,
     detectionType: "payment" | "expense",
@@ -271,9 +283,30 @@ Return empty array [] if no transactions detected.`;
       gmailAttachmentId?: string;
     }
   ): Promise<{ transactions: DetectedTransaction[]; method: "gemini" | "ocr" | "none" }> {
+    // Detectar tipo de archivo
+    const isImage = fileName.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i);
+    const isPDF = fileName.match(/\.pdf$/i);
+    
     // Level 1: Try Gemini AI
     try {
-      const extractedText = await this.extractTextFromPDF(pdfBuffer);
+      let extractedText = '';
+      
+      if (isImage) {
+        // Para imágenes, usar OCR primero para extraer texto
+        extractedText = await this.extractTextFromImage(fileBuffer);
+      } else if (isPDF) {
+        // Para PDFs, usar extractor de PDF
+        extractedText = await this.extractTextFromPDF(fileBuffer);
+      } else {
+        // Para otros tipos, intentar como PDF primero
+        try {
+          extractedText = await this.extractTextFromPDF(fileBuffer);
+        } catch {
+          // Si falla, intentar como imagen
+          extractedText = await this.extractTextFromImage(fileBuffer);
+        }
+      }
+      
       if (extractedText && extractedText.trim().length >= 50) {
         const transactions = await this.detectTransactionsFromText(extractedText, operationContext);
         if (transactions.length > 0) {
@@ -287,7 +320,7 @@ Return empty array [] if no transactions detected.`;
 
     // Level 2: Try OCR fallback
     try {
-      const transactions = await this.detectWithOCRFallback(pdfBuffer, operationContext);
+      const transactions = await this.detectWithOCRFallback(fileBuffer, operationContext);
       if (transactions.length > 0) {
         console.log(`[Financial Detection] ✅ SUCCESS via OCR: ${transactions.length} transactions found in ${fileName}`);
         return { transactions, method: "ocr" };
