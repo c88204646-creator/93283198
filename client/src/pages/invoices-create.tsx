@@ -238,7 +238,7 @@ export default function InvoicesCreatePage() {
   const { subtotal, totalTax, total } = calculateTotals();
 
   return (
-    <div className="space-y-4 max-w-6xl mx-auto">
+    <div className="space-y-4 max-w-6xl mx-auto pb-8">
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
@@ -716,7 +716,7 @@ export default function InvoicesCreatePage() {
           </Card>
 
           {/* Botones de acción */}
-          <div className="flex justify-end gap-3 pb-6">
+          <div className="flex justify-end gap-3">
             <Button
               type="button"
               variant="outline"
