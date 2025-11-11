@@ -6,7 +6,7 @@
  */
 
 import sharp from 'sharp';
-import { db } from '../db';
+import { db } from './db';
 import { fileThumbnails } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { backblazeStorage } from './backblazeStorage';
