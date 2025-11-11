@@ -648,6 +648,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/invoices/:invoiceId/stamp", requireAuth, async (req, res) => {
+    try {
+      const { invoiceId } = req.params;
+      
+      const invoice = await storage.getInvoiceById(invoiceId);
+      if (!invoice) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      if (invoice.folioFiscal) {
+        return res.status(400).json({ message: "Esta factura ya está timbrada" });
+      }
+
+      const items = await storage.getInvoiceItems(invoiceId);
+      if (!items || items.length === 0) {
+        return res.status(400).json({ message: "La factura debe tener al menos un concepto" });
+      }
+
+      const client = await storage.getClientById(invoice.clientId);
+      if (!client) {
+        return res.status(404).json({ message: "Cliente no encontrado" });
+      }
+
+      const { stampInvoiceInFacturama } = await import("./facturama-service");
+      const result = await stampInvoiceInFacturama(
+        { ...invoice, id: invoiceId },
+        items,
+        client.rfc || "",
+        client.name,
+        client.fiscalRegime || "612"
+      );
+
+      await storage.updateInvoice(invoiceId, {
+        folioFiscal: result.folioFiscal,
+      });
+
+      res.json({ 
+        message: "Factura timbrada exitosamente",
+        folioFiscal: result.folioFiscal,
+        facturamId: result.facturamId
+      });
+    } catch (error: any) {
+      console.error("Stamp invoice error:", error);
+      res.status(500).json({ 
+        message: error?.message || "Error al timbrar factura" 
+      });
+    }
+  });
+
   // Proposal Routes
   app.get("/api/proposals", requireAuth, async (req, res) => {
     try {

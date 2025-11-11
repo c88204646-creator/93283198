@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Trash2, Eye, X, Minus } from "lucide-react";
+import { Plus, Trash2, Eye, X, Minus, FileText, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,9 +32,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertInvoiceSchema, insertInvoiceItemSchema, insertPaymentSchema, type Invoice, type InvoiceItem, type Payment, type Client, type Employee } from "@shared/schema";
+import { insertInvoiceSchema, insertPaymentSchema, type Invoice, type InvoiceItem, type Payment, type Client, type Employee } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { z } from "zod";
@@ -55,7 +57,66 @@ interface InvoiceLineItem {
   quantity: string;
   unitPrice: string;
   amount: string;
+  
+  // Campos SAT
+  satProductCode: string;
+  satUnitCode: string;
+  satTaxObject: string;
+  identification: string;
+  
+  // IVA configurable
+  applyTax: boolean;
+  taxRate: string;
+  taxAmount: string;
 }
+
+// Catálogos SAT más comunes
+const SAT_PRODUCTS = [
+  { code: "81141601", name: "Flete marítimo" },
+  { code: "80151600", name: "Servicios de transporte" },
+  { code: "80101510", name: "Servicios de asesoramiento" },
+  { code: "78141500", name: "Servicios de mensajería" },
+  { code: "84111506", name: "Servicios de almacenamiento" },
+  { code: "01010101", name: "No existe en el catálogo" },
+];
+
+const SAT_UNITS = [
+  { code: "E48", name: "Unidad de servicio" },
+  { code: "H87", name: "Pieza" },
+  { code: "KGM", name: "Kilogramo" },
+  { code: "MTR", name: "Metro" },
+  { code: "XBX", name: "Caja" },
+  { code: "ACT", name: "Actividad" },
+];
+
+const SAT_TAX_OBJECTS = [
+  { code: "01", name: "Sin objeto de impuesto" },
+  { code: "02", name: "Con objeto de impuesto" },
+  { code: "03", name: "Objeto de impuesto y no obligado" },
+];
+
+const USO_CFDI_OPTIONS = [
+  { code: "G01", name: "Adquisición de mercancías" },
+  { code: "G02", name: "Devoluciones, descuentos o bonificaciones" },
+  { code: "G03", name: "Gastos en general" },
+  { code: "I01", name: "Construcciones" },
+  { code: "I02", name: "Mobiliario y equipo de oficina por inversiones" },
+  { code: "P01", name: "Por definir" },
+  { code: "S01", name: "Sin efectos fiscales" },
+];
+
+const METODO_PAGO_OPTIONS = [
+  { code: "PUE", name: "Pago en una sola exhibición" },
+  { code: "PPD", name: "Pago en parcialidades o diferido" },
+];
+
+const FORMA_PAGO_OPTIONS = [
+  { code: "01", name: "Efectivo" },
+  { code: "03", name: "Transferencia electrónica de fondos" },
+  { code: "04", name: "Tarjeta de crédito" },
+  { code: "28", name: "Tarjeta de débito" },
+  { code: "99", name: "Por definir" },
+];
 
 export default function InvoicesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -63,7 +124,20 @@ export default function InvoicesPage() {
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([
-    { tempId: '1', description: '', quantity: '1', unitPrice: '0', amount: '0' }
+    { 
+      tempId: '1', 
+      description: '', 
+      quantity: '1', 
+      unitPrice: '0', 
+      amount: '0',
+      satProductCode: '01010101',
+      satUnitCode: 'E48',
+      satTaxObject: '01',
+      identification: '',
+      applyTax: false,
+      taxRate: '0.16',
+      taxAmount: '0'
+    }
   ]);
   const { toast } = useToast();
 
@@ -104,6 +178,19 @@ export default function InvoicesPage() {
       dueDate: new Date() as any,
       paidDate: null,
       notes: "",
+      
+      // Campos CFDI 4.0
+      folioFiscal: null,
+      issuerRFC: "ALS200512HM3",
+      issuerName: "ADVANCE LOGISTICS SERVICES OPEN SEA",
+      issuerRegimenFiscal: "601",
+      lugarExpedicion: "44160",
+      metodoPago: "PPD",
+      formaPago: "99",
+      ordenCompra: "",
+      tipoComprobante: "I",
+      usoCFDI: "G03",
+      exportacion: "01",
     },
   });
 
@@ -134,11 +221,15 @@ export default function InvoicesPage() {
       return sum + amount;
     }, 0);
 
-    const tax = subtotal * 0.16; // 16% IVA
-    const total = subtotal + tax;
+    const totalTax = lineItems.reduce((sum, item) => {
+      const taxAmount = parseFloat(item.taxAmount || "0");
+      return sum + taxAmount;
+    }, 0);
+
+    const total = subtotal + totalTax;
 
     form.setValue("subtotal", subtotal.toFixed(2));
-    form.setValue("tax", tax.toFixed(2));
+    form.setValue("tax", totalTax.toFixed(2));
     form.setValue("total", total.toFixed(2));
   }, [lineItems, form]);
 
@@ -148,7 +239,14 @@ export default function InvoicesPage() {
       description: '',
       quantity: '1',
       unitPrice: '0',
-      amount: '0'
+      amount: '0',
+      satProductCode: '01010101',
+      satUnitCode: 'E48',
+      satTaxObject: '01',
+      identification: '',
+      applyTax: false,
+      taxRate: '0.16',
+      taxAmount: '0'
     }]);
   };
 
@@ -158,16 +256,28 @@ export default function InvoicesPage() {
     }
   };
 
-  const updateLineItem = (tempId: string, field: keyof InvoiceLineItem, value: string) => {
+  const updateLineItem = (tempId: string, field: keyof InvoiceLineItem, value: string | boolean) => {
     setLineItems(lineItems.map(item => {
       if (item.tempId === tempId) {
         const updated = { ...item, [field]: value };
         
         // Recalcular amount si cambia quantity o unitPrice
         if (field === 'quantity' || field === 'unitPrice') {
-          const qty = parseFloat(field === 'quantity' ? value : updated.quantity) || 0;
-          const price = parseFloat(field === 'unitPrice' ? value : updated.unitPrice) || 0;
+          const qty = parseFloat(field === 'quantity' ? value as string : updated.quantity) || 0;
+          const price = parseFloat(field === 'unitPrice' ? value as string : updated.unitPrice) || 0;
           updated.amount = (qty * price).toFixed(2);
+        }
+        
+        // Recalcular impuesto si cambia amount, applyTax o taxRate
+        if (field === 'quantity' || field === 'unitPrice' || field === 'applyTax' || field === 'taxRate') {
+          const amount = parseFloat(updated.amount || "0");
+          const rate = parseFloat(updated.taxRate || "0");
+          updated.taxAmount = updated.applyTax ? (amount * rate).toFixed(2) : "0";
+        }
+        
+        // Si cambia satTaxObject, actualizar applyTax automáticamente
+        if (field === 'satTaxObject') {
+          updated.applyTax = value === '02'; // Solo con objeto de impuesto
         }
         
         return updated;
@@ -196,6 +306,12 @@ export default function InvoicesPage() {
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             amount: item.amount,
+            satProductCode: item.satProductCode,
+            satUnitCode: item.satUnitCode,
+            satTaxObject: item.satTaxObject,
+            identification: item.identification || null,
+            taxRate: item.applyTax ? item.taxRate : null,
+            taxAmount: item.applyTax ? item.taxAmount : null,
           });
         }
       }
@@ -206,7 +322,20 @@ export default function InvoicesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
       setIsCreateOpen(false);
       form.reset();
-      setLineItems([{ tempId: '1', description: '', quantity: '1', unitPrice: '0', amount: '0' }]);
+      setLineItems([{ 
+        tempId: '1', 
+        description: '', 
+        quantity: '1', 
+        unitPrice: '0', 
+        amount: '0',
+        satProductCode: '01010101',
+        satUnitCode: 'E48',
+        satTaxObject: '01',
+        identification: '',
+        applyTax: false,
+        taxRate: '0.16',
+        taxAmount: '0'
+      }]);
       toast({ title: "Factura creada exitosamente" });
     },
     onError: (error: any) => {
@@ -262,6 +391,21 @@ export default function InvoicesPage() {
     },
   });
 
+  const stampMutation = useMutation({
+    mutationFn: (invoiceId: string) => apiRequest("POST", `/api/invoices/${invoiceId}/stamp`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      toast({ title: "Factura timbrada exitosamente en Facturama", description: "El folio fiscal ha sido asignado" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error al timbrar factura", 
+        description: error?.message || "Verifica tus credenciales de Facturama",
+        variant: "destructive"
+      });
+    }
+  });
+
   const onSubmit = (data: InvoiceFormData) => {
     // Validar que haya al menos un item con descripción
     const hasValidItems = lineItems.some(item => item.description.trim());
@@ -298,7 +442,15 @@ export default function InvoicesPage() {
     {
       header: "Factura #",
       accessor: (row: Invoice) => (
-        <div className="font-medium">{row.invoiceNumber}</div>
+        <div className="flex items-center gap-2">
+          <div className="font-medium">{row.invoiceNumber}</div>
+          {row.folioFiscal && (
+            <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800">
+              <CheckCircle2 className="w-3 h-3 mr-1" />
+              Timbrada
+            </Badge>
+          )}
+        </div>
       ),
     },
     {
@@ -342,6 +494,18 @@ export default function InvoicesPage() {
           >
             <Eye className="w-4 h-4" />
           </Button>
+          {!row.folioFiscal && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => stampMutation.mutate(row.id)}
+              disabled={stampMutation.isPending}
+              data-testid={`button-stamp-${row.id}`}
+              title="Timbrar en Facturama"
+            >
+              <FileText className="w-4 h-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -361,7 +525,7 @@ export default function InvoicesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold text-foreground">Facturas</h1>
-          <p className="text-muted-foreground mt-1">Gestión de facturas y facturación</p>
+          <p className="text-muted-foreground mt-1">Gestión de facturas CFDI 4.0 y facturación</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
@@ -370,132 +534,336 @@ export default function InvoicesPage() {
               Nueva Factura
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Crear Factura</DialogTitle>
-              <DialogDescription>Crea una factura completa con todos sus items</DialogDescription>
+              <DialogTitle>Crear Factura CFDI 4.0</DialogTitle>
+              <DialogDescription>Crea una factura completa lista para timbrar en Facturama</DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* Información básica */}
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="invoiceNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Número de Factura*</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="INV-001" data-testid="input-invoice-number" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="clientId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cliente*</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                {/* Sección: Información Básica */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold border-b pb-2">Información Básica</h3>
+                  <div className="grid grid-cols-4 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="invoiceNumber"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Número de Factura*</FormLabel>
                           <FormControl>
-                            <SelectTrigger data-testid="select-client">
-                              <SelectValue placeholder="Seleccionar cliente" />
-                            </SelectTrigger>
+                            <Input {...field} placeholder="INV-001" data-testid="input-invoice-number" />
                           </FormControl>
-                          <SelectContent>
-                            {clients.map((client) => (
-                              <SelectItem key={client.id} value={client.id}>
-                                {client.name} ({client.currency})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="employeeId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Empleado</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="clientId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cliente*</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-client">
+                                <SelectValue placeholder="Seleccionar cliente" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {clients.map((client) => (
+                                <SelectItem key={client.id} value={client.id}>
+                                  {client.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="employeeId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Empleado</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-employee">
+                                <SelectValue placeholder="Seleccionar empleado" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {employees.map((employee) => (
+                                <SelectItem key={employee.id} value={employee.id}>
+                                  {employee.position}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="ordenCompra"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Orden de Compra</FormLabel>
                           <FormControl>
-                            <SelectTrigger data-testid="select-employee">
-                              <SelectValue placeholder="Seleccionar empleado" />
-                            </SelectTrigger>
+                            <Input {...field} value={field.value || ""} placeholder="NAVI-XXXXXX" />
                           </FormControl>
-                          <SelectContent>
-                            {employees.map((employee) => (
-                              <SelectItem key={employee.id} value={employee.id}>
-                                {employee.position}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-4 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="currency"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Moneda</FormLabel>
+                          <Input {...field} disabled />
+                          <FormDescription className="text-xs">Del cliente</FormDescription>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Estado</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="draft">Borrador</SelectItem>
+                              <SelectItem value="sent">Enviada</SelectItem>
+                              <SelectItem value="paid">Pagada</SelectItem>
+                              <SelectItem value="overdue">Vencida</SelectItem>
+                              <SelectItem value="cancelled">Cancelada</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="dueDate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Fecha de Vencimiento</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="date" 
+                              {...field} 
+                              value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} 
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="tipoComprobante"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Tipo Comprobante</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || "I"}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="I">I - Ingreso</SelectItem>
+                              <SelectItem value="E">E - Egreso</SelectItem>
+                              <SelectItem value="T">T - Traslado</SelectItem>
+                              <SelectItem value="P">P - Pago</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="currency"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Moneda</FormLabel>
-                        <Input {...field} disabled data-testid="input-currency" />
-                        <p className="text-xs text-muted-foreground">Definida por el cliente</p>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Estado</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                <Separator />
+
+                {/* Sección: Datos Fiscales Emisor */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold border-b pb-2">Datos Fiscales del Emisor</h3>
+                  <div className="grid grid-cols-4 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="issuerRFC"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>RFC Emisor*</FormLabel>
                           <FormControl>
-                            <SelectTrigger data-testid="select-status">
-                              <SelectValue />
-                            </SelectTrigger>
+                            <Input {...field} value={field.value || ""} placeholder="XAXX010101000" />
                           </FormControl>
-                          <SelectContent>
-                            <SelectItem value="draft">Borrador</SelectItem>
-                            <SelectItem value="sent">Enviada</SelectItem>
-                            <SelectItem value="paid">Pagada</SelectItem>
-                            <SelectItem value="overdue">Vencida</SelectItem>
-                            <SelectItem value="cancelled">Cancelada</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="dueDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Fecha de Vencimiento</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="date" 
-                            {...field} 
-                            value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} 
-                            data-testid="input-due-date" 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="issuerName"
+                      render={({ field }) => (
+                        <FormItem className="col-span-2">
+                          <FormLabel>Razón Social Emisor*</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="MI EMPRESA SA DE CV" />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="issuerRegimenFiscal"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Régimen Fiscal*</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || "601"}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="601">601 - General de Ley PM</SelectItem>
+                              <SelectItem value="603">603 - Personas Morales con Fines no Lucrativos</SelectItem>
+                              <SelectItem value="612">612 - PF con Actividades Empresariales</SelectItem>
+                              <SelectItem value="621">621 - Régimen de Incorporación Fiscal</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Sección: Datos Fiscales Comprobante */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold border-b pb-2">Datos Fiscales del Comprobante</h3>
+                  <div className="grid grid-cols-4 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="lugarExpedicion"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Lugar de Expedición*</FormLabel>
+                          <FormControl>
+                            <Input {...field} value={field.value || ""} placeholder="44160" maxLength={5} />
+                          </FormControl>
+                          <FormDescription className="text-xs">CP</FormDescription>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="usoCFDI"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Uso del CFDI*</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || "G03"}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {USO_CFDI_OPTIONS.map(opt => (
+                                <SelectItem key={opt.code} value={opt.code}>
+                                  {opt.code} - {opt.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="metodoPago"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Método de Pago*</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || "PPD"}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {METODO_PAGO_OPTIONS.map(opt => (
+                                <SelectItem key={opt.code} value={opt.code}>
+                                  {opt.code} - {opt.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="formaPago"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Forma de Pago*</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || "99"}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {FORMA_PAGO_OPTIONS.map(opt => (
+                                <SelectItem key={opt.code} value={opt.code}>
+                                  {opt.code} - {opt.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-4 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="exportacion"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Exportación*</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value || "01"}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="01">01 - No aplica</SelectItem>
+                              <SelectItem value="02">02 - Definitivo</SelectItem>
+                              <SelectItem value="03">03 - Temporal</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
                 <Separator />
@@ -503,75 +871,155 @@ export default function InvoicesPage() {
                 {/* Tabla de Items */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Items de la Factura</h3>
+                    <h3 className="text-lg font-semibold">Conceptos / Items</h3>
                     <Button type="button" size="sm" onClick={addLineItem} data-testid="button-add-item">
                       <Plus className="w-4 h-4 mr-1" />
-                      Agregar Item
+                      Agregar Concepto
                     </Button>
                   </div>
 
-                  <div className="border rounded-md overflow-hidden">
-                    <table className="w-full">
+                  <div className="border rounded-md overflow-x-auto">
+                    <table className="w-full text-sm">
                       <thead className="bg-muted">
                         <tr>
-                          <th className="text-left p-3 font-medium text-sm">Descripción</th>
-                          <th className="text-right p-3 font-medium text-sm w-24">Cantidad</th>
-                          <th className="text-right p-3 font-medium text-sm w-32">Precio Unit.</th>
-                          <th className="text-right p-3 font-medium text-sm w-32">Importe</th>
-                          <th className="w-12"></th>
+                          <th className="text-left p-2 font-medium">Descripción</th>
+                          <th className="text-left p-2 font-medium w-32">Código SAT</th>
+                          <th className="text-left p-2 font-medium w-24">Unidad</th>
+                          <th className="text-right p-2 font-medium w-20">Cant.</th>
+                          <th className="text-right p-2 font-medium w-28">P. Unit.</th>
+                          <th className="text-right p-2 font-medium w-28">Importe</th>
+                          <th className="text-left p-2 font-medium w-32">Obj. Imp.</th>
+                          <th className="text-center p-2 font-medium w-20">IVA</th>
+                          <th className="text-right p-2 font-medium w-24">Tasa</th>
+                          <th className="text-right p-2 font-medium w-28">Imp. IVA</th>
+                          <th className="w-10"></th>
                         </tr>
                       </thead>
                       <tbody>
                         {lineItems.map((item, index) => (
                           <tr key={item.tempId} className="border-t">
-                            <td className="p-2">
+                            <td className="p-1">
                               <Input
-                                placeholder="Descripción del servicio o producto"
+                                placeholder="Descripción del servicio"
                                 value={item.description}
                                 onChange={(e) => updateLineItem(item.tempId, 'description', e.target.value)}
+                                className="text-sm"
                                 data-testid={`input-item-description-${index}`}
                               />
                             </td>
-                            <td className="p-2">
+                            <td className="p-1">
+                              <Select 
+                                value={item.satProductCode}
+                                onValueChange={(val) => updateLineItem(item.tempId, 'satProductCode', val)}
+                              >
+                                <SelectTrigger className="text-sm h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {SAT_PRODUCTS.map(p => (
+                                    <SelectItem key={p.code} value={p.code}>
+                                      {p.code}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="p-1">
+                              <Select 
+                                value={item.satUnitCode}
+                                onValueChange={(val) => updateLineItem(item.tempId, 'satUnitCode', val)}
+                              >
+                                <SelectTrigger className="text-sm h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {SAT_UNITS.map(u => (
+                                    <SelectItem key={u.code} value={u.code}>
+                                      {u.code}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="p-1">
                               <Input
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                className="text-right"
+                                className="text-right text-sm h-8"
                                 value={item.quantity}
                                 onChange={(e) => updateLineItem(item.tempId, 'quantity', e.target.value)}
-                                data-testid={`input-item-quantity-${index}`}
                               />
                             </td>
-                            <td className="p-2">
+                            <td className="p-1">
                               <Input
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                className="text-right"
+                                className="text-right text-sm h-8"
                                 value={item.unitPrice}
                                 onChange={(e) => updateLineItem(item.tempId, 'unitPrice', e.target.value)}
-                                data-testid={`input-item-price-${index}`}
                               />
                             </td>
-                            <td className="p-2">
+                            <td className="p-1">
                               <Input
                                 value={parseFloat(item.amount || "0").toFixed(2)}
                                 disabled
-                                className="text-right bg-muted"
-                                data-testid={`input-item-amount-${index}`}
+                                className="text-right bg-muted text-sm h-8"
                               />
                             </td>
-                            <td className="p-2">
+                            <td className="p-1">
+                              <Select 
+                                value={item.satTaxObject}
+                                onValueChange={(val) => updateLineItem(item.tempId, 'satTaxObject', val)}
+                              >
+                                <SelectTrigger className="text-sm h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {SAT_TAX_OBJECTS.map(t => (
+                                    <SelectItem key={t.code} value={t.code}>
+                                      {t.code}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="p-1 text-center">
+                              <Checkbox
+                                checked={item.applyTax}
+                                onCheckedChange={(checked) => updateLineItem(item.tempId, 'applyTax', checked as boolean)}
+                              />
+                            </td>
+                            <td className="p-1">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="1"
+                                className="text-right text-sm h-8"
+                                value={item.taxRate}
+                                onChange={(e) => updateLineItem(item.tempId, 'taxRate', e.target.value)}
+                                disabled={!item.applyTax}
+                              />
+                            </td>
+                            <td className="p-1">
+                              <Input
+                                value={parseFloat(item.taxAmount || "0").toFixed(2)}
+                                disabled
+                                className="text-right bg-muted text-sm h-8"
+                              />
+                            </td>
+                            <td className="p-1">
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => removeLineItem(item.tempId)}
                                 disabled={lineItems.length === 1}
-                                data-testid={`button-remove-item-${index}`}
+                                className="h-8 w-8"
                               >
-                                <Minus className="w-4 h-4" />
+                                <Minus className="w-3 h-3" />
                               </Button>
                             </td>
                           </tr>
@@ -589,7 +1037,7 @@ export default function InvoicesPage() {
                       <span className="font-semibold">{form.watch("currency")} {parseFloat(form.watch("subtotal") || "0").toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">IVA (16%):</span>
+                      <span className="text-muted-foreground">Impuestos:</span>
                       <span className="font-semibold">{form.watch("currency")} {parseFloat(form.watch("tax") || "0").toFixed(2)}</span>
                     </div>
                     <Separator />
@@ -607,9 +1055,8 @@ export default function InvoicesPage() {
                     <FormItem>
                       <FormLabel>Notas</FormLabel>
                       <FormControl>
-                        <Textarea {...field} value={field.value || ""} rows={3} placeholder="Notas adicionales..." data-testid="input-notes" />
+                        <Textarea {...field} value={field.value || ""} rows={2} placeholder="Notas adicionales..." />
                       </FormControl>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -636,15 +1083,26 @@ export default function InvoicesPage() {
         emptyMessage="No hay facturas. Crea tu primera factura para comenzar."
       />
 
-      {/* Dialog de Vista de Factura (existente, simplificado) */}
+      {/* Dialog de Vista de Factura */}
       <Dialog open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between">
               <div>
-                <DialogTitle>Factura #{selectedInvoice?.invoiceNumber}</DialogTitle>
+                <DialogTitle className="flex items-center gap-2">
+                  Factura #{selectedInvoice?.invoiceNumber}
+                  {selectedInvoice?.folioFiscal && (
+                    <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      Timbrada SAT
+                    </Badge>
+                  )}
+                </DialogTitle>
                 <DialogDescription>
                   Cliente: {clients.find((c) => c.id === selectedInvoice?.clientId)?.name}
+                  {selectedInvoice?.folioFiscal && (
+                    <div className="text-xs mt-1">Folio Fiscal: {selectedInvoice.folioFiscal}</div>
+                  )}
                 </DialogDescription>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setSelectedInvoice(null)}>
@@ -666,7 +1124,7 @@ export default function InvoicesPage() {
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">IVA</CardTitle>
+                    <CardTitle className="text-sm font-medium">Impuestos</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-semibold">{selectedInvoice.currency} {parseFloat(selectedInvoice.tax).toFixed(2)}</div>
@@ -684,7 +1142,7 @@ export default function InvoicesPage() {
 
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold">Items</h3>
+                  <h3 className="text-lg font-semibold">Conceptos</h3>
                 </div>
                 <div className="border rounded-md overflow-hidden">
                   <table className="w-full">
@@ -694,16 +1152,25 @@ export default function InvoicesPage() {
                         <th className="text-right p-3 font-medium text-sm">Cantidad</th>
                         <th className="text-right p-3 font-medium text-sm">Precio Unit.</th>
                         <th className="text-right p-3 font-medium text-sm">Importe</th>
+                        <th className="text-right p-3 font-medium text-sm">IVA</th>
                         <th className="w-12"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {invoiceItems.map((item) => (
                         <tr key={item.id} className="border-t">
-                          <td className="p-3">{item.description}</td>
+                          <td className="p-3">
+                            <div>{item.description}</div>
+                            <div className="text-xs text-muted-foreground">
+                              SAT: {item.satProductCode} | {item.satUnitCode} | Obj: {item.satTaxObject}
+                            </div>
+                          </td>
                           <td className="p-3 text-right">{parseFloat(item.quantity).toFixed(2)}</td>
                           <td className="p-3 text-right">{selectedInvoice.currency} {parseFloat(item.unitPrice).toFixed(2)}</td>
                           <td className="p-3 text-right font-medium">{selectedInvoice.currency} {parseFloat(item.amount).toFixed(2)}</td>
+                          <td className="p-3 text-right">
+                            {item.taxAmount ? `${selectedInvoice.currency} ${parseFloat(item.taxAmount).toFixed(2)}` : "-"}
+                          </td>
                           <td className="p-3">
                             <Button
                               variant="ghost"
@@ -765,6 +1232,18 @@ export default function InvoicesPage() {
                   <p className="text-muted-foreground text-center py-8 border rounded-md">No hay pagos registrados</p>
                 )}
               </div>
+
+              {!selectedInvoice.folioFiscal && (
+                <div className="flex justify-end pt-4 border-t">
+                  <Button 
+                    onClick={() => stampMutation.mutate(selectedInvoice.id)}
+                    disabled={stampMutation.isPending}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    {stampMutation.isPending ? "Timbrando..." : "Timbrar en Facturama"}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
