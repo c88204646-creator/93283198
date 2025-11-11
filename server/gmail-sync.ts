@@ -5,6 +5,7 @@ import * as calendarSync from './calendar-sync';
 import { AttachmentAnalyzer } from './attachment-analyzer';
 import { backblazeStorage } from './backblazeStorage';
 import { SpamFilter } from './spam-filter';
+import { AttachmentFilter } from './attachment-filter';
 
 // Construir la URL de redirección automáticamente
 function getRedirectUri(): string {
@@ -277,6 +278,25 @@ export async function startSync(accountId: string) {
           for (const part of fullMessage.data.payload.parts) {
             if (part.filename && part.body?.attachmentId) {
               const mimeType = part.mimeType || 'application/octet-stream';
+              
+              // Detectar si es inline antes de procesar
+              const isInline = part.headers?.some((h: {name?: string | null; value?: string | null}) => 
+                h.name === 'Content-Disposition' && h.value?.includes('inline')
+              ) || false;
+              
+              // Filtrar attachments innecesarios (firmas, logos inline, tracking pixels)
+              const shouldIgnore = AttachmentFilter.shouldIgnoreAttachment({
+                filename: part.filename,
+                mimeType,
+                size: part.body.size || 0,
+                isInline
+              });
+              
+              if (shouldIgnore) {
+                // Saltar este attachment - no descargarlo ni almacenarlo
+                continue;
+              }
+              
               let extractedText: string | null = null;
               let b2Key: string | undefined;
               let fileHash: string | undefined;
@@ -352,9 +372,7 @@ export async function startSync(accountId: string) {
                 data: b2Key ? null : attachmentDataBase64, // Fall back to DB if B2 not configured
                 b2Key: b2Key || null,
                 fileHash: fileHash || null,
-                isInline: part.headers?.some((h: {name?: string | null; value?: string | null}) => 
-                  h.name === 'Content-Disposition' && h.value?.includes('inline')
-                ) || false,
+                isInline,
                 extractedText: extractedText && !b2Key ? extractedText : null, // Fall back to DB if B2 not configured
                 extractedTextB2Key: extractedText && b2Key ? `emails/attachments/extracted-text/${fileHash}` : null,
               });
