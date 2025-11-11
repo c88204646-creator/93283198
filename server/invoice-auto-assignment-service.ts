@@ -14,7 +14,7 @@ import { facturamaInvoiceExtractor, type FacturamaInvoiceData } from './facturam
 import { backblazeStorage } from './backblazeStorage';
 import { storage } from './storage';
 import { db } from './db';
-import { invoices, invoiceItems, operations, clients } from '@shared/schema';
+import { invoices, invoiceItems, operations, clients, operationFiles } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 
 export interface InvoiceMatchResult {
@@ -345,7 +345,7 @@ export class InvoiceAutoAssignmentService {
         try {
           // Obtener attachments de la operación
           const files = await db.query.operationFiles.findMany({
-            where: eq(operations.id, operation.id)
+            where: eq(operationFiles.operationId, operation.id)
           });
           
           if (!files || files.length === 0) {
