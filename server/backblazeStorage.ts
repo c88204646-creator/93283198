@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import * as crypto from 'crypto';
 import { Readable } from 'stream';
@@ -412,6 +412,22 @@ export class BackblazeStorage {
     return urlMap;
   }
 
+  async deleteFile(fileKey: string): Promise<void> {
+    this.ensureConfigured();
+    try {
+      const command = new DeleteObjectCommand({
+        Bucket: this.bucketName!,
+        Key: fileKey,
+      });
+
+      await this.client!.send(command);
+      console.log(`Deleted file from Backblaze: ${fileKey}`);
+    } catch (error: any) {
+      console.error(`Error deleting file from Backblaze: ${fileKey}`, error);
+      throw new Error(`Failed to delete file: ${error.message}`);
+    }
+  }
+
   isAvailable(): boolean {
     // Re-initialize if not configured (in case secrets were added after first import)
     if (!this.isConfigured) {
@@ -473,4 +489,10 @@ export const backblazeStorage = {
     }
     return backblazeStorageInstance.downloadFile(fileKey);
   },
+  async deleteFile(fileKey: string): Promise<void> {
+    if (!backblazeStorageInstance) {
+      backblazeStorageInstance = new BackblazeStorage();
+    }
+    return backblazeStorageInstance.deleteFile(fileKey);
+  }
 };
