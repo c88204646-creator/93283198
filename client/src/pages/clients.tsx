@@ -231,9 +231,10 @@ export default function ClientsPage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: ClientFormData }) =>
       apiRequest("PATCH", `/api/clients/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+    onSuccess: async () => {
+      // Forzar refetch inmediato en lugar de solo invalidar
+      await queryClient.refetchQueries({ queryKey: ["/api/clients"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/dashboard/stats"] });
       setEditingClient(null);
       form.reset();
       toast({ title: "Cliente actualizado exitosamente" });
