@@ -3,7 +3,11 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import session from "express-session";
 import ConnectPgSimple from "connect-pg-simple";
-import { pool } from "./db";
+import { pool, db } from "./db";
+import { eq } from "drizzle-orm";
+import { 
+  users, operations, invoices, proposals, employees
+} from "@shared/schema";
 import bcrypt from "bcrypt";
 import {
   insertUserSchema, insertClientSchema, insertEmployeeSchema, insertOperationSchema,
