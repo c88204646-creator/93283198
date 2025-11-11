@@ -64,8 +64,27 @@ export class AutomationService {
       // 🆕 Procesamiento adicional: Creación y asignación automática de facturas desde PDFs
       await this.processInvoiceAutoAssignment();
       
+      // 🆕 Limpieza automática de thumbnails huérfanos y duplicados en B2
+      await this.cleanupOrphanedThumbnails();
+      
     } catch (error) {
       console.error('Error processing automations:', error);
+    }
+  }
+
+  /**
+   * Limpia thumbnails huérfanos que ya no tienen archivo padre
+   */
+  private async cleanupOrphanedThumbnails() {
+    try {
+      const { ThumbnailService } = await import('./thumbnail-service');
+      const deleted = await ThumbnailService.cleanupOrphanedThumbnails();
+      
+      if (deleted > 0) {
+        console.log(`[Automation] Cleaned up ${deleted} orphaned thumbnails`);
+      }
+    } catch (error) {
+      console.error('[Automation] Error cleaning up thumbnails:', error);
     }
   }
 

@@ -2788,6 +2788,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get thumbnail for file (lazy loading)
+  app.get("/api/files/:id/thumbnail", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const size = (req.query.size as 'small' | 'medium' | 'large') || 'small';
+
+      const file = await storage.getOperationFile(id);
+      if (!file) {
+        return res.status(404).json({ message: "File not found" });
+      }
+
+      const { ThumbnailService } = await import('./thumbnail-service');
+      const thumbnailUrl = await ThumbnailService.getOrGenerateThumbnail(
+        file.id,
+        file.b2Key,
+        file.mimeType,
+        size
+      );
+
+      if (!thumbnailUrl) {
+        return res.status(404).json({ message: "Thumbnail not available for this file type" });
+      }
+
+      // Redirigir al signed URL del thumbnail
+      res.redirect(thumbnailUrl);
+    } catch (error) {
+      console.error("Get thumbnail error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Batch generate thumbnails for multiple files
+  app.post("/api/files/thumbnails/batch", requireAuth, async (req, res) => {
+    try {
+      const { fileIds, size } = req.body as { fileIds: string[]; size?: 'small' | 'medium' | 'large' };
+
+      if (!Array.isArray(fileIds)) {
+        return res.status(400).json({ message: "fileIds must be an array" });
+      }
+
+      const files = await Promise.all(
+        fileIds.map(id => storage.getOperationFile(id))
+      );
+
+      const validFiles = files.filter(f => f !== null).map(f => ({
+        id: f!.id,
+        b2Key: f!.b2Key,
+        mimeType: f!.mimeType
+      }));
+
+      const { ThumbnailService } = await import('./thumbnail-service');
+      const thumbnails = await ThumbnailService.generateBatchThumbnails(validFiles, size || 'small');
+
+      const result: Record<string, string | null> = {};
+      thumbnails.forEach((url, id) => {
+        result[id] = url;
+      });
+
+      res.json(result);
+    } catch (error) {
+      console.error("Batch generate thumbnails error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Get messages linked to an operation (optimized endpoint)
   app.get("/api/operations/:operationId/messages", requireAuth, async (req, res) => {
     try {
