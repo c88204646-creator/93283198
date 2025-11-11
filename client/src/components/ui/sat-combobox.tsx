@@ -30,6 +30,8 @@ interface SATComboboxProps {
   disabled?: boolean;
   error?: string;
   catalogName?: string;
+  compact?: boolean;
+  noLabel?: boolean;
 }
 
 export function SATCombobox({
@@ -43,6 +45,8 @@ export function SATCombobox({
   disabled = false,
   error,
   catalogName = "SAT",
+  compact = false,
+  noLabel = false,
 }: SATComboboxProps) {
   const [open, setOpen] = useState(false);
   const [customMode, setCustomMode] = useState(false);
@@ -65,9 +69,9 @@ export function SATCombobox({
   };
 
   return (
-    <div className="space-y-2">
-      {label && (
-        <Label>
+    <div className={compact ? "space-y-1" : "space-y-2"}>
+      {label && !noLabel && (
+        <Label className={compact ? "text-xs" : ""}>
           {label}
           {required && <span className="text-destructive ml-1">*</span>}
         </Label>
@@ -80,6 +84,7 @@ export function SATCombobox({
             onChange={(e) => onChange(e.target.value)}
             placeholder="Ingresa código personalizado"
             disabled={disabled}
+            className={compact ? "h-7 text-xs" : ""}
             data-testid={`input-custom-${catalogName.toLowerCase()}`}
           />
           <Button
@@ -108,7 +113,8 @@ export function SATCombobox({
               className={cn(
                 "w-full justify-between",
                 !value && "text-muted-foreground",
-                error && "border-destructive"
+                error && "border-destructive",
+                compact && "h-7 text-xs"
               )}
               disabled={disabled}
               data-testid={`button-select-${catalogName.toLowerCase()}`}

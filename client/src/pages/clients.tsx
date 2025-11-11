@@ -469,6 +469,113 @@ export default function ClientsPage() {
                     )}
                   />
                 </div>
+                
+                {/* Sección de Datos Fiscales (Opcional) */}
+                <div className="border-t pt-4 mt-6">
+                  <h3 className="text-sm font-medium mb-3 text-foreground">Datos Fiscales (Opcional)</h3>
+                  <p className="text-xs text-muted-foreground mb-4">Complete estos datos para agilizar la creación de facturas CFDI 4.0</p>
+                  
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="rfc"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>RFC</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="XAXX010101000" data-testid="input-rfc" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="razonSocial"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Razón Social</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="Nombre fiscal" data-testid="input-razon-social" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="regimenFiscal"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Régimen Fiscal</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-regimen-fiscal">
+                                  <SelectValue placeholder="Seleccionar" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="601">601 - General de Ley PM</SelectItem>
+                                <SelectItem value="603">603 - PM Fines no Lucrativos</SelectItem>
+                                <SelectItem value="605">605 - Sueldos y Salarios</SelectItem>
+                                <SelectItem value="606">606 - Arrendamiento</SelectItem>
+                                <SelectItem value="612">612 - PF Actividades Empresariales</SelectItem>
+                                <SelectItem value="621">621 - Incorporación Fiscal</SelectItem>
+                                <SelectItem value="625">625 - Actividades Agrícolas</SelectItem>
+                                <SelectItem value="626">626 - Régimen Simplificado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="usoCFDI"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Uso CFDI</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value || ""}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-uso-cfdi">
+                                  <SelectValue placeholder="Seleccionar" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="G01">G01 - Adquisición de mercancías</SelectItem>
+                                <SelectItem value="G02">G02 - Devoluciones, descuentos</SelectItem>
+                                <SelectItem value="G03">G03 - Gastos en general</SelectItem>
+                                <SelectItem value="P01">P01 - Por definir</SelectItem>
+                                <SelectItem value="D01">D01 - Honorarios médicos</SelectItem>
+                                <SelectItem value="D02">D02 - Gastos médicos</SelectItem>
+                                <SelectItem value="S01">S01 - Sin efectos fiscales</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="codigoPostal"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Código Postal</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} placeholder="22000" data-testid="input-codigo-postal" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 <FormField
                   control={form.control}
                   name="notes"

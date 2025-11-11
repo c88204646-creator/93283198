@@ -20,6 +20,7 @@ import ClientsPage from "./pages/clients";
 import ClientDetailPage from "./pages/client-detail";
 import EmployeesPage from "./pages/employees";
 import InvoicesPage from "./pages/invoices";
+import InvoicesCreatePage from "./pages/invoices-create";
 import ProposalsPage from "./pages/proposals";
 import ExpensesPage from "./pages/expenses";
 import LeadsPage from "./pages/leads";
@@ -120,6 +121,7 @@ function AppLayout() {
                 <Route path="/clients/:id" component={ClientDetailPage} />
                 <Route path="/clients" component={ClientsPage} />
                 <Route path="/employees" component={EmployeesPage} />
+                <Route path="/invoices/new" component={InvoicesCreatePage} />
                 <Route path="/invoices" component={InvoicesPage} />
                 <Route path="/proposals" component={ProposalsPage} />
                 <Route path="/expenses" component={ExpensesPage} />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Plus, Trash2, Eye, X, Minus, FileText, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
@@ -82,6 +83,7 @@ interface InvoiceLineItem {
 }
 
 export default function InvoicesPage() {
+  const [, navigate] = useLocation();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -490,11 +492,16 @@ export default function InvoicesPage() {
           <h1 className="text-3xl font-semibold text-foreground">Facturas</h1>
           <p className="text-muted-foreground mt-1">Gestión de facturas CFDI 4.0 y facturación</p>
         </div>
+        <Button onClick={() => navigate("/invoices/new")} data-testid="button-create-invoice">
+          <Plus className="w-4 h-4 mr-2" />
+          Nueva Factura
+        </Button>
+        
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
-            <Button data-testid="button-create-invoice">
+            <Button className="hidden" data-testid="button-create-invoice-old">
               <Plus className="w-4 h-4 mr-2" />
-              Nueva Factura
+              Nueva Factura (Modal)
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
