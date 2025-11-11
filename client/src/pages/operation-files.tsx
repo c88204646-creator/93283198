@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FileUploader } from "@/components/FileUploader";
+import { FileThumbnail } from "@/components/FileThumbnail";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
@@ -418,12 +419,14 @@ export default function OperationFilesPage() {
                 >
                   {/* Thumbnail/Preview */}
                   <div className="relative h-48 bg-gradient-to-br from-muted/50 to-muted flex items-center justify-center overflow-hidden">
-                    {isImage ? (
-                      <img
-                        src={`/api/operations/${operationId}/files/${file.id}/download`}
-                        alt={file.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
+                    {isImage || file.mimeType.includes("pdf") ? (
+                      <FileThumbnail
+                        fileId={file.id}
+                        fileName={file.name}
+                        mimeType={file.mimeType}
+                        size="medium"
+                        className="w-full h-full"
+                        fallbackIcon={FileIcon}
                       />
                     ) : (
                       <FileIcon className="w-20 h-20 text-muted-foreground/40" />
@@ -528,11 +531,14 @@ export default function OperationFilesPage() {
                   >
                     {/* Icon/Thumbnail */}
                     <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0 overflow-hidden">
-                      {file.mimeType.startsWith("image/") ? (
-                        <img
-                          src={`/api/operations/${operationId}/files/${file.id}/download`}
-                          alt={file.name}
-                          className="w-full h-full object-cover"
+                      {file.mimeType.startsWith("image/") || file.mimeType.includes("pdf") ? (
+                        <FileThumbnail
+                          fileId={file.id}
+                          fileName={file.name}
+                          mimeType={file.mimeType}
+                          size="small"
+                          className="w-full h-full"
+                          fallbackIcon={FileIcon}
                         />
                       ) : (
                         <FileIcon className="w-6 h-6 text-muted-foreground" />

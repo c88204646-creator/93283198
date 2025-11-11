@@ -509,15 +509,13 @@ export class AutomationService {
             attachmentId: attachment.id,
           });
 
-          const objectPath = uploadResult.fileKey;
-
           // Categorize automatically
           const category = this.categorizeFile(attachment.filename, attachment.mimeType);
 
           // Get or create folder for this category
           const folderId = await this.getOrCreateCategoryFolder(operationId, category, config);
 
-          // Create file record
+          // Create file record with b2Key (not objectPath - we use B2 exclusively now)
           await storage.createOperationFile({
             operationId,
             folderId,
@@ -525,7 +523,8 @@ export class AutomationService {
             originalName: attachment.filename,
             mimeType: attachment.mimeType,
             size: attachment.size,
-            objectPath,
+            b2Key: uploadResult.fileKey, // FIXED: Use b2Key instead of objectPath
+            fileHash: uploadResult.fileHash, // Include hash for deduplication tracking
             category,
             description: `Email attachment: ${message.subject}`,
             uploadedBy: config.userId,
