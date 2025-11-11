@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Eye, DollarSign, FileText, X } from "lucide-react";
+import { Plus, Trash2, Eye, X, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/data-table";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -47,16 +47,24 @@ const statusColors = {
 };
 
 type InvoiceFormData = z.infer<typeof insertInvoiceSchema>;
-type InvoiceItemFormData = z.infer<typeof insertInvoiceItemSchema>;
 type PaymentFormData = z.infer<typeof insertPaymentSchema>;
+
+interface InvoiceLineItem {
+  tempId: string;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  amount: string;
+}
 
 export default function InvoicesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<InvoiceItem | null>(null);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([
+    { tempId: '1', description: '', quantity: '1', unitPrice: '0', amount: '0' }
+  ]);
   const { toast } = useToast();
 
   const { data: invoices = [], isLoading } = useQuery<Invoice[]>({
@@ -99,17 +107,6 @@ export default function InvoicesPage() {
     },
   });
 
-  const itemForm = useForm<InvoiceItemFormData>({
-    resolver: zodResolver(insertInvoiceItemSchema),
-    defaultValues: {
-      invoiceId: "",
-      description: "",
-      quantity: "1",
-      unitPrice: "0",
-      amount: "0",
-    },
-  });
-
   const paymentForm = useForm<PaymentFormData>({
     resolver: zodResolver(insertPaymentSchema),
     defaultValues: {
@@ -125,68 +122,108 @@ export default function InvoicesPage() {
   const selectedClient = clients.find((c) => c.id === form.watch("clientId"));
 
   useEffect(() => {
-    if (selectedClient && !form.getValues("currency")) {
+    if (selectedClient) {
       form.setValue("currency", selectedClient.currency);
     }
   }, [selectedClient, form]);
 
-  const watchQuantity = itemForm.watch("quantity");
-  const watchUnitPrice = itemForm.watch("unitPrice");
-
+  // Recalcular totales automáticamente cuando cambian los items
   useEffect(() => {
-    const qty = parseFloat(watchQuantity || "0");
-    const price = parseFloat(watchUnitPrice || "0");
-    const amount = (qty * price).toFixed(2);
-    itemForm.setValue("amount", amount);
-  }, [watchQuantity, watchUnitPrice, itemForm]);
+    const subtotal = lineItems.reduce((sum, item) => {
+      const amount = parseFloat(item.amount || "0");
+      return sum + amount;
+    }, 0);
+
+    const tax = subtotal * 0.16; // 16% IVA
+    const total = subtotal + tax;
+
+    form.setValue("subtotal", subtotal.toFixed(2));
+    form.setValue("tax", tax.toFixed(2));
+    form.setValue("total", total.toFixed(2));
+  }, [lineItems, form]);
+
+  const addLineItem = () => {
+    setLineItems([...lineItems, {
+      tempId: Date.now().toString(),
+      description: '',
+      quantity: '1',
+      unitPrice: '0',
+      amount: '0'
+    }]);
+  };
+
+  const removeLineItem = (tempId: string) => {
+    if (lineItems.length > 1) {
+      setLineItems(lineItems.filter(item => item.tempId !== tempId));
+    }
+  };
+
+  const updateLineItem = (tempId: string, field: keyof InvoiceLineItem, value: string) => {
+    setLineItems(lineItems.map(item => {
+      if (item.tempId === tempId) {
+        const updated = { ...item, [field]: value };
+        
+        // Recalcular amount si cambia quantity o unitPrice
+        if (field === 'quantity' || field === 'unitPrice') {
+          const qty = parseFloat(field === 'quantity' ? value : updated.quantity) || 0;
+          const price = parseFloat(field === 'unitPrice' ? value : updated.unitPrice) || 0;
+          updated.amount = (qty * price).toFixed(2);
+        }
+        
+        return updated;
+      }
+      return item;
+    }));
+  };
 
   const createMutation = useMutation({
-    mutationFn: (data: InvoiceFormData) => {
+    mutationFn: async (data: InvoiceFormData) => {
       const formattedData = {
         ...data,
         dueDate: new Date(data.dueDate),
         paidDate: data.paidDate ? new Date(data.paidDate) : null,
       };
-      return apiRequest("POST", "/api/invoices", formattedData);
+      
+      // Crear la factura primero
+      const invoice = await apiRequest("POST", "/api/invoices", formattedData) as Invoice;
+      
+      // Luego crear todos los items
+      for (const item of lineItems) {
+        if (item.description.trim()) {
+          await apiRequest("POST", `/api/invoices/${invoice.id}/items`, {
+            invoiceId: invoice.id,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            amount: item.amount,
+          });
+        }
+      }
+      
+      return invoice;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
       setIsCreateOpen(false);
       form.reset();
-      toast({ title: "Invoice created successfully" });
+      setLineItems([{ tempId: '1', description: '', quantity: '1', unitPrice: '0', amount: '0' }]);
+      toast({ title: "Factura creada exitosamente" });
     },
+    onError: (error: any) => {
+      console.error("Error creating invoice:", error);
+      toast({ 
+        title: "Error al crear factura", 
+        description: error?.message || "Por favor intenta de nuevo",
+        variant: "destructive"
+      });
+    }
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/invoices/${id}`, undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
-      toast({ title: "Invoice deleted successfully" });
-    },
-  });
-
-  const createItemMutation = useMutation({
-    mutationFn: (data: InvoiceItemFormData) =>
-      apiRequest("POST", `/api/invoices/${selectedInvoice?.id}/items`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/invoices", selectedInvoice?.id, "items"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
-      setIsItemDialogOpen(false);
-      itemForm.reset();
-      toast({ title: "Item added successfully" });
-    },
-  });
-
-  const updateItemMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<InvoiceItemFormData> }) =>
-      apiRequest("PATCH", `/api/invoice-items/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/invoices", selectedInvoice?.id, "items"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
-      setIsItemDialogOpen(false);
-      setEditingItem(null);
-      itemForm.reset();
-      toast({ title: "Item updated successfully" });
+      toast({ title: "Factura eliminada exitosamente" });
     },
   });
 
@@ -195,7 +232,7 @@ export default function InvoicesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/invoices", selectedInvoice?.id, "items"] });
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
-      toast({ title: "Item deleted successfully" });
+      toast({ title: "Item eliminado exitosamente" });
     },
   });
 
@@ -212,7 +249,7 @@ export default function InvoicesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
       setIsPaymentDialogOpen(false);
       paymentForm.reset();
-      toast({ title: "Payment added successfully" });
+      toast({ title: "Pago agregado exitosamente" });
     },
   });
 
@@ -221,42 +258,27 @@ export default function InvoicesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/invoices", selectedInvoice?.id, "payments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
-      toast({ title: "Payment deleted successfully" });
+      toast({ title: "Pago eliminado exitosamente" });
     },
   });
 
   const onSubmit = (data: InvoiceFormData) => {
-    createMutation.mutate(data);
-  };
-
-  const onItemSubmit = (data: InvoiceItemFormData) => {
-    if (editingItem) {
-      updateItemMutation.mutate({ id: editingItem.id, data });
-    } else {
-      createItemMutation.mutate({ ...data, invoiceId: selectedInvoice!.id });
+    // Validar que haya al menos un item con descripción
+    const hasValidItems = lineItems.some(item => item.description.trim());
+    if (!hasValidItems) {
+      toast({ 
+        title: "Error", 
+        description: "Agrega al menos un item a la factura",
+        variant: "destructive"
+      });
+      return;
     }
+    
+    createMutation.mutate(data);
   };
 
   const onPaymentSubmit = (data: PaymentFormData) => {
     createPaymentMutation.mutate({ ...data, invoiceId: selectedInvoice!.id });
-  };
-
-  const handleAddItem = () => {
-    setEditingItem(null);
-    itemForm.reset({
-      invoiceId: selectedInvoice!.id,
-      description: "",
-      quantity: "1",
-      unitPrice: "0",
-      amount: "0",
-    });
-    setIsItemDialogOpen(true);
-  };
-
-  const handleEditItem = (item: InvoiceItem) => {
-    setEditingItem(item);
-    itemForm.reset(item);
-    setIsItemDialogOpen(true);
   };
 
   const handleAddPayment = () => {
@@ -274,20 +296,20 @@ export default function InvoicesPage() {
 
   const columns = [
     {
-      header: "Invoice #",
+      header: "Factura #",
       accessor: (row: Invoice) => (
         <div className="font-medium">{row.invoiceNumber}</div>
       ),
     },
     {
-      header: "Client",
+      header: "Cliente",
       accessor: (row: Invoice) => {
         const client = clients.find((c) => c.id === row.clientId);
         return client?.name || "-";
       },
     },
     {
-      header: "Currency",
+      header: "Moneda",
       accessor: (row: Invoice) => (
         <Badge variant="outline">{row.currency}</Badge>
       ),
@@ -297,7 +319,7 @@ export default function InvoicesPage() {
       accessor: (row: Invoice) => `${row.currency} ${parseFloat(row.total).toFixed(2)}`,
     },
     {
-      header: "Status",
+      header: "Estado",
       accessor: (row: Invoice) => (
         <Badge className={statusColors[row.status as keyof typeof statusColors]} data-testid={`status-${row.id}`}>
           {row.status}
@@ -305,11 +327,11 @@ export default function InvoicesPage() {
       ),
     },
     {
-      header: "Due Date",
-      accessor: (row: Invoice) => new Date(row.dueDate).toLocaleDateString(),
+      header: "Vencimiento",
+      accessor: (row: Invoice) => new Date(row.dueDate).toLocaleDateString('es-MX'),
     },
     {
-      header: "Actions",
+      header: "Acciones",
       accessor: (row: Invoice) => (
         <div className="flex items-center gap-2">
           <Button
@@ -338,47 +360,48 @@ export default function InvoicesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-foreground">Invoices</h1>
-          <p className="text-muted-foreground mt-1">Manage invoices and billing</p>
+          <h1 className="text-3xl font-semibold text-foreground">Facturas</h1>
+          <p className="text-muted-foreground mt-1">Gestión de facturas y facturación</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-create-invoice">
               <Plus className="w-4 h-4 mr-2" />
-              New Invoice
+              Nueva Factura
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Create Invoice</DialogTitle>
-              <DialogDescription>Create a new invoice</DialogDescription>
+              <DialogTitle>Crear Factura</DialogTitle>
+              <DialogDescription>Crea una factura completa con todos sus items</DialogDescription>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="invoiceNumber"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Invoice Number</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-invoice-number" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                {/* Información básica */}
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="invoiceNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Número de Factura*</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="INV-001" data-testid="input-invoice-number" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="clientId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Client</FormLabel>
+                        <FormLabel>Cliente*</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-client">
-                              <SelectValue placeholder="Select client" />
+                              <SelectValue placeholder="Seleccionar cliente" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -398,11 +421,11 @@ export default function InvoicesPage() {
                     name="employeeId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Employee</FormLabel>
+                        <FormLabel>Empleado</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-employee">
-                              <SelectValue placeholder="Select employee" />
+                              <SelectValue placeholder="Seleccionar empleado" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -418,24 +441,25 @@ export default function InvoicesPage() {
                     )}
                   />
                 </div>
-                <FormField
-                  control={form.control}
-                  name="currency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Currency</FormLabel>
-                      <Input {...field} disabled data-testid="input-currency" />
-                      <p className="text-sm text-muted-foreground">Currency is automatically set from client</p>
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
+
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Moneda</FormLabel>
+                        <Input {...field} disabled data-testid="input-currency" />
+                        <p className="text-xs text-muted-foreground">Definida por el cliente</p>
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="status"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Status</FormLabel>
+                        <FormLabel>Estado</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger data-testid="select-status">
@@ -443,11 +467,11 @@ export default function InvoicesPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="sent">Sent</SelectItem>
-                            <SelectItem value="paid">Paid</SelectItem>
-                            <SelectItem value="overdue">Overdue</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                            <SelectItem value="draft">Borrador</SelectItem>
+                            <SelectItem value="sent">Enviada</SelectItem>
+                            <SelectItem value="paid">Pagada</SelectItem>
+                            <SelectItem value="overdue">Vencida</SelectItem>
+                            <SelectItem value="cancelled">Cancelada</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -459,34 +483,143 @@ export default function InvoicesPage() {
                     name="dueDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Due Date</FormLabel>
+                        <FormLabel>Fecha de Vencimiento</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} data-testid="input-due-date" />
+                          <Input 
+                            type="date" 
+                            {...field} 
+                            value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} 
+                            data-testid="input-due-date" 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
+
+                <Separator />
+
+                {/* Tabla de Items */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Items de la Factura</h3>
+                    <Button type="button" size="sm" onClick={addLineItem} data-testid="button-add-item">
+                      <Plus className="w-4 h-4 mr-1" />
+                      Agregar Item
+                    </Button>
+                  </div>
+
+                  <div className="border rounded-md overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="text-left p-3 font-medium text-sm">Descripción</th>
+                          <th className="text-right p-3 font-medium text-sm w-24">Cantidad</th>
+                          <th className="text-right p-3 font-medium text-sm w-32">Precio Unit.</th>
+                          <th className="text-right p-3 font-medium text-sm w-32">Importe</th>
+                          <th className="w-12"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lineItems.map((item, index) => (
+                          <tr key={item.tempId} className="border-t">
+                            <td className="p-2">
+                              <Input
+                                placeholder="Descripción del servicio o producto"
+                                value={item.description}
+                                onChange={(e) => updateLineItem(item.tempId, 'description', e.target.value)}
+                                data-testid={`input-item-description-${index}`}
+                              />
+                            </td>
+                            <td className="p-2">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className="text-right"
+                                value={item.quantity}
+                                onChange={(e) => updateLineItem(item.tempId, 'quantity', e.target.value)}
+                                data-testid={`input-item-quantity-${index}`}
+                              />
+                            </td>
+                            <td className="p-2">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className="text-right"
+                                value={item.unitPrice}
+                                onChange={(e) => updateLineItem(item.tempId, 'unitPrice', e.target.value)}
+                                data-testid={`input-item-price-${index}`}
+                              />
+                            </td>
+                            <td className="p-2">
+                              <Input
+                                value={parseFloat(item.amount || "0").toFixed(2)}
+                                disabled
+                                className="text-right bg-muted"
+                                data-testid={`input-item-amount-${index}`}
+                              />
+                            </td>
+                            <td className="p-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeLineItem(item.tempId)}
+                                disabled={lineItems.length === 1}
+                                data-testid={`button-remove-item-${index}`}
+                              >
+                                <Minus className="w-4 h-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Totales */}
+                <div className="flex justify-end">
+                  <div className="w-80 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Subtotal:</span>
+                      <span className="font-semibold">{form.watch("currency")} {parseFloat(form.watch("subtotal") || "0").toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">IVA (16%):</span>
+                      <span className="font-semibold">{form.watch("currency")} {parseFloat(form.watch("tax") || "0").toFixed(2)}</span>
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between items-center text-lg">
+                      <span className="font-bold">Total:</span>
+                      <span className="font-bold text-primary">{form.watch("currency")} {parseFloat(form.watch("total") || "0").toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
                 <FormField
                   control={form.control}
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Notes</FormLabel>
+                      <FormLabel>Notas</FormLabel>
                       <FormControl>
-                        <Textarea {...field} value={field.value || ""} data-testid="input-notes" />
+                        <Textarea {...field} value={field.value || ""} rows={3} placeholder="Notas adicionales..." data-testid="input-notes" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <div className="flex justify-end gap-2">
+
+                <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>
-                    Cancel
+                    Cancelar
                   </Button>
                   <Button type="submit" disabled={createMutation.isPending} data-testid="button-submit">
-                    Create
+                    {createMutation.isPending ? "Creando..." : "Crear Factura"}
                   </Button>
                 </div>
               </form>
@@ -498,19 +631,20 @@ export default function InvoicesPage() {
       <DataTable
         data={invoices}
         columns={columns}
-        searchPlaceholder="Search invoices..."
+        searchPlaceholder="Buscar facturas..."
         isLoading={isLoading}
-        emptyMessage="No invoices found. Create your first invoice to get started."
+        emptyMessage="No hay facturas. Crea tu primera factura para comenzar."
       />
 
+      {/* Dialog de Vista de Factura (existente, simplificado) */}
       <Dialog open={!!selectedInvoice} onOpenChange={(open) => !open && setSelectedInvoice(null)}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between">
               <div>
-                <DialogTitle>Invoice #{selectedInvoice?.invoiceNumber}</DialogTitle>
+                <DialogTitle>Factura #{selectedInvoice?.invoiceNumber}</DialogTitle>
                 <DialogDescription>
-                  Client: {clients.find((c) => c.id === selectedInvoice?.clientId)?.name}
+                  Cliente: {clients.find((c) => c.id === selectedInvoice?.clientId)?.name}
                 </DialogDescription>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setSelectedInvoice(null)}>
@@ -532,7 +666,7 @@ export default function InvoicesPage() {
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Tax</CardTitle>
+                    <CardTitle className="text-sm font-medium">IVA</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-semibold">{selectedInvoice.currency} {parseFloat(selectedInvoice.tax).toFixed(2)}</div>
@@ -543,197 +677,104 @@ export default function InvoicesPage() {
                     <CardTitle className="text-sm font-medium">Total</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-semibold">{selectedInvoice.currency} {parseFloat(selectedInvoice.total).toFixed(2)}</div>
+                    <div className="text-2xl font-semibold text-primary">{selectedInvoice.currency} {parseFloat(selectedInvoice.total).toFixed(2)}</div>
                   </CardContent>
                 </Card>
               </div>
 
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <FileText className="w-5 h-5" />
-                        Items
-                      </CardTitle>
-                      <CardDescription>Line items for this invoice</CardDescription>
-                    </div>
-                    <Button size="sm" onClick={handleAddItem} data-testid="button-add-item">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Item
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {invoiceItems.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No items added yet</p>
-                  ) : (
-                    <div className="space-y-2">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold">Items</h3>
+                </div>
+                <div className="border rounded-md overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="text-left p-3 font-medium text-sm">Descripción</th>
+                        <th className="text-right p-3 font-medium text-sm">Cantidad</th>
+                        <th className="text-right p-3 font-medium text-sm">Precio Unit.</th>
+                        <th className="text-right p-3 font-medium text-sm">Importe</th>
+                        <th className="w-12"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
                       {invoiceItems.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between p-3 rounded-md border">
-                          <div className="flex-1">
-                            <div className="font-medium">{item.description}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {parseFloat(item.quantity).toFixed(2)} × {selectedInvoice.currency} {parseFloat(item.unitPrice).toFixed(2)}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="font-semibold">{selectedInvoice.currency} {parseFloat(item.amount).toFixed(2)}</div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditItem(item)}
-                              data-testid={`button-edit-item-${item.id}`}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
+                        <tr key={item.id} className="border-t">
+                          <td className="p-3">{item.description}</td>
+                          <td className="p-3 text-right">{parseFloat(item.quantity).toFixed(2)}</td>
+                          <td className="p-3 text-right">{selectedInvoice.currency} {parseFloat(item.unitPrice).toFixed(2)}</td>
+                          <td className="p-3 text-right font-medium">{selectedInvoice.currency} {parseFloat(item.amount).toFixed(2)}</td>
+                          <td className="p-3">
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => deleteItemMutation.mutate(item.id)}
-                              data-testid={`button-delete-item-${item.id}`}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
-                          </div>
-                        </div>
+                          </td>
+                        </tr>
                       ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <DollarSign className="w-5 h-5" />
-                        Payments
-                      </CardTitle>
-                      <CardDescription>Payment history for this invoice</CardDescription>
-                    </div>
-                    <Button size="sm" onClick={handleAddPayment} data-testid="button-add-payment">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Payment
-                    </Button>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold">Pagos</h3>
+                  <Button size="sm" onClick={handleAddPayment}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    Agregar Pago
+                  </Button>
+                </div>
+                {payments.length > 0 ? (
+                  <div className="border rounded-md overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-muted">
+                        <tr>
+                          <th className="text-left p-3 font-medium text-sm">Fecha</th>
+                          <th className="text-left p-3 font-medium text-sm">Método</th>
+                          <th className="text-right p-3 font-medium text-sm">Monto</th>
+                          <th className="text-left p-3 font-medium text-sm">Referencia</th>
+                          <th className="w-12"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payments.map((payment) => (
+                          <tr key={payment.id} className="border-t">
+                            <td className="p-3">{new Date(payment.paymentDate).toLocaleDateString('es-MX')}</td>
+                            <td className="p-3">{payment.paymentMethod}</td>
+                            <td className="p-3 text-right font-medium">{selectedInvoice.currency} {parseFloat(payment.amount).toFixed(2)}</td>
+                            <td className="p-3">{payment.reference || "-"}</td>
+                            <td className="p-3">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deletePaymentMutation.mutate(payment.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {payments.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-4">No payments recorded yet</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {payments.map((payment) => (
-                        <div key={payment.id} className="flex items-center justify-between p-3 rounded-md border">
-                          <div className="flex-1">
-                            <div className="font-medium">{payment.paymentMethod.toUpperCase()}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {new Date(payment.paymentDate).toLocaleDateString()} {payment.reference && `- Ref: ${payment.reference}`}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <div className="font-semibold">{selectedInvoice.currency} {parseFloat(payment.amount).toFixed(2)}</div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deletePaymentMutation.mutate(payment.id)}
-                              data-testid={`button-delete-payment-${payment.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8 border rounded-md">No hay pagos registrados</p>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingItem ? "Edit Item" : "Add Item"}</DialogTitle>
-            <DialogDescription>Add a line item to the invoice</DialogDescription>
-          </DialogHeader>
-          <Form {...itemForm}>
-            <form onSubmit={itemForm.handleSubmit(onItemSubmit)} className="space-y-4">
-              <FormField
-                control={itemForm.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid="input-item-description" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={itemForm.control}
-                  name="quantity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Quantity</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" {...field} data-testid="input-item-quantity" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={itemForm.control}
-                  name="unitPrice"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Unit Price</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" {...field} data-testid="input-item-unit-price" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={itemForm.control}
-                name="amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Amount</FormLabel>
-                    <FormControl>
-                      <Input {...field} disabled data-testid="input-item-amount" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsItemDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={createItemMutation.isPending || updateItemMutation.isPending} data-testid="button-submit-item">
-                  {editingItem ? "Update" : "Add"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
+      {/* Dialog para agregar pago */}
       <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Payment</DialogTitle>
-            <DialogDescription>Record a payment for this invoice</DialogDescription>
+            <DialogTitle>Agregar Pago</DialogTitle>
           </DialogHeader>
           <Form {...paymentForm}>
             <form onSubmit={paymentForm.handleSubmit(onPaymentSubmit)} className="space-y-4">
@@ -742,74 +783,62 @@ export default function InvoicesPage() {
                 name="amount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Amount</FormLabel>
+                    <FormLabel>Monto</FormLabel>
                     <FormControl>
-                      <Input type="number" step="0.01" {...field} data-testid="input-payment-amount" />
+                      <Input type="number" step="0.01" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={paymentForm.control}
-                  name="paymentDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Payment Date</FormLabel>
+              <FormField
+                control={paymentForm.control}
+                name="paymentDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fecha de Pago</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="date" 
+                        {...field} 
+                        value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={paymentForm.control}
+                name="paymentMethod"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Método de Pago</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <Input type="date" {...field} value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''} data-testid="input-payment-date" />
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={paymentForm.control}
-                  name="paymentMethod"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Payment Method</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-payment-method">
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="cash">Cash</SelectItem>
-                          <SelectItem value="transfer">Transfer</SelectItem>
-                          <SelectItem value="check">Check</SelectItem>
-                          <SelectItem value="card">Card</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                      <SelectContent>
+                        <SelectItem value="cash">Efectivo</SelectItem>
+                        <SelectItem value="transfer">Transferencia</SelectItem>
+                        <SelectItem value="card">Tarjeta</SelectItem>
+                        <SelectItem value="check">Cheque</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={paymentForm.control}
                 name="reference"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Reference</FormLabel>
+                    <FormLabel>Referencia</FormLabel>
                     <FormControl>
-                      <Input {...field} value={field.value || ""} data-testid="input-payment-reference" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={paymentForm.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notes</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} value={field.value || ""} data-testid="input-payment-notes" />
+                      <Input {...field} value={field.value || ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -817,10 +846,10 @@ export default function InvoicesPage() {
               />
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setIsPaymentDialogOpen(false)}>
-                  Cancel
+                  Cancelar
                 </Button>
-                <Button type="submit" disabled={createPaymentMutation.isPending} data-testid="button-submit-payment">
-                  Add Payment
+                <Button type="submit" disabled={createPaymentMutation.isPending}>
+                  Agregar
                 </Button>
               </div>
             </form>
