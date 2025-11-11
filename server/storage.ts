@@ -168,6 +168,7 @@ export interface IStorage {
   setOperationEmployees(operationId: string, employeeIds: string[]): Promise<void>;
   addOperationEmployee(operationId: string, employeeId: string): Promise<OperationEmployee>;
   removeOperationEmployee(operationId: string, employeeId: string): Promise<void>;
+  syncAutomationEmployeesToOperations(): Promise<{ operationsUpdated: number; assignmentsCreated: number }>;
 
   // Gmail Accounts
   getAllGmailAccounts(userId?: string): Promise<GmailAccount[]>;
@@ -797,6 +798,61 @@ export class DatabaseStorage implements IStorage {
         eq(operationEmployees.employeeId, employeeId)
       )
     );
+  }
+
+  async syncAutomationEmployeesToOperations(): Promise<{ operationsUpdated: number; assignmentsCreated: number }> {
+    const enabledConfigs = await db.select().from(automationConfigs).where(eq(automationConfigs.isEnabled, true));
+    
+    if (enabledConfigs.length === 0) {
+      return { operationsUpdated: 0, assignmentsCreated: 0 };
+    }
+
+    const defaultEmployees = enabledConfigs[0].defaultEmployees as string[] | null;
+    
+    if (!defaultEmployees || defaultEmployees.length === 0) {
+      return { operationsUpdated: 0, assignmentsCreated: 0 };
+    }
+
+    const allOperations = await db.select({ id: operations.id }).from(operations);
+    const operationsToUpdate = allOperations.map(op => op.id);
+    
+    const valuesToInsert: InsertOperationEmployee[] = [];
+    for (const operationId of operationsToUpdate) {
+      for (const employeeId of defaultEmployees) {
+        valuesToInsert.push({ operationId, employeeId });
+      }
+    }
+
+    if (valuesToInsert.length === 0) {
+      return { operationsUpdated: 0, assignmentsCreated: 0 };
+    }
+
+    const existing = await db.select().from(operationEmployees)
+      .where(
+        and(
+          inArray(operationEmployees.operationId, operationsToUpdate),
+          inArray(operationEmployees.employeeId, defaultEmployees)
+        )
+      );
+    
+    const existingSet = new Set(
+      existing.map(e => `${e.operationId}:${e.employeeId}`)
+    );
+    
+    const toInsert = valuesToInsert.filter(
+      v => !existingSet.has(`${v.operationId}:${v.employeeId}`)
+    );
+
+    if (toInsert.length > 0) {
+      await db.insert(operationEmployees).values(toInsert);
+    }
+
+    const uniqueOperations = new Set(toInsert.map(v => v.operationId));
+
+    return {
+      operationsUpdated: uniqueOperations.size,
+      assignmentsCreated: toInsert.length
+    };
   }
 
   // Gmail Accounts
