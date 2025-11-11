@@ -467,10 +467,10 @@ export default function ClientsPage() {
                     name="currency"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Currency {editingClient && <span className="text-xs text-muted-foreground">(No editable)</span>}</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={!!editingClient}>
+                        <FormLabel>Currency</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
-                            <SelectTrigger data-testid="select-currency" disabled={!!editingClient}>
+                            <SelectTrigger data-testid="select-currency">
                               <SelectValue />
                             </SelectTrigger>
                           </FormControl>
@@ -482,7 +482,7 @@ export default function ClientsPage() {
                         </Select>
                         {editingClient && (
                           <p className="text-xs text-muted-foreground">
-                            La divisa no puede modificarse una vez creado el cliente para evitar conflictos con facturas y pagos vinculados.
+                            Puedes cambiar la divisa solo si el cliente no tiene facturas o cotizaciones. Las operaciones se actualizarán automáticamente.
                           </p>
                         )}
                         <FormMessage />
