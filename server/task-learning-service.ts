@@ -121,14 +121,15 @@ export class TaskLearningService {
     console.log('[Task Learning] 🎓 Analizando con patrones aprendidos...');
     
     // 1. Obtener patrones aprendidos de la knowledge base
-    const patterns = await this.getLearnedPatterns();
+    const taskPatterns = await this.getLearnedPatterns();
+    const notePatterns = await this.getLearnedNotePatterns();
     
-    if (patterns.length === 0) {
+    if (taskPatterns.length === 0 && notePatterns.length === 0) {
       console.log('[Task Learning] ⚠️  Sin patrones aprendidos aún. Sistema necesita entrenamiento inicial.');
       return null;
     }
     
-    console.log(`[Task Learning] 📚 ${patterns.length} patrones disponibles`);
+    console.log(`[Task Learning] 📚 ${taskPatterns.length} patrones de tareas y ${notePatterns.length} patrones de notas disponibles`);
     
     const tasks: LearnedTask[] = [];
     const notes: LearnedNote[] = [];
@@ -137,9 +138,10 @@ export class TaskLearningService {
     // 2. Analizar cada mensaje con patrones aprendidos
     for (const message of messages) {
       const fullText = `${message.subject} ${message.snippet} ${message.body || ''}`.toLowerCase();
+      let messageHasNote = false; // Track si este mensaje ya tiene nota
       
-      // 3. Buscar coincidencias con patrones
-      for (const pattern of patterns) {
+      // 3. Buscar coincidencias con patrones de tareas
+      for (const pattern of taskPatterns) {
         const matchedKeywords = pattern.triggerKeywords.filter(keyword => 
           fullText.includes(keyword.toLowerCase())
         );
@@ -160,22 +162,43 @@ export class TaskLearningService {
         }
       }
       
-      // 4. Generar nota transformada profesionalmente
-      const note = this.generateProfessionalNote(message, fullText, companyContext);
-      if (note) {
-        // Verificar duplicado
-        const isDuplicateNote = this.isNoteDuplicate(note.content, existingNotes.map(n => n.content));
-        if (!isDuplicateNote) {
-          notes.push(note);
+      // 4. Buscar coincidencias con patrones de notas profesionales
+      for (const notePattern of notePatterns) {
+        const matchedKeywords = notePattern.triggerKeywords.filter(keyword => 
+          fullText.includes(keyword.toLowerCase())
+        );
+        
+        if (matchedKeywords.length >= 2) { // Al menos 2 keywords para alta confianza
+          // Reutilizar contenido profesional aprendido
+          const note = this.generateNoteFromPattern(notePattern, message, fullText, companyContext);
+          
+          // Verificar duplicado
+          const isDuplicateNote = this.isNoteDuplicate(note.content, existingNotes.map(n => n.content));
+          if (!isDuplicateNote) {
+            notes.push(note);
+            messageHasNote = true; // Marcamos que este mensaje ya tiene nota
+          }
+        }
+      }
+      
+      // 5. CRÍTICO: Si ESTE MENSAJE no generó nota de patrón, generar fallback profesional
+      if (!messageHasNote) {
+        const note = this.generateProfessionalNote(message, fullText, companyContext);
+        if (note) {
+          const isDuplicateNote = this.isNoteDuplicate(note.content, existingNotes.map(n => n.content));
+          if (!isDuplicateNote) {
+            notes.push(note);
+          }
         }
       }
     }
     
-    // 5. Auto-actualizar status de tareas basado en correos
+    // 6. Auto-actualizar status de tareas basado en correos
     const updates = await this.detectStatusUpdates(messages, existingTasks);
     statusUpdates.push(...updates);
     
-    const confidence = patterns.length > 5 ? 85 : 70; // Mayor confianza con más patrones
+    const totalPatterns = taskPatterns.length + notePatterns.length;
+    const confidence = totalPatterns > 10 ? 90 : (totalPatterns > 5 ? 85 : 70); // Mayor confianza con más patrones
     
     console.log(`[Task Learning] ✅ Generadas ${tasks.length} tasks, ${notes.length} notes, ${statusUpdates.length} status updates (confidence: ${confidence}%)`);
     
@@ -274,6 +297,47 @@ export class TaskLearningService {
     }
     
     return transformed;
+  }
+
+  /**
+   * Genera una nota basada en un patrón aprendido
+   */
+  private generateNoteFromPattern(
+    pattern: {
+      triggerKeywords: string[];
+      contentTemplate: string;
+      qualityScore: number;
+      usageCount: number;
+      successRate: number;
+    },
+    message: EmailMessage,
+    fullText: string,
+    companyContext?: any
+  ): LearnedNote {
+    
+    // Reutilizar contenido profesional del patrón
+    // Personalizar con información específica del mensaje
+    let content = pattern.contentTemplate;
+    
+    // Extraer fechas y referencias del mensaje actual
+    const dates = this.extractDates(fullText);
+    const references = this.extractReferences(fullText);
+    
+    // Si el patrón tiene placeholders, reemplazarlos
+    if (dates.length > 0 && content.includes('{date}')) {
+      content = content.replace('{date}', dates[0]);
+    }
+    if (references.length > 0 && content.includes('{ref}')) {
+      content = content.replace('{ref}', references[0]);
+    }
+    
+    return {
+      content: content.slice(0, 150),
+      confidence: Math.round(pattern.successRate * 100),
+      reasoning: `Patrón profesional reutilizado (usado ${pattern.usageCount} veces, calidad: ${pattern.qualityScore}/10)`,
+      source: 'learned-pattern',
+      keywords: pattern.triggerKeywords
+    };
   }
 
   /**
@@ -422,6 +486,81 @@ export class TaskLearningService {
   }
 
   /**
+   * 🎓 Aprende de una tarea profesional generada por Gemini AI
+   * Este contenido ya viene transformado profesionalmente, solo extraemos el patrón
+   */
+  async learnFromProfessionalTask(
+    task: { 
+      title: string; 
+      description: string; 
+      priority: 'low' | 'medium' | 'high' | 'urgent';
+      confidence: number;
+      reasoning: string;
+    }
+  ): Promise<void> {
+    try {
+      console.log(`[Task Learning] 🎓 Aprendiendo de tarea profesional Gemini: ${task.title}`);
+      
+      // Extraer keywords del título y descripción
+      const keywords = this.extractKeywordsFromText(`${task.title} ${task.description}`);
+      
+      // Crear patrón para futuros usos
+      const pattern: TaskPattern = {
+        triggerKeywords: keywords,
+        titleTemplate: this.generalizeTemplate(task.title),
+        descriptionTemplate: task.description,
+        priority: task.priority,
+        usageCount: 1,
+        successRate: task.confidence / 100 // Convertir confianza a success rate inicial
+      };
+      
+      // Guardar patrón en knowledge base
+      await this.savePattern(pattern, 'gemini-professional');
+      
+      console.log(`[Task Learning] ✅ Patrón profesional guardado con ${keywords.length} keywords (success rate: ${(pattern.successRate * 100).toFixed(0)}%)`);
+      
+    } catch (error) {
+      console.error('[Task Learning] Error learning from professional task:', error);
+    }
+  }
+
+  /**
+   * 🎓 Aprende de una nota profesional generada por Gemini AI
+   * Este contenido ya viene transformado profesionalmente, solo extraemos el patrón
+   */
+  async learnFromProfessionalNote(
+    note: {
+      content: string;
+      confidence: number;
+      reasoning: string;
+    }
+  ): Promise<void> {
+    try {
+      console.log(`[Task Learning] 🎓 Aprendiendo de nota profesional Gemini: ${note.content.substring(0, 50)}...`);
+      
+      // Extraer keywords del contenido
+      const keywords = this.extractKeywordsFromText(note.content);
+      
+      // Crear patrón de nota para futuros usos
+      const notePattern = {
+        triggerKeywords: keywords,
+        contentTemplate: note.content,
+        qualityScore: Math.round((note.confidence / 100) * 10), // Convertir a escala 0-10
+        usageCount: 1,
+        successRate: note.confidence / 100
+      };
+      
+      // Guardar en knowledge base como 'note-pattern'
+      await this.saveNotePattern(notePattern, 'gemini-professional');
+      
+      console.log(`[Task Learning] ✅ Patrón de nota profesional guardado con ${keywords.length} keywords (success rate: ${(notePattern.successRate * 100).toFixed(0)}%)`);
+      
+    } catch (error) {
+      console.error('[Task Learning] Error learning from professional note:', error);
+    }
+  }
+
+  /**
    * Aprende de una tarea creada manualmente por usuario
    */
   async learnFromManualTask(
@@ -502,6 +641,51 @@ export class TaskLearningService {
   }
 
   /**
+   * Obtiene patrones de notas aprendidos de la knowledge base
+   */
+  private async getLearnedNotePatterns(): Promise<Array<{
+    triggerKeywords: string[];
+    contentTemplate: string;
+    qualityScore: number;
+    usageCount: number;
+    successRate: number;
+  }>> {
+    try {
+      const patterns = await db.select().from(knowledgeBase)
+        .where(eq(knowledgeBase.type, 'note-pattern'))
+        .orderBy(desc(knowledgeBase.qualityScore), desc(knowledgeBase.usageCount))
+        .limit(15);
+      
+      const result: Array<{
+        triggerKeywords: string[];
+        contentTemplate: string;
+        qualityScore: number;
+        usageCount: number;
+        successRate: number;
+      }> = [];
+      
+      for (const pattern of patterns) {
+        if (!pattern.b2Key) continue;
+        
+        try {
+          // Descargar patrón de B2
+          const content = await backblazeStorage.downloadFile(pattern.b2Key);
+          const patternData = JSON.parse(content.toString('utf-8'));
+          result.push(patternData);
+        } catch (error) {
+          console.error(`[Task Learning] Error loading note pattern ${pattern.id}:`, error);
+        }
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error('[Task Learning] Error getting learned note patterns:', error);
+      return [];
+    }
+  }
+
+  /**
    * Guarda un patrón en la knowledge base
    */
   private async savePattern(pattern: TaskPattern, source: string): Promise<void> {
@@ -537,6 +721,50 @@ export class TaskLearningService {
   }
 
   /**
+   * Guarda un patrón de nota en la knowledge base
+   */
+  private async saveNotePattern(
+    pattern: {
+      triggerKeywords: string[];
+      contentTemplate: string;
+      qualityScore: number;
+      usageCount: number;
+      successRate: number;
+    },
+    source: string
+  ): Promise<void> {
+    try {
+      // Subir a B2
+      const filename = `note-pattern-${Date.now()}.json`;
+      const buffer = Buffer.from(JSON.stringify(pattern, null, 2), 'utf-8');
+      
+      const uploadResult = await backblazeStorage.uploadOperationFile(
+        buffer,
+        filename,
+        'application/json',
+        'system',
+        'system',
+        'note-learning'
+      );
+      
+      // Guardar en DB
+      await db.insert(knowledgeBase).values({
+        type: 'note-pattern',
+        b2Key: uploadResult.fileKey,
+        tags: pattern.triggerKeywords,
+        usageCount: pattern.usageCount,
+        qualityScore: pattern.qualityScore,
+        metadata: { source, successRate: pattern.successRate }
+      });
+      
+      console.log(`[Task Learning] ✅ Patrón de nota guardado en B2: ${uploadResult.fileKey}`);
+      
+    } catch (error) {
+      console.error('[Task Learning] Error saving note pattern:', error);
+    }
+  }
+
+  /**
    * Incrementa el contador de uso de un patrón
    */
   private async incrementPatternUsage(pattern: TaskPattern): Promise<void> {
@@ -561,6 +789,40 @@ export class TaskLearningService {
     }
     
     return Array.from(keywords).slice(0, 10); // Top 10 keywords
+  }
+
+  /**
+   * Extrae keywords relevantes de texto (para tareas profesionales de Gemini)
+   */
+  private extractKeywordsFromText(text: string): string[] {
+    const keywords = new Set<string>();
+    const normalized = text.toLowerCase();
+    const words = normalized.split(/\s+/);
+    
+    for (const word of words) {
+      // Limpiar puntuación
+      const cleaned = word.replace(/[.,!?;:()]/g, '');
+      
+      if (cleaned.length > 4 && !this.isStopWord(cleaned)) {
+        keywords.add(cleaned);
+      }
+    }
+    
+    // Agregar keywords específicos de logística si los detectamos
+    const logisticsKeywords = [
+      'agente aduanal', 'aduana', 'customs', 'despacho', 'clearance',
+      'factura', 'invoice', 'pago', 'payment', 'entrega', 'delivery',
+      'tracking', 'embarque', 'shipment', 'contenedor', 'container',
+      'bl', 'awb', 'ecu', 'aa', 'documentos', 'documents'
+    ];
+    
+    for (const keyword of logisticsKeywords) {
+      if (normalized.includes(keyword)) {
+        keywords.add(keyword);
+      }
+    }
+    
+    return Array.from(keywords).slice(0, 15); // Top 15 keywords para mejor matching
   }
 
   /**

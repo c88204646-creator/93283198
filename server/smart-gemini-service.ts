@@ -556,6 +556,10 @@ INSTRUCCIONES CRÍTICAS:
         threadHash
       });
       
+      // 🎓 RETROALIMENTACIÓN AUTOMÁTICA: Guardar contenido profesional de alta calidad
+      // para que el Task Learning Service lo reutilice sin usar Gemini API
+      await this.saveProfessionalContentToKnowledgeBase(filteredTasks, filteredNotes);
+      
       console.log(`[Smart Gemini] ✅ Analysis complete: ${filteredTasks.length} tasks, ${filteredNotes.length} notes, ${statusUpdates.length} status updates`);
       
       return analysisResult;
@@ -563,6 +567,41 @@ INSTRUCCIONES CRÍTICAS:
     } catch (error) {
       console.error('[Smart Gemini] ❌ Error processing Gemini response:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 🎓 Guarda contenido profesional de alta calidad en knowledge base
+   * para que Task Learning Service lo reutilice sin gastar API de Gemini
+   */
+  private async saveProfessionalContentToKnowledgeBase(
+    tasks: TaskSuggestion[],
+    notes: NoteSuggestion[]
+  ): Promise<void> {
+    try {
+      // Solo guardar contenido de ALTA CALIDAD (confianza >= 80%)
+      const highQualityTasks = tasks.filter(t => t.confidence >= 80);
+      const highQualityNotes = notes.filter(n => n.confidence >= 80);
+      
+      if (highQualityTasks.length === 0 && highQualityNotes.length === 0) {
+        return; // No hay contenido de suficiente calidad
+      }
+      
+      // Extraer patrones profesionales de las tareas
+      for (const task of highQualityTasks) {
+        await this.learningService.learnFromProfessionalTask(task);
+      }
+      
+      // Extraer patrones profesionales de las notas
+      for (const note of highQualityNotes) {
+        await this.learningService.learnFromProfessionalNote(note);
+      }
+      
+      console.log(`[Smart Gemini] 🎓 Saved ${highQualityTasks.length} professional tasks and ${highQualityNotes.length} professional notes to knowledge base for learning`);
+      
+    } catch (error) {
+      console.error('[Smart Gemini] ⚠️ Error saving to knowledge base:', error);
+      // No fallar el proceso principal por error en aprendizaje
     }
   }
 
