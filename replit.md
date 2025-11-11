@@ -46,6 +46,7 @@ Design preference: Logistics-focused iconography and terminology.
 - **File Management**: Backblaze B2 exclusive storage for all files, automatic attachment processing and categorization, SHA-256 hash-based deduplication, hierarchical folder organization, intelligent attachment filtering to prevent storing email signatures/logos/tracking pixels, professional thumbnail system with lazy loading similar to Dropbox/Google Drive.
 - **Automation Module**: Plugin-based system for entity creation from email patterns, rule-based matching, custom folder name configuration, invoice auto-creation from Facturama PDFs.
 - **Invoice Auto-Creation System**: Automatically detects Facturama invoice PDFs, extracts complete fiscal data (CFDI 4.0), creates full invoices with itemized details and SAT codes, prevents duplicates via folioFiscal (UUID), and assigns to operations. Includes toggle in automation UI (autoAssignInvoices).
+- **Manual Invoice Creation & Facturama Stamping**: Professional single-page ERP-style invoice form with full CFDI 4.0 compliance. Users can create invoices manually with all fiscal fields (RFC, régimen fiscal, uso CFDI, método/forma de pago, lugar expedición, exportación) and configurable tax per item (not default 16% IVA). Created invoices can be stamped via Facturama API integration for SAT certification. System distinguishes between manually created invoices (pending stamping) and auto-detected Facturama invoices (already stamped). Requires FACTURAMA_API_USER and FACTURAMA_API_PASSWORD secrets. Includes POST /api/invoices/:invoiceId/stamp endpoint for manual stamping.
 - **UI/UX**: Logistics-focused iconography, custom coral/orange color palette, dark mode, consistent UI/UX patterns.
 
 ### External Dependencies
@@ -75,6 +76,9 @@ Design preference: Logistics-focused iconography and terminology.
 
 #### Artificial Intelligence
 - Google Gemini AI (via `GEMINI_API_KEY`)
+
+#### Invoice & Tax Compliance
+- Facturama API (via `FACTURAMA_API_USER` and `FACTURAMA_API_PASSWORD`) - Mexican SAT CFDI 4.0 invoice stamping and certification
 
 #### Background Services
 - **Automatic Gmail Sync**: Every 15 minutes, processes messages and calendar events, links messages to operations.
