@@ -25,7 +25,7 @@ Design preference: Logistics-focused iconography and terminology.
 #### Database Schema
 - **Core Tables**: `users`, `employees`, `clients`, `operations`, `invoices`, `invoiceItems`, `proposals`, `expenses`, `leads`, `bank_accounts`, `chat_conversations`, `chat_messages`, `operationTasks`.
 - **Integration Tables**: `customFields`, `customFieldValues`, `gmailAccounts`, `gmailMessages`, `calendarEvents`.
-- **File Management Tables**: `operationFolders`, `operationFiles`, `gmailAttachments`.
+- **File Management Tables**: `operationFolders`, `operationFiles`, `gmailAttachments`, `fileThumbnails`.
 - **Automation Tables**: `automationConfigs`, `automationRules`, `automationLogs`.
 - **AI Tables**: `operationAnalyses`, `bankAccountAnalyses`, `knowledgeBase`, `financial_suggestions`.
 - **Patterns**: UUID primary keys, foreign key relationships, timestamp tracking, status enums, JSONB for metadata, B2 storage keys, SHA-256 file hashes.
@@ -43,7 +43,7 @@ Design preference: Logistics-focused iconography and terminology.
     - **AI Knowledge Base System**: Progressive learning system storing and reusing successful analyses to reduce Gemini API calls.
     - **AI-Powered Financial Transaction Detection**: 2-level resilient detection system (Gemini AI → OCR Fallback) with circuit breaker pattern. Automated detection of payments and expenses from email attachments, creating financial suggestions requiring user approval. **Complete Evidence Tracking**: Each detected transaction includes full source tracking (gmailMessageId, gmailAttachmentId, extractedText) enabling real-time preview of source PDF/image documents and direct links to originating emails. **Operation-Specific Display**: Financial suggestions now display exclusively within the relevant operation's detail page (Information tab), immediately below AI operation analysis, with full evidence UI showing attachment previews and email links. Includes intelligent duplicate detection via SHA-256 hash comparison, context-aware OCR amount extraction with keyword prioritization (Total/Amount/Monto), and configurable UI toggles. All suggestions go through approval workflow - no separate manual queue needed. Runs automatically every 15 minutes via automation service.
 - **Kanban Task Board System**: Drag-and-drop task management with configurable status columns, manual override of AI-generated tasks.
-- **File Management**: Backblaze B2 exclusive storage for all files, automatic attachment processing and categorization, SHA-256 hash-based deduplication, hierarchical folder organization, intelligent attachment filtering to prevent storing email signatures/logos/tracking pixels.
+- **File Management**: Backblaze B2 exclusive storage for all files, automatic attachment processing and categorization, SHA-256 hash-based deduplication, hierarchical folder organization, intelligent attachment filtering to prevent storing email signatures/logos/tracking pixels, professional thumbnail system with lazy loading similar to Dropbox/Google Drive.
 - **Automation Module**: Plugin-based system for entity creation from email patterns, rule-based matching, custom folder name configuration, invoice auto-creation from Facturama PDFs.
 - **Invoice Auto-Creation System**: Automatically detects Facturama invoice PDFs, extracts complete fiscal data (CFDI 4.0), creates full invoices with itemized details and SAT codes, prevents duplicates via folioFiscal (UUID), and assigns to operations. Includes toggle in automation UI (autoAssignInvoices).
 - **UI/UX**: Logistics-focused iconography, custom coral/orange color palette, dark mode, consistent UI/UX patterns.
@@ -69,8 +69,9 @@ Design preference: Logistics-focused iconography and terminology.
 #### Google API Integration
 - googleapis (for Gmail and Calendar API)
 
-#### Object Storage
+#### Object Storage & Image Processing
 - Backblaze B2 (Exclusive storage solution, S3-compatible API via `@aws-sdk/client-s3`)
+- Sharp (High-performance image processing for thumbnail generation)
 
 #### Artificial Intelligence
 - Google Gemini AI (via `GEMINI_API_KEY`)
@@ -78,4 +79,5 @@ Design preference: Logistics-focused iconography and terminology.
 #### Background Services
 - **Automatic Gmail Sync**: Every 15 minutes, processes messages and calendar events, links messages to operations.
 - **Automatic Calendar Sync**: Every 5 minutes, syncs calendar events.
-- **Automation Service**: Every 15 minutes, processes operations for AI task/note creation, handles unprocessed messages, processes attachments, and runs email thread analysis.
+- **Automation Service**: Every 15 minutes, processes operations for AI task/note creation, handles unprocessed messages, processes attachments, runs email thread analysis, and performs automatic cleanup of orphaned thumbnails.
+- **Professional File Preview System**: On-demand thumbnail generation for images and PDFs with three sizes (small 150x150, medium 400x400, large 800x800), intelligent caching in B2 storage, lazy loading for optimal performance, automatic cleanup of orphaned thumbnails. Similar to Dropbox/Google Drive interface with grid/list views, batch thumbnail generation, and progressive loading.
