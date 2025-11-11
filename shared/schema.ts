@@ -128,18 +128,36 @@ export const invoices = pgTable("invoices", {
   paidDate: timestamp("paid_date"),
   notes: text("notes"),
   
-  // CFDI 4.0 Fields (Mexican Tax Invoices)
-  folioFiscal: text("folio_fiscal"), // UUID del comprobante fiscal (unique identifier)
+  // CFDI 4.0 Fields - Emisor (Issuer)
+  folio: text("folio"), // Folio interno (no UUID)
   issuerRFC: text("issuer_rfc"), // RFC del emisor
   issuerName: text("issuer_name"), // Nombre del emisor
-  issuerRegimenFiscal: text("issuer_regimen_fiscal"), // Régimen fiscal del emisor
+  emisorRegimenFiscal: text("emisor_regimen_fiscal"), // Régimen fiscal del emisor (c_RegimenFiscal)
   lugarExpedicion: text("lugar_expedicion"), // Código postal de expedición
+  
+  // CFDI 4.0 Fields - Receptor (Receiver)
+  recipientRFC: text("recipient_rfc"), // RFC del receptor
+  recipientName: text("recipient_name"), // Nombre o razón social del receptor
+  recipientRegimenFiscal: text("recipient_regimen_fiscal"), // Régimen fiscal del receptor
+  recipientCodigoPostal: text("recipient_codigo_postal"), // Código postal del receptor (domicilio fiscal)
+  recipientDomicilioFiscal: text("recipient_domicilio_fiscal"), // Domicilio fiscal completo
+  
+  // CFDI 4.0 Fields - Comprobante
   metodoPago: text("metodo_pago"), // PUE (pago único) o PPD (pago diferido)
   formaPago: text("forma_pago"), // 01=Efectivo, 03=Transferencia, 99=Por definir, etc.
   ordenCompra: text("orden_compra"), // Orden de compra (NAVI-XXXXXX)
   tipoComprobante: text("tipo_comprobante"), // I=Ingreso, E=Egreso, T=Traslado, P=Pago
   usoCFDI: text("uso_cfdi"), // G03=Gastos en general, etc.
   exportacion: text("exportacion"), // 01=No aplica, 02=Definitivo, etc.
+  
+  // Timbrado Facturama
+  stampStatus: text("stamp_status").notNull().default("not_stamped"), // not_stamped, pending_stamp, stamped, stamp_failed
+  folioFiscal: text("folio_fiscal"), // UUID del comprobante fiscal (Facturama response)
+  facturamaCfdiId: text("facturama_cfdi_id"), // ID interno de Facturama
+  stampedAt: timestamp("stamped_at"), // Fecha de timbrado
+  stampError: text("stamp_error"), // Error message si falla
+  xmlB2Key: text("xml_b2_key"), // Key del XML en Backblaze B2
+  pdfB2Key: text("pdf_b2_key"), // Key del PDF en Backblaze B2
   
   // Automation fields
   createdAutomatically: boolean("created_automatically").notNull().default(false),
