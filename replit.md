@@ -23,12 +23,13 @@ Design preference: Logistics-focused iconography and terminology.
 - **Data Layer**: Drizzle ORM, Zod validation with automatic date transformation, schema-first design.
 
 #### Database Schema
-- **Core Tables**: `users`, `employees`, `clients`, `operations`, `invoices`, `proposals`, `expenses`, `leads`, `bank_accounts`, `chat_conversations`, `chat_messages`, `operationTasks`.
+- **Core Tables**: `users`, `employees`, `clients`, `operations`, `invoices`, `invoiceItems`, `proposals`, `expenses`, `leads`, `bank_accounts`, `chat_conversations`, `chat_messages`, `operationTasks`.
 - **Integration Tables**: `customFields`, `customFieldValues`, `gmailAccounts`, `gmailMessages`, `calendarEvents`.
 - **File Management Tables**: `operationFolders`, `operationFiles`, `gmailAttachments`.
 - **Automation Tables**: `automationConfigs`, `automationRules`, `automationLogs`.
 - **AI Tables**: `operationAnalyses`, `bankAccountAnalyses`, `knowledgeBase`, `financial_suggestions`.
 - **Patterns**: UUID primary keys, foreign key relationships, timestamp tracking, status enums, JSONB for metadata, B2 storage keys, SHA-256 file hashes.
+- **CFDI 4.0 Fields**: `invoices` table includes fiscal fields (folioFiscal/UUID, issuerRFC, issuerName, emisorRegimenFiscal, metodoPago, formaPago); `invoiceItems` table includes SAT codes (satProductCode, satUnitCode, satTaxObject, identification).
 
 #### Core Features
 - **Integrated Financial Management**: Comprehensive banking module, payments, expenses, and detailed financial dashboards.
@@ -43,7 +44,8 @@ Design preference: Logistics-focused iconography and terminology.
     - **AI-Powered Financial Transaction Detection**: 2-level resilient detection system (Gemini AI → OCR Fallback) with circuit breaker pattern. Automated detection of payments and expenses from email attachments, creating financial suggestions requiring user approval. **Complete Evidence Tracking**: Each detected transaction includes full source tracking (gmailMessageId, gmailAttachmentId, extractedText) enabling real-time preview of source PDF/image documents and direct links to originating emails. **Operation-Specific Display**: Financial suggestions now display exclusively within the relevant operation's detail page (Information tab), immediately below AI operation analysis, with full evidence UI showing attachment previews and email links. Includes intelligent duplicate detection via SHA-256 hash comparison, context-aware OCR amount extraction with keyword prioritization (Total/Amount/Monto), and configurable UI toggles. All suggestions go through approval workflow - no separate manual queue needed. Runs automatically every 15 minutes via automation service.
 - **Kanban Task Board System**: Drag-and-drop task management with configurable status columns, manual override of AI-generated tasks.
 - **File Management**: Backblaze B2 exclusive storage for all files, automatic attachment processing and categorization, SHA-256 hash-based deduplication, hierarchical folder organization.
-- **Automation Module**: Plugin-based system for entity creation from email patterns, rule-based matching, custom folder name configuration.
+- **Automation Module**: Plugin-based system for entity creation from email patterns, rule-based matching, custom folder name configuration, invoice auto-creation from Facturama PDFs.
+- **Invoice Auto-Creation System**: Automatically detects Facturama invoice PDFs, extracts complete fiscal data (CFDI 4.0), creates full invoices with itemized details and SAT codes, prevents duplicates via folioFiscal (UUID), and assigns to operations. Includes toggle in automation UI (autoAssignInvoices).
 - **UI/UX**: Logistics-focused iconography, custom coral/orange color palette, dark mode, consistent UI/UX patterns.
 
 ### External Dependencies
