@@ -39,6 +39,17 @@ import { insertInvoiceSchema, insertPaymentSchema, type Invoice, type InvoiceIte
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { z } from "zod";
+import { 
+  SAT_PRODUCT_CODES_COMMON,
+  SAT_UNIT_CODES,
+  SAT_TAX_OBJECTS,
+  SAT_CFDI_USE,
+  SAT_PAYMENT_METHODS,
+  SAT_PAYMENT_FORMS,
+  SAT_TAX_REGIMES,
+  SAT_EXPORT_TYPES,
+} from "@shared/sat-catalogs";
+import { SATCombobox } from "@/components/ui/sat-combobox";
 
 const statusColors = {
   draft: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
@@ -69,54 +80,6 @@ interface InvoiceLineItem {
   taxRate: string;
   taxAmount: string;
 }
-
-// Catálogos SAT más comunes
-const SAT_PRODUCTS = [
-  { code: "81141601", name: "Flete marítimo" },
-  { code: "80151600", name: "Servicios de transporte" },
-  { code: "80101510", name: "Servicios de asesoramiento" },
-  { code: "78141500", name: "Servicios de mensajería" },
-  { code: "84111506", name: "Servicios de almacenamiento" },
-  { code: "01010101", name: "No existe en el catálogo" },
-];
-
-const SAT_UNITS = [
-  { code: "E48", name: "Unidad de servicio" },
-  { code: "H87", name: "Pieza" },
-  { code: "KGM", name: "Kilogramo" },
-  { code: "MTR", name: "Metro" },
-  { code: "XBX", name: "Caja" },
-  { code: "ACT", name: "Actividad" },
-];
-
-const SAT_TAX_OBJECTS = [
-  { code: "01", name: "Sin objeto de impuesto" },
-  { code: "02", name: "Con objeto de impuesto" },
-  { code: "03", name: "Objeto de impuesto y no obligado" },
-];
-
-const USO_CFDI_OPTIONS = [
-  { code: "G01", name: "Adquisición de mercancías" },
-  { code: "G02", name: "Devoluciones, descuentos o bonificaciones" },
-  { code: "G03", name: "Gastos en general" },
-  { code: "I01", name: "Construcciones" },
-  { code: "I02", name: "Mobiliario y equipo de oficina por inversiones" },
-  { code: "P01", name: "Por definir" },
-  { code: "S01", name: "Sin efectos fiscales" },
-];
-
-const METODO_PAGO_OPTIONS = [
-  { code: "PUE", name: "Pago en una sola exhibición" },
-  { code: "PPD", name: "Pago en parcialidades o diferido" },
-];
-
-const FORMA_PAGO_OPTIONS = [
-  { code: "01", name: "Efectivo" },
-  { code: "03", name: "Transferencia electrónica de fondos" },
-  { code: "04", name: "Tarjeta de crédito" },
-  { code: "28", name: "Tarjeta de débito" },
-  { code: "99", name: "Por definir" },
-];
 
 export default function InvoicesPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -731,20 +694,16 @@ export default function InvoicesPage() {
                       name="issuerRegimenFiscal"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Régimen Fiscal*</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || "601"}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="601">601 - General de Ley PM</SelectItem>
-                              <SelectItem value="603">603 - Personas Morales con Fines no Lucrativos</SelectItem>
-                              <SelectItem value="612">612 - PF con Actividades Empresariales</SelectItem>
-                              <SelectItem value="621">621 - Régimen de Incorporación Fiscal</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <SATCombobox
+                            catalog={SAT_TAX_REGIMES}
+                            value={field.value || "601"}
+                            onChange={field.onChange}
+                            label="Régimen Fiscal*"
+                            placeholder="Seleccionar régimen fiscal"
+                            allowCustom={false}
+                            required={true}
+                            catalogName="regimen-fiscal"
+                          />
                         </FormItem>
                       )}
                     />
@@ -775,21 +734,16 @@ export default function InvoicesPage() {
                       name="usoCFDI"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Uso del CFDI*</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || "G03"}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {USO_CFDI_OPTIONS.map(opt => (
-                                <SelectItem key={opt.code} value={opt.code}>
-                                  {opt.code} - {opt.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <SATCombobox
+                            catalog={SAT_CFDI_USE}
+                            value={field.value || "G03"}
+                            onChange={field.onChange}
+                            label="Uso del CFDI*"
+                            placeholder="Seleccionar uso CFDI"
+                            allowCustom={false}
+                            required={true}
+                            catalogName="uso-cfdi"
+                          />
                         </FormItem>
                       )}
                     />
@@ -798,21 +752,16 @@ export default function InvoicesPage() {
                       name="metodoPago"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Método de Pago*</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || "PPD"}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {METODO_PAGO_OPTIONS.map(opt => (
-                                <SelectItem key={opt.code} value={opt.code}>
-                                  {opt.code} - {opt.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <SATCombobox
+                            catalog={SAT_PAYMENT_METHODS}
+                            value={field.value || "PPD"}
+                            onChange={field.onChange}
+                            label="Método de Pago*"
+                            placeholder="Seleccionar método"
+                            allowCustom={false}
+                            required={true}
+                            catalogName="metodo-pago"
+                          />
                         </FormItem>
                       )}
                     />
@@ -821,21 +770,16 @@ export default function InvoicesPage() {
                       name="formaPago"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Forma de Pago*</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || "99"}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {FORMA_PAGO_OPTIONS.map(opt => (
-                                <SelectItem key={opt.code} value={opt.code}>
-                                  {opt.code} - {opt.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <SATCombobox
+                            catalog={SAT_PAYMENT_FORMS}
+                            value={field.value || "99"}
+                            onChange={field.onChange}
+                            label="Forma de Pago*"
+                            placeholder="Seleccionar forma"
+                            allowCustom={false}
+                            required={true}
+                            catalogName="forma-pago"
+                          />
                         </FormItem>
                       )}
                     />
@@ -847,19 +791,16 @@ export default function InvoicesPage() {
                       name="exportacion"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Exportación*</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value || "01"}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="01">01 - No aplica</SelectItem>
-                              <SelectItem value="02">02 - Definitivo</SelectItem>
-                              <SelectItem value="03">03 - Temporal</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <SATCombobox
+                            catalog={SAT_EXPORT_TYPES}
+                            value={field.value || "01"}
+                            onChange={field.onChange}
+                            label="Exportación*"
+                            placeholder="Tipo de exportación"
+                            allowCustom={false}
+                            required={true}
+                            catalogName="exportacion"
+                          />
                         </FormItem>
                       )}
                     />
@@ -908,38 +849,28 @@ export default function InvoicesPage() {
                               />
                             </td>
                             <td className="p-1">
-                              <Select 
-                                value={item.satProductCode}
-                                onValueChange={(val) => updateLineItem(item.tempId, 'satProductCode', val)}
-                              >
-                                <SelectTrigger className="text-sm h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {SAT_PRODUCTS.map(p => (
-                                    <SelectItem key={p.code} value={p.code}>
-                                      {p.code}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <div className="w-32">
+                                <SATCombobox
+                                  catalog={SAT_PRODUCT_CODES_COMMON}
+                                  value={item.satProductCode}
+                                  onChange={(val) => updateLineItem(item.tempId, 'satProductCode', val)}
+                                  placeholder="Código"
+                                  allowCustom={true}
+                                  catalogName="producto"
+                                />
+                              </div>
                             </td>
                             <td className="p-1">
-                              <Select 
-                                value={item.satUnitCode}
-                                onValueChange={(val) => updateLineItem(item.tempId, 'satUnitCode', val)}
-                              >
-                                <SelectTrigger className="text-sm h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {SAT_UNITS.map(u => (
-                                    <SelectItem key={u.code} value={u.code}>
-                                      {u.code}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <div className="w-24">
+                                <SATCombobox
+                                  catalog={SAT_UNIT_CODES}
+                                  value={item.satUnitCode}
+                                  onChange={(val) => updateLineItem(item.tempId, 'satUnitCode', val)}
+                                  placeholder="Unidad"
+                                  allowCustom={true}
+                                  catalogName="unidad"
+                                />
+                              </div>
                             </td>
                             <td className="p-1">
                               <Input
@@ -969,21 +900,16 @@ export default function InvoicesPage() {
                               />
                             </td>
                             <td className="p-1">
-                              <Select 
-                                value={item.satTaxObject}
-                                onValueChange={(val) => updateLineItem(item.tempId, 'satTaxObject', val)}
-                              >
-                                <SelectTrigger className="text-sm h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {SAT_TAX_OBJECTS.map(t => (
-                                    <SelectItem key={t.code} value={t.code}>
-                                      {t.code}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <div className="w-32">
+                                <SATCombobox
+                                  catalog={SAT_TAX_OBJECTS}
+                                  value={item.satTaxObject}
+                                  onChange={(val) => updateLineItem(item.tempId, 'satTaxObject', val)}
+                                  placeholder="Obj"
+                                  allowCustom={false}
+                                  catalogName="objeto-impuesto"
+                                />
+                              </div>
                             </td>
                             <td className="p-1 text-center">
                               <Checkbox
