@@ -399,6 +399,14 @@ export const gmailAttachments = pgTable("gmail_attachments", {
   isInline: boolean("is_inline").notNull().default(false),
   extractedText: text("extracted_text"), // Text extracted from PDF/images via OCR (legacy)
   extractedTextB2Key: text("extracted_text_b2_key"), // Backblaze B2 key for extracted text
+  
+  // 🎯 LAZY LOADING: Sistema de cola asíncrona para descargas
+  downloadStatus: text("download_status").notNull().default("pending"), // pending, downloading, ready, failed
+  lastDownloadAttempt: timestamp("last_download_attempt"), // Último intento de descarga
+  downloadRetryCount: integer("download_retry_count").notNull().default(0), // Contador de reintentos
+  downloadError: text("download_error"), // Mensaje de error si falló
+  downloadPriority: text("download_priority").notNull().default("normal"), // high (operation-linked), normal (on-demand)
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

@@ -457,6 +457,17 @@ export class AutomationService {
 
       console.log(`[Automation] Processing ${attachments.length} attachments for operation ${operationId}`);
 
+      // 🎯 LAZY LOADING: Asegurar que attachments estén descargados antes de procesarlos
+      const { ensureAttachmentsReady } = await import('./attachment-download-queue');
+      const attachmentsReady = await ensureAttachmentsReady(message.id, 60000); // 60s timeout
+      
+      if (!attachmentsReady) {
+        console.warn(`[Automation] Some attachments not ready for message ${message.id}, skipping processing`);
+        return;
+      }
+      
+      console.log(`[Automation] ✅ All attachments ready for message ${message.id}`);
+
       // Get Gmail account to download attachments
       const gmailAccount = await storage.getGmailAccount(message.gmailAccountId);
       if (!gmailAccount) {

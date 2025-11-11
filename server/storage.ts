@@ -1062,6 +1062,13 @@ export class DatabaseStorage implements IStorage {
     await db.update(gmailMessages)
       .set({ operationId })
       .where(eq(gmailMessages.id, messageId));
+    
+    // 🎯 LAZY LOADING: Si se vincula a operación, encolar attachments para descarga automática
+    if (operationId) {
+      const { downloadQueue } = await import('./attachment-download-queue');
+      await downloadQueue.enqueueMessageAttachments(messageId, 'high');
+      console.log(`[Email Linking] Enqueued attachments for message ${messageId} (linked to operation ${operationId})`);
+    }
   }
 
   async getOperationMessages(operationId: string): Promise<GmailMessage[]> {
