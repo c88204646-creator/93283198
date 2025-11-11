@@ -4,6 +4,7 @@ import { getAttachmentData } from './gmail-sync';
 import { BackblazeStorage } from './backblazeStorage';
 import { processEmailThreadForAutomation, EmailTaskAutomation } from './email-task-automation';
 import { clientAutoAssignmentService } from './client-auto-assignment-service';
+import { invoiceAutoAssignmentService } from './invoice-auto-assignment-service';
 
 // Automation service that processes emails and creates operations automatically
 export class AutomationService {
@@ -60,6 +61,9 @@ export class AutomationService {
       // 🆕 Procesamiento adicional: Asignación automática de clientes desde facturas
       await this.processClientAutoAssignment();
       
+      // 🆕 Procesamiento adicional: Creación y asignación automática de facturas desde PDFs
+      await this.processInvoiceAutoAssignment();
+      
     } catch (error) {
       console.error('Error processing automations:', error);
     }
@@ -91,6 +95,35 @@ export class AutomationService {
       
     } catch (error) {
       console.error('[Automation] Error en processClientAutoAssignment:', error);
+    }
+  }
+
+  /**
+   * Procesa operaciones para detectar y crear facturas automáticamente desde PDFs de Facturama
+   */
+  private async processInvoiceAutoAssignment() {
+    try {
+      // Verificar si hay alguna config con autoAssignInvoices habilitado
+      const configs = await storage.getEnabledAutomationConfigs();
+      const invoiceAssignmentEnabled = configs.some(c => c.autoAssignInvoices === true);
+      
+      if (!invoiceAssignmentEnabled) {
+        // No hacer nada si está deshabilitado
+        return;
+      }
+      
+      console.log('[Automation] 📄 Procesando creación automática de facturas...');
+      
+      const result = await invoiceAutoAssignmentService.processOperationsForInvoiceDetection();
+      
+      if (result.invoicesCreated > 0 || result.invoicesAssigned > 0) {
+        console.log(`[Automation] ✅ Creación de facturas completada: ${result.invoicesCreated} creadas, ${result.invoicesAssigned} asignadas`);
+      } else {
+        console.log('[Automation] ℹ️  No se encontraron facturas para procesar');
+      }
+      
+    } catch (error) {
+      console.error('[Automation] Error en processInvoiceAutoAssignment:', error);
     }
   }
 
