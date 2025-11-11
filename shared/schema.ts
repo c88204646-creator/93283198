@@ -512,6 +512,18 @@ export const operationFiles = pgTable("operation_files", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// File Thumbnails table - lazy loading como Dropbox/Google Drive
+export const fileThumbnails = pgTable("file_thumbnails", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fileId: varchar("file_id").notNull(), // Puede referenciar operationFiles o gmailAttachments
+  size: text("size").notNull(), // small, medium, large
+  b2Key: text("b2_key").notNull(), // Thumbnail almacenado en B2
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Operation Analysis table (AI-generated insights cache)
 export const operationAnalyses = pgTable("operation_analyses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
