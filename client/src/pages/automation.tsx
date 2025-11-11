@@ -178,6 +178,9 @@ function ModuleConfigurationDialog({
   const [autoAssignClients, setAutoAssignClients] = useState<boolean>(
     config?.autoAssignClients || false
   );
+  const [autoAssignInvoices, setAutoAssignInvoices] = useState<boolean>(
+    config?.autoAssignInvoices || false
+  );
   const [customFolderNames, setCustomFolderNames] = useState<Record<string, string>>(
     (config?.customFolderNames as Record<string, string>) || {}
   );
@@ -210,6 +213,7 @@ function ModuleConfigurationDialog({
         autoDetectPayments,
         autoDetectExpenses,
         autoAssignClients,
+        autoAssignInvoices,
         customFolderNames: sanitizedNames,
         companyName: companyName.trim(),
         companyDomain: companyDomain.trim(),
@@ -245,6 +249,7 @@ function ModuleConfigurationDialog({
         autoDetectPayments: detectPayments,
         autoDetectExpenses: detectExpenses,
         autoAssignClients: assignClients,
+        autoAssignInvoices: assignInvoices,
         customFolderNames: folderNames,
         companyName: compName,
         companyDomain: compDomain,
@@ -299,6 +304,7 @@ function ModuleConfigurationDialog({
         detectPayments: autoDetectPayments, 
         detectExpenses: autoDetectExpenses, 
         assignClients: autoAssignClients,
+        assignInvoices: autoAssignInvoices,
         folderNames: sanitizedFolderNames,
         compName: companyName.trim(),
         compDomain: companyDomain.trim(),
@@ -382,6 +388,7 @@ function ModuleConfigurationDialog({
               autoDetectPayments={autoDetectPayments}
               autoDetectExpenses={autoDetectExpenses}
               autoAssignClients={autoAssignClients}
+              autoAssignInvoices={autoAssignInvoices}
               companyName={companyName}
               companyDomain={companyDomain}
               employeeEmails={employeeEmails}
@@ -394,6 +401,7 @@ function ModuleConfigurationDialog({
               onAutoDetectPaymentsChange={setAutoDetectPayments}
               onAutoDetectExpensesChange={setAutoDetectExpenses}
               onAutoAssignClientsChange={setAutoAssignClients}
+              onAutoAssignInvoicesChange={setAutoAssignInvoices}
               onCompanyNameChange={setCompanyName}
               onCompanyDomainChange={setCompanyDomain}
               onEmployeeEmailsChange={setEmployeeEmails}
@@ -434,6 +442,7 @@ function SettingsTab({
   autoDetectPayments,
   autoDetectExpenses,
   autoAssignClients,
+  autoAssignInvoices,
   companyName,
   companyDomain,
   employeeEmails,
@@ -447,6 +456,7 @@ function SettingsTab({
   onAutoDetectPaymentsChange,
   onAutoDetectExpensesChange,
   onAutoAssignClientsChange,
+  onAutoAssignInvoicesChange,
   onCompanyNameChange,
   onCompanyDomainChange,
   onEmployeeEmailsChange,
@@ -468,6 +478,7 @@ function SettingsTab({
   autoDetectPayments: boolean;
   autoDetectExpenses: boolean;
   autoAssignClients: boolean;
+  autoAssignInvoices: boolean;
   companyName: string;
   companyDomain: string;
   employeeEmails: string;
@@ -481,6 +492,7 @@ function SettingsTab({
   onAutoDetectPaymentsChange: (enabled: boolean) => void;
   onAutoDetectExpensesChange: (enabled: boolean) => void;
   onAutoAssignClientsChange: (enabled: boolean) => void;
+  onAutoAssignInvoicesChange: (enabled: boolean) => void;
   onCompanyNameChange: (name: string) => void;
   onCompanyDomainChange: (domain: string) => void;
   onEmployeeEmailsChange: (emails: string) => void;
@@ -832,6 +844,37 @@ function SettingsTab({
                 <div className="mt-3 p-3 bg-blue-500/5 rounded-md text-xs text-muted-foreground">
                   ℹ️ Client assignments will be made automatically from invoice data. 
                   The system will match existing clients by RFC or create new ones with complete fiscal information.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 p-4 bg-purple-500/5 border border-purple-500/20 rounded-lg">
+            <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              📄 Invoice Detection & Auto-Creation
+              <Badge variant="outline" className="text-xs">Automatic</Badge>
+            </h4>
+            <p className="text-xs text-muted-foreground mb-4">
+              Automatically creates complete invoices from Facturama PDF files with full itemization and SAT codes
+            </p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">Auto-create Invoices from PDFs</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Extracts complete fiscal data (UUID, RFC, items, SAT codes, taxes) and creates invoices
+                  </p>
+                </div>
+                <Switch
+                  checked={autoAssignInvoices}
+                  onCheckedChange={onAutoAssignInvoicesChange}
+                  data-testid="switch-auto-assign-invoices"
+                />
+              </div>
+              {autoAssignInvoices && (
+                <div className="mt-3 p-3 bg-purple-500/5 rounded-md text-xs text-muted-foreground">
+                  ℹ️ Invoices will be created automatically from Facturama PDFs. 
+                  The system extracts complete itemization including SAT product codes, quantities, unit codes, prices, and tax details. Duplicates are prevented using the fiscal UUID (Folio Fiscal).
                 </div>
               )}
             </div>
