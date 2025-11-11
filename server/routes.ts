@@ -382,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Si no hay facturas ni cotizaciones, actualizar la divisa de las operaciones vinculadas
           await db.update(operations)
-            .set({ currency: data.currency })
+            .set({ projectCurrency: data.currency })
             .where(eq(operations.clientId, id));
           
           console.log(`✓ Divisa actualizada de ${existingClient.currency} a ${data.currency} para el cliente ${existingClient.name} y sus operaciones`);
