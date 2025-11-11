@@ -17,6 +17,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -186,6 +196,7 @@ export default function ClientsPage() {
   const [, navigate] = useLocation();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [locationCoords, setLocationCoords] = useState<[number, number] | null>(null);
   const { toast } = useToast();
 
@@ -225,7 +236,14 @@ export default function ClientsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       setEditingClient(null);
       form.reset();
-      toast({ title: "Client updated successfully" });
+      toast({ title: "Cliente actualizado exitosamente" });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error al actualizar cliente",
+        description: error.message || "No se pudo actualizar el cliente",
+        variant: "destructive" 
+      });
     },
   });
 
@@ -234,9 +252,28 @@ export default function ClientsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({ title: "Client deleted successfully" });
+      setDeletingClient(null);
+      toast({ title: "Cliente eliminado exitosamente" });
+    },
+    onError: (error: any) => {
+      setDeletingClient(null);
+      toast({ 
+        title: "Error al eliminar cliente",
+        description: error.message || "No se pudo eliminar el cliente",
+        variant: "destructive" 
+      });
     },
   });
+
+  const handleDelete = (client: Client) => {
+    setDeletingClient(client);
+  };
+
+  const confirmDelete = () => {
+    if (deletingClient) {
+      deleteMutation.mutate(deletingClient.id);
+    }
+  };
 
   const onSubmit = (data: ClientFormData) => {
     if (editingClient) {
@@ -294,7 +331,10 @@ export default function ClientsPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => handleEdit(row)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleEdit(row);
+            }}
             data-testid={`button-edit-${row.id}`}
           >
             <Edit className="w-4 h-4" />
@@ -302,7 +342,10 @@ export default function ClientsPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => deleteMutation.mutate(row.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDelete(row);
+            }}
             data-testid={`button-delete-${row.id}`}
           >
             <Trash2 className="w-4 h-4" />
@@ -619,6 +662,27 @@ export default function ClientsPage() {
         emptyMessage="No clients found. Create your first client to get started."
         onRowClick={(client) => navigate(`/clients/${client.id}`)}
       />
+
+      <AlertDialog open={!!deletingClient} onOpenChange={(open) => !open && setDeletingClient(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar el cliente <strong>{deletingClient?.name}</strong>? 
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
