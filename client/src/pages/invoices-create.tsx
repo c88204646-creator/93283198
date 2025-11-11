@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { ArrowLeft, Plus, Minus, Save } from "lucide-react";
+import { ArrowLeft, Plus, Minus, Save, Search, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -15,14 +15,20 @@ import {
   FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertInvoiceSchema, type Client, type Operation } from "@shared/schema";
@@ -40,6 +46,7 @@ import {
   SAT_EXPORT_TYPES,
 } from "@shared/sat-catalogs";
 import { SATCombobox } from "@/components/ui/sat-combobox";
+import { cn } from "@/lib/utils";
 
 type InvoiceFormData = z.infer<typeof insertInvoiceSchema>;
 
@@ -262,27 +269,69 @@ export default function InvoicesCreatePage() {
               <CardTitle className="text-sm">Información General</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <FormField
                   control={form.control}
                   name="clientId"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs">Cliente</FormLabel>
-                      <Select onValueChange={handleClientSelect} value={field.value || ""}>
-                        <FormControl>
-                          <SelectTrigger className="h-8" data-testid="select-client">
-                            <SelectValue placeholder="Seleccionar cliente" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {clients.map(client => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.name} {client.rfc && `(${client.rfc})`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <FormItem className="flex flex-col">
+                      <FormLabel className="text-xs">Cliente*</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "h-8 justify-between font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                              data-testid="select-client"
+                            >
+                              {field.value
+                                ? clients.find((client) => client.id === field.value)?.name
+                                : "Buscar cliente..."}
+                              <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Buscar cliente..." className="h-8" />
+                            <CommandList>
+                              <CommandEmpty>No se encontraron clientes.</CommandEmpty>
+                              <CommandGroup>
+                                {clients.map((client) => (
+                                  <CommandItem
+                                    key={client.id}
+                                    value={`${client.name} ${client.rfc || ''}`}
+                                    onSelect={() => {
+                                      handleClientSelect(client.id);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-3 w-3",
+                                        client.id === field.value
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-medium">{client.name}</span>
+                                      {client.rfc && (
+                                        <span className="text-xs text-muted-foreground">
+                                          RFC: {client.rfc}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -291,22 +340,57 @@ export default function InvoicesCreatePage() {
                   control={form.control}
                   name="operationId"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                       <FormLabel className="text-xs">Operación (Opcional)</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
-                        <FormControl>
-                          <SelectTrigger className="h-8" data-testid="select-operation">
-                            <SelectValue placeholder="Seleccionar operación" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {operations.map(op => (
-                            <SelectItem key={op.id} value={op.id}>
-                              {op.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "h-8 justify-between font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                              data-testid="select-operation"
+                            >
+                              {field.value
+                                ? operations.find((op) => op.id === field.value)?.name
+                                : "Buscar operación..."}
+                              <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Buscar operación..." className="h-8" />
+                            <CommandList>
+                              <CommandEmpty>No se encontraron operaciones.</CommandEmpty>
+                              <CommandGroup>
+                                {operations.map((op) => (
+                                  <CommandItem
+                                    key={op.id}
+                                    value={op.name}
+                                    onSelect={() => {
+                                      field.onChange(op.id);
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-3 w-3",
+                                        op.id === field.value
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    {op.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -329,14 +413,14 @@ export default function InvoicesCreatePage() {
           </Card>
 
           {/* Datos Fiscales: Emisor y Receptor lado a lado */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {/* Datos del Emisor */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Datos del Emisor</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <FormField
                     control={form.control}
                     name="issuerRFC"
@@ -405,7 +489,7 @@ export default function InvoicesCreatePage() {
                 <CardTitle className="text-sm">Datos del Receptor</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <FormField
                     control={form.control}
                     name="recipientRFC"
@@ -474,7 +558,7 @@ export default function InvoicesCreatePage() {
               <CardTitle className="text-sm">Configuración Fiscal</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <FormField
                   control={form.control}
                   name="usoCFDI"

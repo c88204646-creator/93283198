@@ -132,7 +132,7 @@ export const invoices = pgTable("invoices", {
   folio: text("folio"), // Folio interno (no UUID)
   issuerRFC: text("issuer_rfc"), // RFC del emisor
   issuerName: text("issuer_name"), // Nombre del emisor
-  emisorRegimenFiscal: text("emisor_regimen_fiscal"), // Régimen fiscal del emisor (c_RegimenFiscal)
+  issuerRegimenFiscal: text("issuer_regimen_fiscal"), // Régimen fiscal del emisor (c_RegimenFiscal)
   lugarExpedicion: text("lugar_expedicion"), // Código postal de expedición
   
   // CFDI 4.0 Fields - Receptor (Receiver)
@@ -1007,7 +1007,17 @@ export const insertOperationSchema = createInsertSchema(operations).omit({ id: t
   }),
 });
 export const insertOperationEmployeeSchema = createInsertSchema(operationEmployees).omit({ id: true, createdAt: true });
-export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, createdAt: true });
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({ 
+  id: true, 
+  createdAt: true,
+  stampStatus: true, // Managed by system during stamping
+  folioFiscal: true, // Set by Facturama upon stamping
+  facturamaCfdiId: true, // Set by Facturama upon stamping
+  stampedAt: true, // Set by system during stamping
+  stampError: true, // Set by system on error
+  xmlB2Key: true, // Set by system after downloading XML
+  pdfB2Key: true, // Set by system after downloading PDF
+});
 export const insertProposalSchema = createInsertSchema(proposals).omit({ id: true, createdAt: true });
 export const insertBankAccountSchema = createInsertSchema(bankAccounts).omit({ id: true, createdAt: true });
 export const insertExpenseSchema = createInsertSchema(expenses).omit({ id: true, createdAt: true });
