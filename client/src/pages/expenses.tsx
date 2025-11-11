@@ -298,7 +298,7 @@ export default function ExpensesPage() {
                           <SelectContent>
                             {employees.map((employee) => (
                               <SelectItem key={employee.id} value={employee.id}>
-                                {employee.position}
+                                {employee.name}
                               </SelectItem>
                             ))}
                           </SelectContent>

@@ -627,9 +627,27 @@ function SettingsTab({
                   checked={selectedEmployees.includes(employee.id)}
                   onChange={(e) => {
                     if (e.target.checked) {
+                      // Agregar empleado a la lista
                       onEmployeesChange([...selectedEmployees, employee.id]);
+                      
+                      // 🎯 Auto-agregar correo del empleado si tiene uno
+                      if (employee.email) {
+                        const currentEmails = employeeEmails.split(',').map(e => e.trim()).filter(e => e);
+                        if (!currentEmails.includes(employee.email)) {
+                          const newEmails = [...currentEmails, employee.email].join(', ');
+                          onEmployeeEmailsChange(newEmails);
+                        }
+                      }
                     } else {
+                      // Remover empleado de la lista
                       onEmployeesChange(selectedEmployees.filter((id) => id !== employee.id));
+                      
+                      // 🎯 Auto-remover correo del empleado si tiene uno
+                      if (employee.email) {
+                        const currentEmails = employeeEmails.split(',').map(e => e.trim()).filter(e => e);
+                        const newEmails = currentEmails.filter(email => email !== employee.email).join(', ');
+                        onEmployeeEmailsChange(newEmails);
+                      }
                     }
                   }}
                   className="rounded border-input"
@@ -639,6 +657,9 @@ function SettingsTab({
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-muted-foreground" />
                     {employee.name}
+                    {employee.email && (
+                      <span className="text-xs text-muted-foreground">({employee.email})</span>
+                    )}
                   </div>
                 </Label>
               </div>
