@@ -238,8 +238,8 @@ export default function InvoicesCreatePage() {
   const { subtotal, totalTax, total } = calculateTotals();
 
   return (
-    <div className="space-y-4 max-w-6xl mx-auto pb-8">
-      <div className="flex items-center gap-3">
+    <div className="space-y-3 max-w-7xl mx-auto pb-6">
+      <div className="flex items-center gap-3 mb-3">
         <Button
           variant="ghost"
           size="icon"
@@ -249,29 +249,29 @@ export default function InvoicesCreatePage() {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">Nueva Factura</h1>
-          <p className="text-sm text-muted-foreground">Crear nueva factura CFDI 4.0</p>
+          <h1 className="text-xl font-semibold text-foreground">Nueva Factura</h1>
+          <p className="text-xs text-muted-foreground">Crear nueva factura CFDI 4.0</p>
         </div>
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {/* Selector de Cliente y Operación */}
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+          {/* Información General */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Información General</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Información General</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+            <CardContent>
+              <div className="grid grid-cols-3 gap-3">
                 <FormField
                   control={form.control}
                   name="clientId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Cliente</FormLabel>
+                      <FormLabel className="text-xs">Cliente</FormLabel>
                       <Select onValueChange={handleClientSelect} value={field.value || ""}>
                         <FormControl>
-                          <SelectTrigger data-testid="select-client">
+                          <SelectTrigger className="h-8" data-testid="select-client">
                             <SelectValue placeholder="Seleccionar cliente" />
                           </SelectTrigger>
                         </FormControl>
@@ -292,10 +292,10 @@ export default function InvoicesCreatePage() {
                   name="operationId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Operación (Opcional)</FormLabel>
+                      <FormLabel className="text-xs">Operación (Opcional)</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value || ""}>
                         <FormControl>
-                          <SelectTrigger data-testid="select-operation">
+                          <SelectTrigger className="h-8" data-testid="select-operation">
                             <SelectValue placeholder="Seleccionar operación" />
                           </SelectTrigger>
                         </FormControl>
@@ -316,9 +316,9 @@ export default function InvoicesCreatePage() {
                   name="folio"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Folio</FormLabel>
+                      <FormLabel className="text-xs">Folio</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Auto" data-testid="input-folio" />
+                        <Input {...field} className="h-8" placeholder="Auto" data-testid="input-folio" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -328,15 +328,15 @@ export default function InvoicesCreatePage() {
             </CardContent>
           </Card>
 
-          {/* Datos del Emisor */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Datos del Emisor</CardTitle>
-              <CardDescription className="text-xs">Información fiscal de quien emite la factura</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-4 gap-3">
-                <div className="col-span-2">
+          {/* Datos Fiscales: Emisor y Receptor lado a lado */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Datos del Emisor */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Datos del Emisor</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
                   <FormField
                     control={form.control}
                     name="issuerRFC"
@@ -344,14 +344,12 @@ export default function InvoicesCreatePage() {
                       <FormItem>
                         <FormLabel className="text-xs">RFC Emisor*</FormLabel>
                         <FormControl>
-                          <Input {...field} className="h-8 text-sm" placeholder="RFC" data-testid="input-issuer-rfc" />
+                          <Input {...field} className="h-7 text-xs" placeholder="RFC" data-testid="input-issuer-rfc" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-                <div className="col-span-2">
                   <FormField
                     control={form.control}
                     name="issuerName"
@@ -359,59 +357,55 @@ export default function InvoicesCreatePage() {
                       <FormItem>
                         <FormLabel className="text-xs">Nombre/Razón Social*</FormLabel>
                         <FormControl>
-                          <Input {...field} className="h-8 text-sm" placeholder="Nombre fiscal" data-testid="input-issuer-name" />
+                          <Input {...field} className="h-7 text-xs" placeholder="Nombre fiscal" data-testid="input-issuer-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="issuerRegimenFiscal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <SATCombobox
+                          catalog={SAT_TAX_REGIMES}
+                          value={field.value || "601"}
+                          onChange={field.onChange}
+                          label="Régimen Fiscal*"
+                          placeholder="Seleccionar"
+                          allowCustom={false}
+                          required={true}
+                          catalogName="regimen-fiscal"
+                          compact={true}
+                        />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="lugarExpedicion"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Lugar Expedición*</FormLabel>
+                        <FormControl>
+                          <Input {...field} className="h-7 text-xs" placeholder="CP" data-testid="input-lugar-expedicion" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-                <FormField
-                  control={form.control}
-                  name="issuerRegimenFiscal"
-                  render={({ field }) => (
-                    <FormItem>
-                      <SATCombobox
-                        catalog={SAT_TAX_REGIMES}
-                        value={field.value || "601"}
-                        onChange={field.onChange}
-                        label="Régimen Fiscal*"
-                        placeholder="Seleccionar"
-                        allowCustom={false}
-                        required={true}
-                        catalogName="regimen-fiscal"
-                        compact={true}
-                      />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="lugarExpedicion"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs">Lugar Expedición*</FormLabel>
-                      <FormControl>
-                        <Input {...field} className="h-8 text-sm" placeholder="CP" data-testid="input-lugar-expedicion" />
-                      </FormControl>
-                      <FormDescription className="text-xs">CP</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Datos del Receptor */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Datos del Receptor</CardTitle>
-              <CardDescription className="text-xs">Información fiscal del cliente</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-4 gap-3">
-                <div className="col-span-2">
+            {/* Datos del Receptor - Parte 1 */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Datos del Receptor</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-2">
                   <FormField
                     control={form.control}
                     name="recipientRFC"
@@ -419,14 +413,12 @@ export default function InvoicesCreatePage() {
                       <FormItem>
                         <FormLabel className="text-xs">RFC Receptor*</FormLabel>
                         <FormControl>
-                          <Input {...field} className="h-8 text-sm" placeholder="RFC" data-testid="input-recipient-rfc" />
+                          <Input {...field} className="h-7 text-xs" placeholder="RFC" data-testid="input-recipient-rfc" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-                <div className="col-span-2">
                   <FormField
                     control={form.control}
                     name="recipientName"
@@ -434,44 +426,55 @@ export default function InvoicesCreatePage() {
                       <FormItem>
                         <FormLabel className="text-xs">Nombre/Razón Social*</FormLabel>
                         <FormControl>
-                          <Input {...field} className="h-8 text-sm" placeholder="Nombre fiscal" data-testid="input-recipient-name" />
+                          <Input {...field} className="h-7 text-xs" placeholder="Nombre fiscal" data-testid="input-recipient-name" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="recipientRegimenFiscal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <SATCombobox
+                          catalog={SAT_TAX_REGIMES}
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          label="Régimen Fiscal"
+                          placeholder="Seleccionar"
+                          allowCustom={false}
+                          catalogName="recipient-regimen-fiscal"
+                          compact={true}
+                        />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="recipientCodigoPostal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">Código Postal</FormLabel>
+                        <FormControl>
+                          <Input {...field} value={field.value || ""} className="h-7 text-xs" placeholder="CP" data-testid="input-recipient-cp" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-                <FormField
-                  control={form.control}
-                  name="recipientRegimenFiscal"
-                  render={({ field }) => (
-                    <FormItem>
-                      <SATCombobox
-                        catalog={SAT_TAX_REGIMES}
-                        value={field.value || ""}
-                        onChange={field.onChange}
-                        label="Régimen Fiscal"
-                        placeholder="Seleccionar"
-                        allowCustom={false}
-                        catalogName="recipient-regimen-fiscal"
-                        compact={true}
-                      />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="recipientCodigoPostal"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs">Código Postal</FormLabel>
-                      <FormControl>
-                        <Input {...field} value={field.value || ""} className="h-8 text-sm" placeholder="CP" data-testid="input-recipient-cp" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Datos Fiscales Adicionales del Receptor */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Configuración Fiscal</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-4 gap-3">
                 <FormField
                   control={form.control}
                   name="usoCFDI"
