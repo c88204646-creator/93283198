@@ -155,31 +155,6 @@ async function resetDatabase() {
     console.log(`  ✓ Empleado creado: ${newEmployee.name}`);
     console.log(`  ✓ Posición: ${newEmployee.position}`);
     
-    // 4. Crear cliente con los datos fiscales proporcionados
-    console.log("\n🏢 Creando cliente/empresa...");
-    
-    const [newClient] = await db.insert(clients).values({
-      name: "ADVANCE LOGISTICS SERVICES OPEN SEA",
-      email: email,
-      phone: "",
-      address: "AVENIDA CHAPULTEPEC 284 1 OTRA NO ESPECIFICADA EN EL CATALOGO",
-      currency: "MXN",
-      status: "active",
-      rfc: "ALS2005128M3",
-      razonSocial: "ADVANCE LOGISTICS SERVICES OPEN SEA",
-      codigoPostal: "44160",
-      ciudad: "GUADALAJARA",
-      estado: "JALISCO",
-      pais: "México",
-      notes: "Cliente principal del sistema"
-    }).returning();
-    
-    console.log(`  ✓ Cliente creado: ${newClient.name}`);
-    console.log(`  ✓ RFC: ${newClient.rfc}`);
-    console.log(`  ✓ Dirección: ${newClient.address}`);
-    console.log(`  ✓ CP: ${newClient.codigoPostal}`);
-    console.log(`  ✓ Ciudad: ${newClient.ciudad}, ${newClient.estado}`);
-    
     console.log("\n✨ ¡RESTABLECIMIENTO COMPLETO EXITOSO!\n");
     console.log("📝 Credenciales de acceso:");
     console.log(`   Email: ${email}`);

@@ -186,6 +186,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/users/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const data = insertUserSchema.partial().parse(req.body);
+      
+      // Si se está actualizando la contraseña, hashearla
+      if (data.password) {
+        data.password = await bcrypt.hash(data.password, 10);
+      }
+      
+      const user = await storage.updateUser(id, data);
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Update user error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.delete("/api/users/:id", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // No permitir que el usuario se elimine a sí mismo
+      if (id === req.session.userId) {
+        return res.status(400).json({ message: "No puedes eliminar tu propia cuenta" });
+      }
+
+      // Verificar si el usuario tiene un empleado asociado
+      const employee = await storage.getEmployeeByUserId(id);
+      if (employee) {
+        return res.status(400).json({ 
+          message: "No se puede eliminar este usuario porque tiene un empleado asociado. Primero elimina el empleado." 
+        });
+      }
+
+      await db.delete(users).where(eq(users.id, id));
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Delete user error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Dashboard Stats
   app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {
@@ -311,6 +363,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/clients/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
+      
+      // Verificar si el cliente tiene operaciones asociadas
+      const clientOperations = await db.select().from(operations).where(eq(operations.clientId, id));
+      
+      if (clientOperations.length > 0) {
+        return res.status(400).json({ 
+          message: `No se puede eliminar este cliente porque tiene ${clientOperations.length} operación(es) asociada(s). Primero elimina o reasigna las operaciones.` 
+        });
+      }
+
       await storage.deleteClient(id);
 
       // Invalidate cache
