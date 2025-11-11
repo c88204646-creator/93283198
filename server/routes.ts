@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import session from "express-session";
 import ConnectPgSimple from "connect-pg-simple";
 import { pool, db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, count } from "drizzle-orm";
 import { 
   users, operations, invoices, proposals, employees
 } from "@shared/schema";
@@ -357,20 +357,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Solo validar si la divisa es diferente a la actual
         if (data.currency !== existingClient.currency) {
           // Verificar si el cliente tiene facturas
-          const clientInvoices = await db.select().from(invoices).where(eq(invoices.clientId, id));
+          const [invoiceCount] = await db
+            .select({ count: count() })
+            .from(invoices)
+            .where(eq(invoices.clientId, id));
           
-          if (clientInvoices.length > 0) {
+          if (invoiceCount.count > 0) {
             return res.status(400).json({ 
-              message: `No se puede cambiar la divisa porque este cliente tiene ${clientInvoices.length} factura(s) asociada(s). La divisa no puede modificarse una vez que hay facturas emitidas.` 
+              message: `No se puede cambiar la divisa porque este cliente tiene ${invoiceCount.count} factura(s) asociada(s). La divisa no puede modificarse una vez que hay facturas emitidas.` 
             });
           }
           
           // Verificar si el cliente tiene cotizaciones (proposals)
-          const clientProposals = await db.select().from(proposals).where(eq(proposals.clientId, id));
+          const [proposalCount] = await db
+            .select({ count: count() })
+            .from(proposals)
+            .where(eq(proposals.clientId, id));
           
-          if (clientProposals.length > 0) {
+          if (proposalCount.count > 0) {
             return res.status(400).json({ 
-              message: `No se puede cambiar la divisa porque este cliente tiene ${clientProposals.length} cotización(es) asociada(s). La divisa no puede modificarse una vez que hay cotizaciones emitidas.` 
+              message: `No se puede cambiar la divisa porque este cliente tiene ${proposalCount.count} cotización(es) asociada(s). La divisa no puede modificarse una vez que hay cotizaciones emitidas.` 
             });
           }
           
@@ -407,11 +413,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       
       // Verificar si el cliente tiene operaciones asociadas
-      const clientOperations = await db.select().from(operations).where(eq(operations.clientId, id));
+      const [operationCount] = await db
+        .select({ count: count() })
+        .from(operations)
+        .where(eq(operations.clientId, id));
       
-      if (clientOperations.length > 0) {
+      if (operationCount.count > 0) {
         return res.status(400).json({ 
-          message: `No se puede eliminar este cliente porque tiene ${clientOperations.length} operación(es) asociada(s). Primero elimina o reasigna las operaciones.` 
+          message: `No se puede eliminar este cliente porque tiene ${operationCount.count} operación(es) asociada(s). Primero elimina o reasigna las operaciones.` 
         });
       }
 
