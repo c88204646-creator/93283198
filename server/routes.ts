@@ -341,6 +341,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const data = insertClientSchema.partial().parse(req.body);
+      
+      // Si se está intentando cambiar la divisa, validar que no haya facturas o cotizaciones
+      if (data.currency) {
+        const existingClient = await storage.getClient(id);
+        
+        if (!existingClient) {
+          return res.status(404).json({ message: "Client not found" });
+        }
+        
+        // Solo validar si la divisa es diferente a la actual
+        if (data.currency !== existingClient.currency) {
+          // Verificar si el cliente tiene facturas
+          const clientInvoices = await db.select().from(invoices).where(eq(invoices.clientId, id));
+          
+          if (clientInvoices.length > 0) {
+            return res.status(400).json({ 
+              message: `No se puede cambiar la divisa porque este cliente tiene ${clientInvoices.length} factura(s) asociada(s). La divisa no puede modificarse una vez que hay facturas emitidas.` 
+            });
+          }
+          
+          // Verificar si el cliente tiene cotizaciones (proposals)
+          const clientProposals = await db.select().from(proposals).where(eq(proposals.clientId, id));
+          
+          if (clientProposals.length > 0) {
+            return res.status(400).json({ 
+              message: `No se puede cambiar la divisa porque este cliente tiene ${clientProposals.length} cotización(es) asociada(s). La divisa no puede modificarse una vez que hay cotizaciones emitidas.` 
+            });
+          }
+          
+          // Si no hay facturas ni cotizaciones, actualizar la divisa de las operaciones vinculadas
+          await db.update(operations)
+            .set({ currency: data.currency })
+            .where(eq(operations.clientId, id));
+          
+          console.log(`✓ Divisa actualizada de ${existingClient.currency} a ${data.currency} para el cliente ${existingClient.name} y sus operaciones`);
+        }
+      }
+
       const client = await storage.updateClient(id, data);
 
       if (!client) {
