@@ -297,85 +297,27 @@ export async function startSync(accountId: string) {
                 continue;
               }
               
-              let extractedText: string | null = null;
-              let b2Key: string | undefined;
-              let fileHash: string | undefined;
-
-              // Download and store attachment (in Backblaze if configured)
-              let attachmentDataBase64: string | null = null;
+              // 🎯 LAZY LOADING: Solo guardar metadata, NO descargar archivos aún
+              // Los archivos se descargarán cuando:
+              // 1. Email se vincule a operación (automático)
+              // 2. Automatizaciones lo necesiten (Facturama, pagos, etc.)
+              // 3. Usuario haga clic en el archivo (on-demand)
               
-              try {
-                const attachmentData = await getAttachmentData(
-                  account, 
-                  message.id, 
-                  part.body.attachmentId
-                );
-                
-                if (attachmentData) {
-                  attachmentDataBase64 = attachmentData; // Keep for fallback storage
-                  const buffer = Buffer.from(attachmentData, 'base64');
-                  
-                  // Analyze for text extraction if applicable
-                  const shouldAnalyze = 
-                    mimeType === 'application/pdf' || 
-                    mimeType.startsWith('image/');
-
-                  if (shouldAnalyze && part.body.size && part.body.size < 10 * 1024 * 1024) {
-                    try {
-                      extractedText = await AttachmentAnalyzer.analyzeAttachment(
-                        mimeType, 
-                        attachmentData
-                      );
-                      console.log(`Extracted ${extractedText.length} characters from ${part.filename}`);
-                    } catch (error) {
-                      console.error(`Error analyzing attachment ${part.filename}:`, error);
-                    }
-                  }
-
-                  // Upload to Backblaze B2 with deduplication (if configured)
-                  if (backblazeStorage.isAvailable()) {
-                    try {
-                      const uploadResult = await backblazeStorage.uploadAttachment(
-                        buffer,
-                        part.filename,
-                        mimeType,
-                        createdMessage.id,
-                        part.body.attachmentId,
-                        extractedText || undefined
-                      );
-
-                      b2Key = uploadResult.fileKey;
-                      fileHash = uploadResult.fileHash;
-
-                      if (uploadResult.isDuplicate) {
-                        console.log(`Attachment ${part.filename} already exists in Backblaze (deduplicated)`);
-                      } else {
-                        console.log(`Stored new attachment ${part.filename} in Backblaze`);
-                      }
-                    } catch (error) {
-                      console.error(`Error storing attachment ${part.filename} in Backblaze:`, error);
-                      // Continue without Backblaze if there's an error
-                    }
-                  }
-                }
-              } catch (error) {
-                console.error(`Error downloading attachment ${part.filename}:`, error);
-                // Continue without attachment data if there's an error
-              }
-
               await storage.createGmailAttachment({
                 gmailMessageId: createdMessage.id,
                 attachmentId: part.body.attachmentId,
                 filename: part.filename,
                 mimeType,
                 size: part.body.size || 0,
-                data: b2Key ? null : attachmentDataBase64, // Fall back to DB if B2 not configured
-                b2Key: b2Key || null,
-                fileHash: fileHash || null,
+                data: null, // No descargar en sync - lazy loading
+                b2Key: null, // Se llenará cuando se descargue
+                fileHash: null, // Se llenará cuando se descargue
                 isInline,
-                extractedText: extractedText && !b2Key ? extractedText : null, // Fall back to DB if B2 not configured
-                extractedTextB2Key: extractedText && b2Key ? `emails/attachments/extracted-text/${fileHash}` : null,
+                extractedText: null, // Se llenará cuando se descargue
+                extractedTextB2Key: null, // Se llenará cuando se descargue
               });
+              
+              console.log(`📋 Metadata saved for attachment: ${part.filename} (${(part.body.size || 0) / 1024} KB) - lazy loading enabled`);
             }
           }
         }
@@ -409,6 +351,139 @@ export async function startSync(accountId: string) {
       syncStatus: 'error',
       errorMessage: error.message || 'Unknown error',
     });
+  }
+}
+
+/**
+ * 🎯 LAZY LOADING: Descarga y procesa un archivo adjunto cuando realmente se necesita
+ * Se usa en:
+ * 1. Vinculación de email a operación (automático)
+ * 2. Automatizaciones (Facturama, pagos, etc.)
+ * 3. Usuario hace clic en archivo (on-demand)
+ */
+export async function downloadAndProcessAttachment(
+  gmailAttachmentId: string
+): Promise<void> {
+  try {
+    // 1. Obtener metadata del attachment
+    const attachment = await storage.getGmailAttachment(gmailAttachmentId);
+    if (!attachment) {
+      throw new Error(`Attachment ${gmailAttachmentId} not found`);
+    }
+
+    // 2. Si ya está descargado, no hacer nada
+    if (attachment.b2Key || attachment.data) {
+      console.log(`✅ Attachment ${attachment.filename} already downloaded, skipping`);
+      return;
+    }
+
+    // 3. Obtener el mensaje para acceder a la cuenta Gmail
+    const message = await storage.getGmailMessage(attachment.gmailMessageId);
+    if (!message) {
+      throw new Error(`Message not found for attachment ${gmailAttachmentId}`);
+    }
+
+    // 4. Obtener la cuenta Gmail
+    const account = await storage.getGmailAccount(message.gmailAccountId);
+    if (!account) {
+      throw new Error(`Gmail account not found for message ${message.id}`);
+    }
+
+    console.log(`📥 Downloading attachment: ${attachment.filename} (${attachment.size / 1024} KB)`);
+
+    // 5. Descargar el archivo desde Gmail
+    const attachmentData = await getAttachmentData(
+      account,
+      message.messageId,
+      attachment.attachmentId
+    );
+
+    if (!attachmentData) {
+      throw new Error(`Failed to download attachment ${attachment.filename}`);
+    }
+
+    const buffer = Buffer.from(attachmentData, 'base64');
+    let extractedText: string | null = null;
+    let b2Key: string | undefined;
+    let fileHash: string | undefined;
+
+    // 6. Extraer texto si es PDF o imagen
+    const shouldAnalyze =
+      attachment.mimeType === 'application/pdf' ||
+      attachment.mimeType.startsWith('image/');
+
+    if (shouldAnalyze && attachment.size < 10 * 1024 * 1024) {
+      try {
+        extractedText = await AttachmentAnalyzer.analyzeAttachment(
+          attachment.mimeType,
+          attachmentData
+        );
+        console.log(`📝 Extracted ${extractedText.length} characters from ${attachment.filename}`);
+      } catch (error) {
+        console.error(`Error analyzing attachment ${attachment.filename}:`, error);
+      }
+    }
+
+    // 7. Subir a Backblaze B2 con deduplicación
+    if (backblazeStorage.isAvailable()) {
+      try {
+        const uploadResult = await backblazeStorage.uploadAttachment(
+          buffer,
+          attachment.filename,
+          attachment.mimeType,
+          message.id,
+          attachment.attachmentId,
+          extractedText || undefined
+        );
+
+        b2Key = uploadResult.fileKey;
+        fileHash = uploadResult.fileHash;
+
+        if (uploadResult.isDuplicate) {
+          console.log(`♻️ Attachment ${attachment.filename} deduplicated in Backblaze`);
+        } else {
+          console.log(`✅ Stored ${attachment.filename} in Backblaze`);
+        }
+      } catch (error) {
+        console.error(`Error storing attachment ${attachment.filename} in Backblaze:`, error);
+        // Continue without Backblaze if there's an error
+      }
+    }
+
+    // 8. Actualizar metadata del attachment con los datos descargados
+    await storage.updateGmailAttachment(gmailAttachmentId, {
+      data: b2Key ? null : attachmentData, // Fall back to DB if B2 not configured
+      b2Key: b2Key || null,
+      fileHash: fileHash || null,
+      extractedText: extractedText && !b2Key ? extractedText : null,
+      extractedTextB2Key: extractedText && b2Key ? `emails/attachments/extracted-text/${fileHash}` : null,
+    });
+
+    console.log(`✅ Successfully processed attachment: ${attachment.filename}`);
+  } catch (error) {
+    console.error(`Error in downloadAndProcessAttachment:`, error);
+    throw error;
+  }
+}
+
+/**
+ * 🎯 Descarga y procesa TODOS los archivos de un mensaje (cuando se vincula a operación)
+ */
+export async function downloadMessageAttachments(gmailMessageId: string): Promise<void> {
+  try {
+    const attachments = await storage.getGmailAttachments(gmailMessageId);
+    
+    console.log(`📥 Downloading ${attachments.length} attachments for message ${gmailMessageId}`);
+    
+    // Descargar todos los attachments en paralelo
+    await Promise.all(
+      attachments.map(att => downloadAndProcessAttachment(att.id))
+    );
+    
+    console.log(`✅ Successfully downloaded all attachments for message ${gmailMessageId}`);
+  } catch (error) {
+    console.error(`Error downloading message attachments:`, error);
+    throw error;
   }
 }
 

@@ -190,6 +190,7 @@ export interface IStorage {
   getGmailAttachments(messageId: string): Promise<GmailAttachment[]>;
   getGmailAttachment(id: string): Promise<GmailAttachment | undefined>;
   createGmailAttachment(attachment: InsertGmailAttachment): Promise<GmailAttachment>;
+  updateGmailAttachment(id: string, attachment: Partial<InsertGmailAttachment>): Promise<GmailAttachment | undefined>;
   deleteGmailAttachment(id: string): Promise<void>;
 
   // Calendar Events
@@ -882,6 +883,11 @@ export class DatabaseStorage implements IStorage {
   async createGmailAttachment(insertAttachment: InsertGmailAttachment): Promise<GmailAttachment> {
     const [attachment] = await db.insert(gmailAttachments).values(insertAttachment).returning();
     return attachment;
+  }
+
+  async updateGmailAttachment(id: string, updateData: Partial<InsertGmailAttachment>): Promise<GmailAttachment | undefined> {
+    const [attachment] = await db.update(gmailAttachments).set(updateData).where(eq(gmailAttachments.id, id)).returning();
+    return attachment || undefined;
   }
 
   async deleteGmailAttachment(id: string): Promise<void> {
