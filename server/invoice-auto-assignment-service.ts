@@ -351,7 +351,7 @@ export class InvoiceAutoAssignmentService {
         operations = operations.filter(op => op !== null);
       } else {
         // Procesar todas las operaciones
-        operations = await storage.listOperations({});
+        operations = await storage.getAllOperations();
       }
       
       console.log(`[Invoice Auto-Assignment] 📋 Procesando ${operations.length} operaciones...`);

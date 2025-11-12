@@ -391,13 +391,15 @@ export class ClientAutoAssignmentService {
         stats.processed++;
         
         // Obtener attachments de la operación
-        const attachments = await storage.getOperationAttachmentsByOperationId(op.id);
+        const attachments = await storage.getOperationFiles(op.id);
         
         // Buscar PDFs que puedan ser facturas
         const invoiceCandidates = attachments.filter(att => 
-          att.filename.toLowerCase().includes('factura') ||
-          att.filename.toLowerCase().includes('invoice') ||
-          att.filename.toLowerCase().endsWith('.pdf')
+          att.filename && (
+            att.filename.toLowerCase().includes('factura') ||
+            att.filename.toLowerCase().includes('invoice') ||
+            att.filename.toLowerCase().endsWith('.pdf')
+          )
         );
         
         if (invoiceCandidates.length === 0) {

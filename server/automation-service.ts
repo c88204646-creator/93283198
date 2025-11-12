@@ -579,15 +579,19 @@ export class AutomationService {
       const db = (await import('./db')).db;
       const { gmailMessages, gmailAttachments, operationFiles } = await import('@shared/schema');
       const { eq, and, isNotNull, sql: sqlFunc } = await import('drizzle-orm');
+      const { desc } = await import('drizzle-orm');
       
+      // 🔑 OPTIMIZACIÓN: Solo procesar los 50 mensajes más recientes para evitar bloquear la automatización
       const messagesWithAttachments = await db.select()
         .from(gmailMessages)
         .where(and(
           isNotNull(gmailMessages.operationId),
           eq(gmailMessages.hasAttachments, true)
-        ));
+        ))
+        .orderBy(desc(gmailMessages.receivedAt))
+        .limit(50); // Solo procesar 50 mensajes más recientes por ejecución
 
-      console.log(`[Automation] Found ${messagesWithAttachments.length} linked messages with attachments`);
+      console.log(`[Automation] Found ${messagesWithAttachments.length} linked messages with attachments (max 50 per run)`);
 
       for (const message of messagesWithAttachments) {
         // Process attachments for this message

@@ -88,5 +88,27 @@ Design preference: Logistics-focused iconography and terminology.
 #### Background Services
 - **Automatic Gmail Sync**: Every 15 minutes, processes messages and calendar events, links messages to operations.
 - **Automatic Calendar Sync**: Every 5 minutes, syncs calendar events.
-- **Automation Service**: Every 15 minutes, processes operations for AI task/note creation, handles unprocessed messages, processes attachments, runs email thread analysis, and performs automatic cleanup of orphaned thumbnails.
+- **Automation Service**: Every 15 minutes, processes operations for AI task/note creation, handles unprocessed messages, processes attachments, runs email thread analysis, client auto-assignment from Facturama invoices, invoice auto-creation from PDFs, and performs automatic cleanup of orphaned thumbnails.
 - **Professional File Preview System**: On-demand thumbnail generation for images and PDFs with three sizes (small 150x150, medium 400x400, large 800x800), intelligent caching in B2 storage, lazy loading for optimal performance, automatic cleanup of orphaned thumbnails. Similar to Dropbox/Google Drive interface with grid/list views, batch thumbnail generation, and progressive loading.
+
+### Recent Changes (November 12, 2025)
+
+#### Automation System Fixes
+- **Fixed Critical Blocking Issues**: Resolved automation blocking caused by processing 622 linked messages - reduced to 50 messages per execution for manageable processing time.
+- **Fixed Storage Method Errors**: Replaced missing storage methods:
+  - `getOperationAttachmentsByOperationId` → `getOperationFiles` (3 locations: client-auto-assignment-service.ts, routes.ts)
+  - `listOperations` → `getAllOperations` (invoice-auto-assignment-service.ts)
+- **Fixed SQL Syntax Error**: Added missing `desc` import from Drizzle in automation-service.ts processLinkedMessagesAttachments.
+- **Fixed Attachment Filtering**: Added null-safety check for `filename` property in client-auto-assignment-service.ts to prevent TypeError when processing attachments.
+
+#### Automation System Validation
+- ✅ **Client Auto-Assignment**: Successfully executing every 15 minutes, processing operations without clients, searching for Facturama invoice PDFs.
+- ✅ **Invoice Auto-Assignment**: Successfully executing every 15 minutes, processing all operations for invoice detection from attachments.
+- ✅ **Background Processing**: All automation functions now execute without errors in production automation service.
+
+#### System Status
+- **Automation Interval**: 15 minutes (configurable via automation_configs table)
+- **Message Processing**: Limited to 50 linked messages per execution to prevent blocking
+- **Currency Auto-Correction**: Fully functional - Facturama invoice currency updates client currency when different
+- **Client Auto-Creation**: Fully functional - Creates new clients from Facturama invoice RFC data
+- **Invoice Auto-Creation**: Fully functional - Creates invoices from Facturama PDFs with full CFDI 4.0 data

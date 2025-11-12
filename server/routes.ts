@@ -3388,7 +3388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get attachments
-      const attachments = await storage.getOperationAttachmentsByOperationId(operationId);
+      const attachments = await storage.getOperationFiles(operationId);
       
       // Filter PDF attachments that might be invoices
       const invoiceCandidates = attachments.filter(att => 
@@ -3461,7 +3461,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[TEST] Extracting invoice data from attachment ${attachmentId}...`);
       
       // Get attachment
-      const attachments = await storage.getOperationAttachmentsByOperationId(operationId);
+      const attachments = await storage.getOperationFiles(operationId);
       const attachment = attachments.find(a => a.id === attachmentId);
       
       if (!attachment) {
