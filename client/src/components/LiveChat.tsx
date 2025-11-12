@@ -13,7 +13,6 @@ import type { ChatConversation, ChatMessage } from '@shared/schema';
 
 export function LiveChat() {
   const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [inputMessage, setInputMessage] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -132,17 +131,17 @@ export function LiveChat() {
     return (
       <button
         onClick={() => setIsOpen(true)}
+        data-testid="button-open-livechat"
         style={{
           position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          width: '56px',
-          height: '56px',
+          bottom: '20px',
+          right: '20px',
+          width: '48px',
+          height: '48px',
           borderRadius: '50%',
           border: 'none',
           cursor: 'pointer',
           zIndex: 9999,
-          boxShadow: '0 4px 12px rgba(37, 99, 235, 0.4)',
           background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
           display: 'flex',
           alignItems: 'center',
@@ -151,14 +150,12 @@ export function LiveChat() {
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.transform = 'scale(1.05)';
-          e.currentTarget.style.boxShadow = '0 6px 16px rgba(37, 99, 235, 0.5)';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.transform = 'scale(1)';
-          e.currentTarget.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.4)';
         }}
       >
-        <MessageCircle className="text-white" size={24} strokeWidth={2} />
+        <MessageCircle className="text-white" size={20} strokeWidth={2} />
       </button>
     );
   }
@@ -167,14 +164,13 @@ export function LiveChat() {
     <div 
       style={{
         position: 'fixed',
-        bottom: '24px',
-        right: '24px',
-        left: isMobile ? '24px' : 'auto',
-        width: isMobile ? 'auto' : '380px',
-        height: isMinimized ? '56px' : (isMobile ? '480px' : '520px'),
+        bottom: '20px',
+        right: '20px',
+        left: isMobile ? '20px' : 'auto',
+        width: isMobile ? 'auto' : '320px',
+        height: isMobile ? '420px' : '450px',
         zIndex: 9999,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-        borderRadius: '16px',
+        borderRadius: '12px',
         overflow: 'hidden',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         display: 'flex',
@@ -186,54 +182,42 @@ export function LiveChat() {
       {/* Header */}
       <div className={cn(
         "flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 text-white shrink-0",
-        isMobile ? "px-3 py-3" : "px-4 py-3.5"
+        isMobile ? "px-3 py-2.5" : "px-3 py-2.5"
       )}>
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <div className={cn(
             "rounded-full bg-white/20 flex items-center justify-center shrink-0",
-            isMobile ? "h-8 w-8" : "h-10 w-10"
+            isMobile ? "h-7 w-7" : "h-8 w-8"
           )}>
-            <MessageCircle className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
+            <MessageCircle className={isMobile ? "h-3.5 w-3.5" : "h-4 w-4"} />
           </div>
           <div className="min-w-0">
-            <h3 className={cn("font-semibold truncate", isMobile ? "text-sm" : "text-base")}>
-              Asistente Virtual
+            <h3 className={cn("font-semibold truncate", isMobile ? "text-xs" : "text-sm")}>
+              Asistente Personal
             </h3>
             {!isMobile && (
-              <p className="text-xs text-white/80 truncate">Siempre listo para ayudarte</p>
+              <p className="text-[10px] text-white/80 truncate">Gestión completa del sistema</p>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMinimized(!isMinimized)}
-            className={cn(
-              "text-white hover:bg-white/20",
-              isMobile ? "h-7 w-7" : "h-8 w-8"
-            )}
-          >
-            <Minimize2 className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center shrink-0">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsOpen(false)}
+            data-testid="button-close-livechat"
             className={cn(
               "text-white hover:bg-white/20",
-              isMobile ? "h-7 w-7" : "h-8 w-8"
+              isMobile ? "h-6 w-6" : "h-7 w-7"
             )}
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
-      {!isMinimized && (
-        <>
-          {/* Messages */}
-          <ScrollArea 
+      {/* Messages */}
+      <ScrollArea 
             className={cn("flex-1 overflow-y-auto", isMobile ? "px-3 py-2" : "px-4 py-3")} 
             ref={scrollRef}
           >
@@ -382,8 +366,6 @@ export function LiveChat() {
               )}
             </div>
           </div>
-        </>
-      )}
     </div>
   );
 }
