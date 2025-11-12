@@ -393,14 +393,19 @@ export class ClientAutoAssignmentService {
         // Obtener attachments de la operación
         const attachments = await storage.getOperationFiles(op.id);
         
-        // Buscar PDFs que puedan ser facturas
-        const invoiceCandidates = attachments.filter(att => 
-          att.filename && (
-            att.filename.toLowerCase().includes('factura') ||
-            att.filename.toLowerCase().includes('invoice') ||
-            att.filename.toLowerCase().endsWith('.pdf')
-          )
-        );
+        // Buscar PDFs que puedan ser facturas (incluye abreviaciones comunes)
+        const invoiceCandidates = attachments.filter(att => {
+          if (!att.name) return false;
+          const nameLower = att.name.toLowerCase();
+          return (
+            nameLower.includes('factura') ||
+            nameLower.includes('invoice') ||
+            nameLower.includes('fact.') ||  // Abreviación común
+            nameLower.includes('fact ') ||   // Abreviación con espacio
+            nameLower.includes('inv.') ||    // Abreviación de invoice
+            (nameLower.endsWith('.pdf') && att.mimeType === 'application/pdf')
+          );
+        });
         
         if (invoiceCandidates.length === 0) {
           continue;
@@ -411,7 +416,7 @@ export class ClientAutoAssignmentService {
           const result = await this.processAttachmentForClientAssignment(
             op.id,
             attachment.id,
-            attachment.filename,
+            attachment.name,
             attachment.b2Key
           );
           
