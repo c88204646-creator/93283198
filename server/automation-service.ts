@@ -67,6 +67,9 @@ export class AutomationService {
       // 🆕 Limpieza automática de thumbnails huérfanos y duplicados en B2
       await this.cleanupOrphanedThumbnails();
       
+      // 🆕 Limpieza automática de conversaciones archivadas >30 días
+      await this.cleanupOldChatConversations();
+      
     } catch (error) {
       console.error('Error processing automations:', error);
     }
@@ -85,6 +88,22 @@ export class AutomationService {
       }
     } catch (error) {
       console.error('[Automation] Error cleaning up thumbnails:', error);
+    }
+  }
+
+  /**
+   * Limpia conversaciones archivadas que tienen más de 30 días
+   */
+  private async cleanupOldChatConversations() {
+    try {
+      const { cleanupOldConversations } = await import('./chat-cleanup-service');
+      const deleted = await cleanupOldConversations();
+      
+      if (deleted > 0) {
+        console.log(`[Automation] Cleaned up ${deleted} old chat conversations`);
+      }
+    } catch (error) {
+      console.error('[Automation] Error cleaning up chat conversations:', error);
     }
   }
 
