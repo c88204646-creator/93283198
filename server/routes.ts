@@ -705,6 +705,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync automation employees to all operations
+  app.post("/api/operations/sync-employees", requireAuth, async (req, res) => {
+    try {
+      const result = await storage.syncAutomationEmployeesToOperations();
+      res.json({
+        success: true,
+        message: `Sincronizados ${result.assignmentsCreated} empleados en ${result.operationsUpdated} operaciones`,
+        ...result
+      });
+    } catch (error) {
+      console.error("Sync employees error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Invoice Routes
   app.get("/api/invoices", requireAuth, async (req, res) => {
     try {

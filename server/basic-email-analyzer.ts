@@ -456,21 +456,25 @@ export class BasicEmailAnalyzer {
     // TRANSFORMAR conversación informal a contenido profesional
     let cleanContent = message.snippet;
     
-    // 1. Eliminar saludos completos (al inicio o en medio)
-    cleanContent = cleanContent.replace(/(^|\s)(buen[ao]s?\s+(dia|tarde|noche|dias)|hola|hello|hi|dear|estimad[ao])\s+[a-z]+(\s|,|:)/gi, ' ');
+    // 1. Eliminar saludos y frases de cortesía al inicio
+    cleanContent = cleanContent.replace(/(^|\s)(buen[ao]s?\s+(dia|tarde|noche|dias)|hola|hello|hi|dear|estimad[ao]|gracias?)\s+[a-záéíóúñ]+(\s|,|:)/gi, ' ');
     
-    // 2. Eliminar frases conversacionales comunes
+    // 2. Eliminar despedidas y frases conversacionales comunes (MEJORADO)
     cleanContent = cleanContent
-      .replace(/ya\s+(solicite|solicité|envie|envié|mande|mandé)/gi, 'Solicitado')
-      .replace(/en\s+cuanto\s+(la|lo|los|las)\s+(tenga|reciba|tengamos|recibamos)/gi, 'Pendiente de recibir')
-      .replace(/te\s+(la|lo|los|las)\s+(comparto|envio|envío|mando)/gi, 'para compartir')
-      .replace(/quedo\s+atent[ao].*/gi, '')
-      .replace(/quedamos?\s+(a\s+la\s+orden|al\s+pendiente).*/gi, '')
+      .replace(/gracias?\s+[a-záéíóúñ]+\s+(quedo|queda|quedamos).*/gi, '') // "gracias Yohali quedo..."
+      .replace(/quedo\s+(atent[ao]|pendiente|a\s+la\s+orden).*/gi, '') // "quedo pendiente", "quedo atenta"
+      .replace(/quedamos?\s+(a\s+la\s+orden|al\s+pendiente|pendientes?|atent[ao]s?).*/gi, '')
       .replace(/\/\s*I[''']ll?\s+pending.*/gi, '')
+      .replace(/I[''']ll?\s+pending.*/gi, '')
+      .replace(/pending\s+for\s+your\s+kind\s+comments.*/gi, '')
       .replace(/best\s+regards.*/gi, '')
       .replace(/atentamente.*/gi, '')
+      .replace(/saludos\s*\/?\s*best\s+regards.*/gi, '')
       .replace(/saludos.*/gi, '')
-      .replace(/regards.*/gi, '');
+      .replace(/regards.*/gi, '')
+      .replace(/ya\s+(solicite|solicité|envie|envié|mande|mandé)/gi, 'Solicitado')
+      .replace(/en\s+cuanto\s+(la|lo|los|las)\s+(tenga|reciba|tengamos|recibamos)/gi, 'Pendiente de recibir')
+      .replace(/te\s+(la|lo|los|las)\s+(comparto|envio|envío|mando)/gi, 'Información compartida');
     
     // 3. Convertir referencias informales a formales
     cleanContent = cleanContent
@@ -489,19 +493,22 @@ export class BasicEmailAnalyzer {
       cleanContent = cleanContent.charAt(0).toUpperCase() + cleanContent.slice(1);
     }
 
-    // Si después de limpiar queda muy poco o solo quedaron saludos, generar nota estructurada
+    // 🚨 ESTÁNDAR DE CALIDAD: Si después de limpiar queda muy poco, NO crear nota genérica
     if (cleanContent.length < 30 || cleanContent.match(/^(buen|hola|hello|dear|estimad)/i)) {
+      // Solo crear nota SI hay MÚLTIPLE información relevante (no solo un monto)
       const parts = [];
       if (trackingNumbers.length > 0) parts.push(`Ref: ${trackingNumbers[0]}`);
       if (dates.length > 0) parts.push(`Fecha: ${dates[0]}`);
       if (amounts.length > 0) parts.push(`Monto: ${amounts[0]}`);
       
-      if (parts.length > 0) {
-        cleanContent = `Comunicación registrada. ${parts.join('. ')}.`;
-      } else {
-        // No hay información suficiente para crear nota
+      // ❌ NO crear notas genéricas como "Comunicación registrada. Monto: 159."
+      // ✅ Solo crear si hay al menos 2 tipos de información diferente
+      if (parts.length < 2) {
+        console.log('[BasicEmailAnalyzer] 🚫 Nota rechazada: información insuficiente o genérica');
         return null;
       }
+      
+      cleanContent = `${parts.join('. ')}.`;
     }
 
     // Limitar a 150 caracteres
