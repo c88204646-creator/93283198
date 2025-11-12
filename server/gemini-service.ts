@@ -52,22 +52,51 @@ TU MISIÓN: Ayudar a los usuarios con operaciones, clientes, empleados, facturas
 - No pidas precisión excesiva, busca la mejor coincidencia
 - Si hay ambigüedad, muestra opciones en lugar de pedir aclaración
 
-⚙️ HERRAMIENTAS DISPONIBLES:
+⚙️ HERRAMIENTAS DISPONIBLES (COMPLETAS):
+
+📦 OPERACIONES:
 - get_operations: Buscar y filtrar operaciones
 - get_operation_detail: Detalles completos de una operación
-- update_operation: Actualizar estados y datos
-- create_operation_note: Agregar notas
-- get_clients, get_employees, get_invoices: Datos del sistema
-- get_dashboard_stats: Estadísticas generales
+- create_operation: Crear nueva operación logística
+- update_operation: Actualizar estados, prioridades y datos
+- create_operation_note: Agregar notas a operaciones
 
-🔐 REGLAS:
-- Confirma antes de cambios importantes (actualizar estados, crear notas)
+👥 CLIENTES:
+- get_clients: Buscar clientes
+- create_client: Crear nuevo cliente con datos completos
+- update_client: Actualizar información de clientes
+
+👨‍💼 EMPLEADOS:
+- get_employees: Buscar empleados
+- create_employee: Crear nuevo empleado
+- update_employee: Actualizar datos de empleados
+
+💰 GASTOS & FINANZAS:
+- create_expense: Registrar nuevos gastos
+- update_expense: Actualizar gastos existentes
+- get_invoices: Consultar facturas
+
+📝 LEADS & PROSPECTOS:
+- create_lead: Crear nuevos leads
+- update_lead: Actualizar estado y notas de leads
+
+✅ TAREAS:
+- create_task: Crear tareas en operaciones
+- update_task: Actualizar estado y descripción de tareas
+
+📊 ESTADÍSTICAS:
+- get_dashboard_stats: Obtener métricas generales del sistema
+
+🔐 REGLAS IMPORTANTES:
+- PUEDES crear y editar en TODOS los módulos (clientes, operaciones, empleados, gastos, leads, tareas)
+- NO PUEDES eliminar nada (solo crear, leer y actualizar)
+- Confirma antes de crear o modificar datos importantes
 - SIEMPRE responde en español
 - Si no tienes información, di "No encontré..." y ofrece alternativas
 - Usa herramientas automáticamente cuando detectes que el usuario necesita datos
-- Muestra lo que estás haciendo: "🔍 Buscando operación 0051..."
+- Muestra lo que estás haciendo: "🔍 Buscando...", "✅ Creando...", "📝 Actualizando..."
 
-RECUERDA: Sé el mejor asistente de logística, rápido, inteligente y útil.`
+RECUERDA: Eres un asistente personal COMPLETO con acceso a TODOS los módulos del sistema. Ayuda proactivamente a crear, consultar y actualizar cualquier dato que el usuario necesite.`
     });
   }
 
@@ -193,6 +222,66 @@ RECUERDA: Sé el mejor asistente de logística, rápido, inteligente y útil.`
         case 'get_dashboard_stats': {
           const stats = await storage.getDashboardStats();
           return stats;
+        }
+
+        case 'create_client': {
+          const client = await storage.createClient(parameters);
+          return client;
+        }
+
+        case 'update_client': {
+          const { clientId, ...updates } = parameters;
+          const client = await storage.updateClient(clientId, updates);
+          return client;
+        }
+
+        case 'create_operation': {
+          const operation = await storage.createOperation(parameters);
+          return operation;
+        }
+
+        case 'create_employee': {
+          const employee = await storage.createEmployee(parameters);
+          return employee;
+        }
+
+        case 'update_employee': {
+          const { employeeId, ...updates } = parameters;
+          const employee = await storage.updateEmployee(employeeId, updates);
+          return employee;
+        }
+
+        case 'create_expense': {
+          const expense = await storage.createExpense(parameters);
+          return expense;
+        }
+
+        case 'update_expense': {
+          const { expenseId, ...updates } = parameters;
+          const expense = await storage.updateExpense(expenseId, updates);
+          return expense;
+        }
+
+        case 'create_lead': {
+          const lead = await storage.createLead(parameters);
+          return lead;
+        }
+
+        case 'update_lead': {
+          const { leadId, ...updates } = parameters;
+          const lead = await storage.updateLead(leadId, updates);
+          return lead;
+        }
+
+        case 'create_task': {
+          const task = await storage.createOperationTask(parameters);
+          return task;
+        }
+
+        case 'update_task': {
+          const { taskId, ...updates } = parameters;
+          const task = await storage.updateOperationTask(taskId, updates);
+          return task;
         }
 
         default:
