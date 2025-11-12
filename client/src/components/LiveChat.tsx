@@ -123,7 +123,17 @@ export function LiveChat() {
     sendMessageMutation.mutate(inputMessage);
   };
 
-  const handleNewConversation = () => {
+  const handleNewConversation = async () => {
+    // Si hay una conversación actual con mensajes, archivarla primero
+    if (currentConversationId && messages.length > 0) {
+      await archiveConversationMutation.mutateAsync(currentConversationId);
+    }
+    
+    // Resetear el estado y limpiar el input
+    setCurrentConversationId(null);
+    setInputMessage('');
+    
+    // Crear nueva conversación inmediatamente
     createConversationMutation.mutate();
   };
 
