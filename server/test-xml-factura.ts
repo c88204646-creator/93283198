@@ -18,7 +18,7 @@ async function testXmlExtraction() {
     
     // Intentar extraer datos
     console.log('\n🔍 Intentando extraer datos de factura...');
-    const invoiceData = await facturamaInvoiceExtractor.extractInvoiceData(fileBuffer, 'Factura-1254-LOMA330829Q62.xml');
+    const invoiceData = await facturamaInvoiceExtractor.extractInvoiceData(fileBuffer, 'Factura-1254-LOMA330829Q62.xml', undefined);
     
     if (invoiceData) {
       console.log('\n✅ FACTURA DETECTADA:');

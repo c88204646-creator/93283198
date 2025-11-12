@@ -1,17 +1,21 @@
 /**
- * Facturama Invoice Extractor
+ * Facturama Invoice Extractor (Orchestrator)
  * 
- * Servicio especializado en extraer datos de facturas PDF de Facturama (CFDI 4.0)
- * Detecta automáticamente datos del receptor (cliente) para creación/actualización automática
+ * Orquestador que detecta y procesa facturas CFDI en formato XML o PDF
+ * Ruta de alta confianza: archivos XML CFDI con parsing estructurado
+ * Ruta de respaldo: archivos PDF con OCR
  * 
  * Funcionalidades:
- * 1. Extracción de datos del receptor: RFC, nombre, dirección, CP, régimen fiscal
- * 2. Detección de número de operación en "Orden de Compra"
- * 3. Validación de formato RFC mexicano
- * 4. Extracción de conceptos y montos para vinculación financiera
+ * 1. Detección automática de formato (XML vs PDF) por extensión/mime type
+ * 2. Delegación a parser especializado (XML parser o PDF OCR)
+ * 3. Extracción de datos del receptor: RFC, nombre, dirección, CP, régimen fiscal
+ * 4. Detección de número de operación en "Orden de Compra"
+ * 5. Validación de formato RFC mexicano
+ * 6. Extracción de conceptos y montos para vinculación financiera
  */
 
 import Tesseract from 'tesseract.js';
+import { facturamaCfdXmlParser } from './facturama-cfdi-xml-parser';
 
 export interface FacturamaReceptorData {
   // Datos obligatorios
@@ -93,19 +97,73 @@ export interface FacturamaInvoiceData {
 export class FacturamaInvoiceExtractor {
   
   /**
-   * Extrae datos de una factura Facturama desde un buffer PDF
+   * Extrae datos de una factura Facturama desde un buffer (XML o PDF)
+   * 
+   * Orquestador que detecta automáticamente el formato y delega:
+   * - XML CFDI: Alta confianza, parsing estructurado
+   * - PDF: Respaldo con OCR
+   * 
+   * @param fileBuffer Buffer del archivo (XML o PDF)
+   * @param filename Nombre del archivo
+   * @param mimeType Tipo MIME opcional para detección más precisa
    */
-  async extractInvoiceData(pdfBuffer: Buffer, filename: string): Promise<FacturamaInvoiceData | null> {
+  async extractInvoiceData(
+    fileBuffer: Buffer, 
+    filename: string,
+    mimeType?: string
+  ): Promise<FacturamaInvoiceData | null> {
     
     console.log(`[Facturama Extractor] 📄 Analizando: ${filename}`);
     
-    // 1. Verificar si es un PDF de factura (por nombre o contenido)
+    // 1. Verificar si parece ser una factura
     if (!this.isLikelyInvoice(filename)) {
       console.log('[Facturama Extractor] ⏭️  No parece ser una factura');
       return null;
     }
     
-    // 2. Extraer texto del PDF usando OCR
+    // 2. Detectar formato (XML vs PDF)
+    const isXml = this.isXmlFile(filename, fileBuffer, mimeType);
+    
+    if (isXml) {
+      // ✅ Ruta de alta confianza: XML CFDI
+      console.log('[Facturama Extractor] 🎯 Detectado archivo XML - usando parser estructurado');
+      return await facturamaCfdXmlParser.parseXml(fileBuffer, filename);
+    } else {
+      // 📄 Ruta de respaldo: PDF con OCR
+      console.log('[Facturama Extractor] 📄 Detectado archivo PDF - usando OCR');
+      return await this.extractFromPdf(fileBuffer, filename);
+    }
+  }
+  
+  /**
+   * Detecta si el archivo es XML basándose en extensión, mime type y contenido
+   */
+  private isXmlFile(filename: string, fileBuffer: Buffer, mimeType?: string): boolean {
+    // 1. Verificar extensión
+    if (filename.toLowerCase().endsWith('.xml')) {
+      return true;
+    }
+    
+    // 2. Verificar MIME type
+    if (mimeType && (mimeType.includes('xml') || mimeType === 'application/xml' || mimeType === 'text/xml')) {
+      return true;
+    }
+    
+    // 3. Verificar primeros bytes del contenido
+    const firstBytes = fileBuffer.toString('utf-8', 0, Math.min(100, fileBuffer.length));
+    if (firstBytes.trim().startsWith('<?xml')) {
+      return true;
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Extrae datos de una factura Facturama desde un buffer PDF (flujo legacy con OCR)
+   */
+  private async extractFromPdf(pdfBuffer: Buffer, filename: string): Promise<FacturamaInvoiceData | null> {
+    
+    // 1. Extraer texto del PDF usando OCR
     let extractedText = '';
     try {
       extractedText = await this.extractTextFromPDF(pdfBuffer);
@@ -120,7 +178,7 @@ export class FacturamaInvoiceExtractor {
       return null;
     }
     
-    // 3. Verificar si es una factura de Facturama/CFDI
+    // 2. Verificar si es una factura de Facturama/CFDI
     if (!this.isFacturamaInvoice(extractedText)) {
       console.log('[Facturama Extractor] ⏭️  No es una factura Facturama/CFDI');
       return null;
@@ -128,7 +186,7 @@ export class FacturamaInvoiceExtractor {
     
     console.log('[Facturama Extractor] ✅ Factura Facturama detectada - Extrayendo datos...');
     
-    // 4. Extraer datos del receptor (cliente)
+    // 3. Extraer datos del receptor (cliente)
     const receptor = this.extractReceptorData(extractedText);
     
     if (!receptor) {

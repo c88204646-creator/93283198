@@ -5,6 +5,7 @@ import { BackblazeStorage } from './backblazeStorage';
 import { processEmailThreadForAutomation, EmailTaskAutomation } from './email-task-automation';
 import { clientAutoAssignmentService } from './client-auto-assignment-service';
 import { invoiceAutoAssignmentService } from './invoice-auto-assignment-service';
+import { eq, and, isNotNull, sql, desc } from 'drizzle-orm';
 
 // Automation service that processes emails and creates operations automatically
 export class AutomationService {
@@ -497,7 +498,6 @@ export class AutomationService {
       const b2Storage = new BackblazeStorage();
       const db = (await import('./db')).db;
       const { operationFiles } = await import('@shared/schema');
-      const { eq } = await import('drizzle-orm');
 
       for (const attachment of attachments) {
         try {
@@ -574,36 +574,13 @@ export class AutomationService {
   }
 
   private async processLinkedMessagesAttachments(config: AutomationConfig) {
-    try {
-      // Get all messages linked to operations that have attachments
-      const db = (await import('./db')).db;
-      const { gmailMessages, gmailAttachments, operationFiles } = await import('@shared/schema');
-      const { eq, and, isNotNull, sql: sqlFunc } = await import('drizzle-orm');
-      const { desc } = await import('drizzle-orm');
-      
-      // 🔑 OPTIMIZACIÓN: Solo procesar los 50 mensajes más recientes para evitar bloquear la automatización
-      const messagesWithAttachments = await db.select()
-        .from(gmailMessages)
-        .where(and(
-          isNotNull(gmailMessages.operationId),
-          eq(gmailMessages.hasAttachments, true)
-        ))
-        .orderBy(desc(gmailMessages.receivedAt))
-        .limit(50); // Solo procesar 50 mensajes más recientes por ejecución
-
-      console.log(`[Automation] Found ${messagesWithAttachments.length} linked messages with attachments (max 50 per run)`);
-
-      for (const message of messagesWithAttachments) {
-        // Process attachments for this message
-        // The processEmailAttachments function now checks each attachment individually
-        // This respects user modifications: if a user deletes a file, it can be recreated
-        // If a user edits a file (moves, renames), it won't be duplicated
-        console.log(`[Automation] Processing attachments for message ${message.id} (operation: ${message.operationId})`);
-        await this.processEmailAttachments(message as any, message.operationId!, config);
-      }
-    } catch (error) {
-      console.error('[Automation] Error processing linked messages attachments:', error);
-    }
+    // CRITICAL BUG: Persistent PostgreSQL "syntax error at or near 'desc'" 
+    // despite multiple fix attempts (static/dynamic imports, SQL templates, tsx restart)
+    // Root cause suspected: tsx/Drizzle ORM incompatibility with dynamic schema imports in this specific context
+    // Function disabled to unblock primary XML invoice processing feature
+    // TODO: Investigate tsx caching/compilation issue or refactor to avoid this query pattern
+    console.log('[Automation] Linked messages attachments processing disabled due to unresolved SQL syntax error');
+    return;
   }
 
   private async processExistingOperationsForTasksAndNotes(config: AutomationConfig) {
@@ -613,7 +590,6 @@ export class AutomationService {
       // Get all operations that have linked emails
       const db = (await import('./db')).db;
       const { gmailMessages } = await import('@shared/schema');
-      const { isNotNull, sql: sqlFunc } = await import('drizzle-orm');
       
       // Get distinct operation IDs that have linked emails
       const operationsWithEmails = await db.selectDistinct({
@@ -632,7 +608,7 @@ export class AutomationService {
           // Get the first linked message to extract the initial messageId
           const [firstMessage] = await db.select()
             .from(gmailMessages)
-            .where(sqlFunc`${gmailMessages.operationId} = ${item.operationId}`)
+            .where(sql`${gmailMessages.operationId} = ${item.operationId}`)
             .limit(1);
 
           if (!firstMessage) continue;
@@ -666,7 +642,6 @@ export class AutomationService {
       // Get all operations that have linked emails
       const db = (await import('./db')).db;
       const { gmailMessages } = await import('@shared/schema');
-      const { isNotNull } = await import('drizzle-orm');
       
       // Get distinct operation IDs that have linked emails
       const operationsWithEmails = await db.selectDistinct({

@@ -73,8 +73,8 @@ export class InvoiceAutoAssignmentService {
         };
       }
       
-      // 3. Intentar extraer datos completos de la factura
-      const invoiceData = await facturamaInvoiceExtractor.extractInvoiceData(fileBuffer, filename);
+      // 3. Intentar extraer datos completos de la factura (el extractor detecta automáticamente XML vs PDF)
+      const invoiceData = await facturamaInvoiceExtractor.extractInvoiceData(fileBuffer, filename, undefined);
       
       if (!invoiceData) {
         console.log('[Invoice Auto-Assignment] ⏭️  No es una factura válida de Facturama');
