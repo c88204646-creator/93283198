@@ -212,11 +212,33 @@ export function LiveChat() {
               Asistente Personal
             </h3>
             {!isMobile && (
-              <p className="text-[10px] text-white/80 truncate">Gestión completa del sistema</p>
+              <p className="text-[10px] text-white/80 truncate">
+                {activeTab === 'history' 
+                  ? 'Historial (auto-limpieza 30 días)' 
+                  : 'Gestión completa del sistema'
+                }
+              </p>
             )}
           </div>
         </div>
-        <div className="flex items-center shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setActiveTab(activeTab === 'chat' ? 'history' : 'chat')}
+            data-testid="button-toggle-history"
+            className={cn(
+              "text-white hover:bg-white/20",
+              isMobile ? "h-6 w-6" : "h-7 w-7"
+            )}
+            title={activeTab === 'chat' ? 'Ver historial' : 'Volver al chat'}
+          >
+            {activeTab === 'chat' ? (
+              <History className="h-3.5 w-3.5" />
+            ) : (
+              <MessageCircle className="h-3.5 w-3.5" />
+            )}
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -232,12 +254,13 @@ export function LiveChat() {
         </div>
       </div>
 
-      {/* Messages */}
-      <ScrollArea 
-            className={cn("flex-1 overflow-y-auto", isMobile ? "px-3 py-2" : "px-4 py-3")} 
-            ref={scrollRef}
-          >
-            {messages.length === 0 ? (
+      {/* Content */}
+      {activeTab === 'chat' ? (
+        <ScrollArea 
+          className={cn("flex-1 overflow-y-auto", isMobile ? "px-3 py-2" : "px-4 py-3")} 
+          ref={scrollRef}
+        >
+          {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center p-4">
                 <div className={cn(
                   "rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center mb-3",
@@ -337,8 +360,53 @@ export function LiveChat() {
               </div>
             )}
           </ScrollArea>
+        ) : (
+          /* History View */
+          <ScrollArea className={cn("flex-1 overflow-y-auto", isMobile ? "px-3 py-2" : "px-4 py-3")}>
+            <div className="space-y-2">
+              {archivedConversations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                  <History className={cn("text-muted-foreground mb-2", isMobile ? "h-8 w-8" : "h-10 w-10")} />
+                  <p className={cn("text-muted-foreground", isMobile ? "text-xs" : "text-sm")}>
+                    No hay conversaciones archivadas
+                  </p>
+                  <p className={cn("text-muted-foreground mt-1", isMobile ? "text-[10px]" : "text-xs")}>
+                    Las conversaciones se eliminan automáticamente después de 30 días
+                  </p>
+                </div>
+              ) : (
+                archivedConversations.map((conv) => (
+                  <Card 
+                    key={conv.id}
+                    className={cn("p-3 cursor-pointer hover-elevate", isMobile ? "p-2" : "p-3")}
+                    onClick={() => {
+                      setCurrentConversationId(conv.id);
+                      setActiveTab('chat');
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("font-medium truncate", isMobile ? "text-xs" : "text-sm")}>
+                          Conversación del {new Date(conv.createdAt).toLocaleDateString('es-ES')}
+                        </p>
+                        <p className={cn("text-muted-foreground truncate", isMobile ? "text-[10px]" : "text-xs")}>
+                          {new Date(conv.createdAt).toLocaleTimeString('es-ES', {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                      <MessageCircle className={cn("text-muted-foreground shrink-0", isMobile ? "h-4 w-4" : "h-5 w-5")} />
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        )}
 
-          {/* Input */}
+        {/* Input - Only show in chat mode */}
+        {activeTab === 'chat' && (
           <div className={cn("border-t shrink-0", isMobile ? "px-3 py-2.5" : "px-4 py-3")}>
             <form onSubmit={handleSendMessage} className="flex gap-2">
               <Input
@@ -347,6 +415,7 @@ export function LiveChat() {
                 placeholder="Escribe tu mensaje..."
                 className={cn("flex-1", isMobile ? "text-sm h-9" : "")}
                 disabled={sendMessageMutation.isPending}
+                data-testid="input-livechat-message"
               />
               <Button
                 type="submit"
@@ -356,6 +425,7 @@ export function LiveChat() {
                   "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700",
                   isMobile ? "h-9 w-9" : ""
                 )}
+                data-testid="button-send-message"
               >
                 <Send className={isMobile ? "h-3.5 w-3.5" : "h-4 w-4"} />
               </Button>
@@ -366,7 +436,9 @@ export function LiveChat() {
                 size="sm"
                 onClick={handleNewConversation}
                 className={isMobile ? "text-[11px] h-7 px-2" : "text-xs"}
+                data-testid="button-new-conversation"
               >
+                <Plus className={cn("mr-1", isMobile ? "h-2.5 w-2.5" : "h-3 w-3")} />
                 Nueva conversación
               </Button>
               {currentConversationId && messages.length > 0 && (
@@ -375,6 +447,7 @@ export function LiveChat() {
                   size="sm"
                   onClick={() => archiveConversationMutation.mutate(currentConversationId)}
                   className={isMobile ? "text-[11px] h-7 px-2" : "text-xs"}
+                  data-testid="button-archive-conversation"
                 >
                   <Trash2 className={cn("mr-1", isMobile ? "h-2.5 w-2.5" : "h-3 w-3")} />
                   Archivar
@@ -382,6 +455,7 @@ export function LiveChat() {
               )}
             </div>
           </div>
+        )}
     </div>
   );
 }
