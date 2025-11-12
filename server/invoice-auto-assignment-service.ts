@@ -233,8 +233,23 @@ export class InvoiceAutoAssignmentService {
         
         if (existingClient) {
           clientId = existingClient.id;
+          
+          // 🔑 ACTUALIZAR DIVISA SI LA FACTURA TIENE UNA DIVISA DIFERENTE
+          if (invoiceData.moneda) {
+            const invoiceCurrency = invoiceData.moneda.toUpperCase();
+            const currentCurrency = existingClient.currency?.toUpperCase() || 'MXN';
+            
+            if (invoiceCurrency !== currentCurrency) {
+              await storage.updateClient(existingClient.id, {
+                currency: invoiceCurrency
+              });
+              
+              console.log(`[Invoice Auto-Assignment] 💱 Divisa del cliente actualizada de ${currentCurrency} a ${invoiceCurrency} (basado en factura)`);
+            }
+          }
+          
         } else {
-          // Crear nuevo cliente
+          // Crear nuevo cliente con la divisa correcta desde la factura
           const newClient = await storage.createClient({
             name: invoiceData.receptor.nombre,
             rfc: invoiceData.receptor.rfc,
@@ -244,11 +259,12 @@ export class InvoiceAutoAssignmentService {
             postalCode: invoiceData.receptor.codigoPostal,
             country: invoiceData.receptor.pais || 'México',
             regimenFiscal: invoiceData.receptor.regimenFiscal,
-            usoCFDI: invoiceData.receptor.usoCFDI
+            usoCFDI: invoiceData.receptor.usoCFDI,
+            currency: invoiceData.moneda?.toUpperCase() || 'MXN'
           });
           
           clientId = newClient.id;
-          console.log(`[Invoice Auto-Assignment] ✅ Cliente creado: ${newClient.name} (${newClient.rfc})`);
+          console.log(`[Invoice Auto-Assignment] ✅ Cliente creado: ${newClient.name} (${newClient.rfc}) con divisa ${newClient.currency}`);
         }
       }
       

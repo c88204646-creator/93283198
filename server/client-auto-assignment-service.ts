@@ -111,12 +111,12 @@ export class ClientAutoAssignmentService {
         
         console.log(`[Client Auto-Assignment] 🔗 Cliente existente encontrado: ${clientName} (match type: ${matchResult.matchType})`);
         
-        // Actualizar datos del cliente si son más completos
-        await this.updateClientIfNeeded(matchResult.client, invoiceData.receptor, attachmentId);
+        // Actualizar datos del cliente si son más completos (incluye divisa)
+        await this.updateClientIfNeeded(matchResult.client, invoiceData.receptor, attachmentId, invoiceData.moneda);
         
       } else {
-        // Cliente nuevo - crear
-        const newClient = await this.createClientFromInvoice(invoiceData.receptor, attachmentId);
+        // Cliente nuevo - crear con la divisa correcta desde la factura
+        const newClient = await this.createClientFromInvoice(invoiceData.receptor, attachmentId, invoiceData.moneda);
         
         clientId = newClient.id;
         clientName = newClient.name;
@@ -218,20 +218,27 @@ export class ClientAutoAssignmentService {
    */
   private async createClientFromInvoice(
     receptorData: FacturamaInvoiceData['receptor'],
-    sourceAttachmentId: string
+    sourceAttachmentId: string,
+    invoiceCurrency?: string
   ): Promise<any> {
     
     // Generar email temporal si no existe
     const email = this.generateTemporaryEmail(receptorData.rfc || receptorData.nombre);
+    
+    // Determinar divisa desde la factura o usar MXN por defecto
+    let currency = 'MXN';
+    if (invoiceCurrency) {
+      currency = invoiceCurrency.toUpperCase();
+    }
     
     const newClient = await storage.createClient({
       name: receptorData.nombre,
       email,
       phone: '',
       address: receptorData.direccion || '',
-      currency: 'MXN', // Facturas mexicanas son en MXN o USD
+      currency, // Usar divisa de la factura
       status: 'active',
-      notes: 'Cliente creado automáticamente desde factura Facturama',
+      notes: `Cliente creado automáticamente desde factura Facturama (Divisa: ${currency})`,
       
       // Datos fiscales
       rfc: receptorData.rfc,
@@ -253,14 +260,29 @@ export class ClientAutoAssignmentService {
 
   /**
    * Actualiza datos de un cliente existente si los nuevos datos son más completos
+   * IMPORTANTE: Actualiza la divisa del cliente si la factura tiene una divisa diferente
    */
   private async updateClientIfNeeded(
     existingClient: any,
     receptorData: FacturamaInvoiceData['receptor'],
-    sourceAttachmentId: string
+    sourceAttachmentId: string,
+    invoiceCurrency?: string
   ): Promise<void> {
     
     const updates: any = {};
+    
+    // 🔑 ACTUALIZAR DIVISA SI LA FACTURA TIENE UNA DIVISA DIFERENTE
+    // Esta es la "fuente de verdad" - la factura indica la divisa correcta del cliente
+    if (invoiceCurrency) {
+      const normalizedInvoiceCurrency = invoiceCurrency.toUpperCase();
+      const currentCurrency = existingClient.currency?.toUpperCase() || 'MXN';
+      
+      if (normalizedInvoiceCurrency !== currentCurrency) {
+        updates.currency = normalizedInvoiceCurrency;
+        
+        console.log(`[Client Auto-Assignment] 💱 Actualizando divisa del cliente de ${currentCurrency} a ${normalizedInvoiceCurrency} (basado en factura Facturama)`);
+      }
+    }
     
     // Actualizar RFC si no existe
     if (!existingClient.rfc && receptorData.rfc) {
