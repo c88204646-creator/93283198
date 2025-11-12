@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card } from '@/components/ui/card';
-import { MessageCircle, X, Send, Minimize2, Trash2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MessageCircle, X, Send, Minimize2, Trash2, History, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { ChatConversation, ChatMessage } from '@shared/schema';
@@ -15,6 +16,7 @@ export function LiveChat() {
   const [isOpen, setIsOpen] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [inputMessage, setInputMessage] = useState('');
+  const [activeTab, setActiveTab] = useState<'chat' | 'history'>('chat');
   const scrollRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -24,9 +26,13 @@ export function LiveChat() {
     enabled: isOpen,
   });
 
+  // Separar conversaciones activas y archivadas
+  const activeConversations = conversations.filter(c => c.status === 'active');
+  const archivedConversations = conversations.filter(c => c.status === 'archived');
+
   const { data: messages = [] } = useQuery<ChatMessage[]>({
     queryKey: ['/api/chat/conversations', currentConversationId, 'messages'],
-    enabled: !!currentConversationId,
+    enabled: !!currentConversationId && activeTab === 'chat',
   });
 
   const createConversationMutation = useMutation({
