@@ -63,6 +63,67 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
+// Mock EmployeeMultiSelect component for demonstration purposes
+const EmployeeMultiSelect = ({ employees, selectedIds, onChange, placeholder }: any) => {
+  // This is a placeholder. In a real app, this would be a searchable multi-select component.
+  // For this example, we'll just render a simplified input and a button to simulate selection.
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredEmployees = employees.filter(emp =>
+    emp.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSelect = (empId: string) => {
+    const newSelectedIds = selectedIds.includes(empId)
+      ? selectedIds.filter((id: string) => id !== empId)
+      : [...selectedIds, empId];
+    onChange(newSelectedIds);
+  };
+
+  return (
+    <div className="relative">
+      <Button variant="outline" onClick={() => setShowDropdown(!showDropdown)} className="w-full justify-between">
+        {selectedIds.length > 0
+          ? placeholder
+          : "Select employees..."}
+        {selectedIds.length > 0 && <span>({selectedIds.length})</span>}
+      </Button>
+      {showDropdown && (
+        <div className="absolute top-full left-0 right-0 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md shadow-lg z-10 mt-1 p-2">
+          <Input
+            placeholder="Search employees..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="mb-2"
+          />
+          <div className="max-h-48 overflow-y-auto">
+            {filteredEmployees.map(emp => (
+              <div
+                key={emp.id}
+                className="flex items-center p-2 rounded-md cursor-pointer hover:bg-accent"
+                onClick={() => handleSelect(emp.id)}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(emp.id)}
+                  readOnly
+                  className="mr-2"
+                />
+                <label className="text-sm cursor-pointer">{emp.name}</label>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2 mt-3">
+            <Button variant="outline" size="sm" onClick={() => setShowDropdown(false)}>Close</Button>
+            {/* Add a "Clear" button if needed */}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'planning': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
@@ -99,6 +160,9 @@ export default function OperationDetail() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("info");
 
+  // State for selected employees in the operation details tab
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+
   const { data: operation, isLoading: operationLoading, isError } = useQuery<Operation>({
     queryKey: [`/api/operations/${id}`],
     enabled: !!id,
@@ -125,6 +189,13 @@ export default function OperationDetail() {
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ['/api/users'],
   });
+
+  // Set selectedEmployeeIds when operation data is loaded
+  useEffect(() => {
+    if (operation && operation.employeeIds) {
+      setSelectedEmployeeIds(operation.employeeIds);
+    }
+  }, [operation]);
 
   if (operationLoading) {
     return (
@@ -187,7 +258,7 @@ export default function OperationDetail() {
             <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <pattern id="logistics-pattern" x="0" y="0" width="100" height="100" patternUnits="userSpaceOnUse">
-                  <path d="M10,30 L20,30 L20,40 L30,40 L30,30 L40,30 L40,50 L10,50 Z M45,35 L55,35 L50,45 Z M15,60 L25,60 L20,70 Z" 
+                  <path d="M10,30 L20,30 L20,40 L30,40 L30,30 L40,30 L40,50 L10,50 Z M45,35 L55,35 L50,45 Z M15,60 L25,60 L20,70 Z"
                         fill="currentColor" opacity="0.15"/>
                   <circle cx="70" cy="35" r="8" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.2"/>
                   <path d="M65,60 Q70,55 75,60 Q80,65 85,60" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.15"/>
@@ -196,10 +267,10 @@ export default function OperationDetail() {
               <rect width="100%" height="100%" fill="url(#logistics-pattern)"/>
             </svg>
           </div>
-          
+
           {/* Barra de acento superior con gradiente animado */}
           <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 via-purple-500 to-blue-500 bg-[length:200%_100%] animate-[gradient_8s_ease-in-out_infinite]" />
-          
+
           {/* Elementos decorativos flotantes */}
           <div className="absolute top-4 right-8 opacity-10 dark:opacity-5">
             <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -252,7 +323,7 @@ export default function OperationDetail() {
                         </svg>
                       )}
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h1 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50 truncate" data-testid="text-operation-name">
@@ -277,7 +348,7 @@ export default function OperationDetail() {
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Badges organizados con iconos */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 dark:from-blue-500/20 dark:to-indigo-500/20 text-blue-700 dark:text-blue-300 px-3 py-1.5 rounded-lg border border-blue-500/20 shadow-sm">
@@ -286,17 +357,17 @@ export default function OperationDetail() {
                     </div>
                     <Badge className={`${getStatusColor(operation.status)} text-xs px-3 py-1.5 shadow-sm border-0 font-semibold`} data-testid="badge-status">
                       <span className="mr-1.5">●</span>
-                      {operation.status === 'planning' ? 'Planificación' : 
-                       operation.status === 'in-progress' ? 'En Progreso' : 
-                       operation.status === 'completed' ? 'Completado' : 
+                      {operation.status === 'planning' ? 'Planificación' :
+                       operation.status === 'in-progress' ? 'En Progreso' :
+                       operation.status === 'completed' ? 'Completado' :
                        'Cancelado'}
                     </Badge>
                     {operation.priority && (
                       <Badge className={`${getPriorityColor(operation.priority)} text-xs px-3 py-1.5 shadow-sm border-0 font-semibold`} data-testid="badge-priority">
                         {operation.priority === 'urgent' && <span className="mr-1">⚡</span>}
-                        {operation.priority === 'low' ? 'Baja' : 
-                         operation.priority === 'medium' ? 'Media' : 
-                         operation.priority === 'high' ? 'Alta' : 
+                        {operation.priority === 'low' ? 'Baja' :
+                         operation.priority === 'medium' ? 'Media' :
+                         operation.priority === 'high' ? 'Alta' :
                          'Urgente'}
                       </Badge>
                     )}
@@ -334,72 +405,72 @@ export default function OperationDetail() {
         {/* Tabs mejorados */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-9 h-auto p-1 bg-muted/50 backdrop-blur-sm rounded-xl">
-            <TabsTrigger 
-              value="info" 
+            <TabsTrigger
+              value="info"
               data-testid="tab-info"
               className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
             >
               <Package className="w-4 h-4 mr-2" />
               <span className="font-medium">Información</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="client" 
+            <TabsTrigger
+              value="client"
               data-testid="tab-client"
               className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
             >
               <UserIcon className="w-4 h-4 mr-2" />
               <span className="font-medium">Cliente</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="notes" 
+            <TabsTrigger
+              value="notes"
               data-testid="tab-notes"
               className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
             >
               <FileText className="w-4 h-4 mr-2" />
               <span className="font-medium">Notas</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="tasks" 
+            <TabsTrigger
+              value="tasks"
               data-testid="tab-tasks"
               className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
             >
               <CheckSquare className="w-4 h-4 mr-2" />
               <span className="font-medium">Tareas</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="payments" 
+            <TabsTrigger
+              value="payments"
               data-testid="tab-payments"
               className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
             >
               <DollarSign className="w-4 h-4 mr-2" />
               <span className="font-medium">Pagos</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="invoices" 
+            <TabsTrigger
+              value="invoices"
               data-testid="tab-invoices"
               className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
             >
               <FileText className="w-4 h-4 mr-2" />
               <span className="font-medium">Facturas</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="expenses" 
+            <TabsTrigger
+              value="expenses"
               data-testid="tab-expenses"
               className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
             >
               <DollarSign className="w-4 h-4 mr-2" />
               <span className="font-medium">Gastos</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="files" 
+            <TabsTrigger
+              value="files"
               data-testid="tab-files"
               className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
             >
               <FolderOpen className="w-4 h-4 mr-2" />
               <span className="font-medium">Archivos</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="emails" 
+            <TabsTrigger
+              value="emails"
               data-testid="tab-emails"
               className="data-[state=active]:bg-background data-[state=active]:shadow-md rounded-lg transition-all py-3"
             >
@@ -409,7 +480,7 @@ export default function OperationDetail() {
           </TabsList>
 
           <TabsContent value="info" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
-            <InformationTab operation={operation} client={client} employees={employees} />
+            <InformationTab operation={operation} client={client} employees={employees} selectedEmployeeIds={selectedEmployeeIds} />
           </TabsContent>
 
           <TabsContent value="client" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
@@ -449,7 +520,7 @@ export default function OperationDetail() {
   );
 }
 
-function InformationTab({ operation, client, employees }: { operation: Operation; client?: Client; employees: Employee[] }) {
+function InformationTab({ operation, client, employees, selectedEmployeeIds }: { operation: Operation; client?: Client; employees: Employee[]; selectedEmployeeIds: string[] }) {
   return (
     <div className="space-y-6">
       {/* AI-Powered Operation Analysis */}
@@ -634,6 +705,59 @@ function InformationTab({ operation, client, employees }: { operation: Operation
           </div>
         </CardContent>
       </Card>
+
+      {/* Sección de Miembros Asignados - Mejorada con Avatares */}
+      <Card className="overflow-hidden border-primary/20 hover:border-primary/40 transition-all hover:shadow-lg bg-gradient-to-br from-card to-card/50">
+        <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent pb-4">
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <UserIcon className="w-5 h-5 text-primary" />
+            Miembros Asignados
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5 pt-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Asignados</label>
+            <EmployeeMultiSelect
+              employees={employees}
+              selectedIds={selectedEmployeeIds}
+              onChange={setSelectedEmployeeIds}
+              placeholder="Seleccionar miembros..."
+            />
+            {selectedEmployeeIds.length > 0 && (
+              <div className="flex items-center gap-3 mt-2">
+                <div className="flex items-center -space-x-2">
+                  {selectedEmployeeIds.slice(0, 5).map((empId, index) => {
+                    const emp = employees.find(e => e.id === empId);
+                    if (!emp) return null;
+                    return (
+                      <div
+                        key={empId}
+                        className="relative inline-flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary/80 text-white text-sm font-semibold border-2 border-background shadow-md hover:z-10 transition-transform hover:scale-110"
+                        style={{ zIndex: selectedEmployeeIds.length - index }}
+                        title={emp.name}
+                      >
+                        {emp.name.charAt(0).toUpperCase()}
+                      </div>
+                    );
+                  })}
+                  {selectedEmployeeIds.length > 5 && (
+                    <div
+                      className="relative inline-flex items-center justify-center w-9 h-9 rounded-full bg-muted text-muted-foreground text-sm font-semibold border-2 border-background shadow-md"
+                      title={selectedEmployeeIds.slice(5).map(id => employees.find(e => e.id === id)?.name).filter(Boolean).join(', ')}
+                    >
+                      +{selectedEmployeeIds.length - 5}
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {selectedEmployeeIds.length} miembro{selectedEmployeeIds.length !== 1 ? 's' : ''} asignado{selectedEmployeeIds.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       </div>
     </div>
   );
@@ -847,8 +971,8 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
                               <div key={note.id} className="relative group" data-testid={`card-note-${note.id}`}>
                                 {/* Punto del timeline - Más pequeño */}
                                 <div className={`absolute -left-[22px] top-1.5 w-3 h-3 rounded-full border-2 ${
-                                  isAutomated 
-                                    ? 'bg-blue-500 border-blue-300 shadow-md shadow-blue-500/50' 
+                                  isAutomated
+                                    ? 'bg-blue-500 border-blue-300 shadow-md shadow-blue-500/50'
                                     : 'bg-primary border-primary/30 shadow-md shadow-primary/30'
                                 }`}>
                                   {isAutomated && (
@@ -859,8 +983,8 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
                                 </div>
 
                                 <Card className={`transition-all hover:shadow-sm ${
-                                  isAutomated 
-                                    ? 'border-blue-200 bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-950/20 dark:border-blue-800' 
+                                  isAutomated
+                                    ? 'border-blue-200 bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-950/20 dark:border-blue-800'
                                     : 'border-border hover:border-primary/30'
                                 }`}>
                                   <CardHeader className="pb-2 pt-3 px-3">
@@ -868,8 +992,8 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
                                       {/* Info del usuario y hora - Compacto */}
                                       <div className="flex items-center gap-2 flex-1">
                                         <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                                          isAutomated 
-                                            ? 'bg-blue-500 text-white' 
+                                          isAutomated
+                                            ? 'bg-blue-500 text-white'
                                             : 'bg-primary/10 text-primary'
                                         }`}>
                                           {isAutomated ? (
@@ -968,8 +1092,8 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
                                           <div className="flex items-center gap-1.5 pt-1.5 border-t text-[10px] text-muted-foreground">
                                             <span>Confianza IA:</span>
                                             <div className="flex-1 max-w-[150px] h-1.5 bg-muted rounded-full overflow-hidden">
-                                              <div 
-                                                className="h-full bg-blue-500 transition-all" 
+                                              <div
+                                                className="h-full bg-blue-500 transition-all"
                                                 style={{ width: `${note.aiConfidence}%` }}
                                               ></div>
                                             </div>
@@ -997,9 +1121,9 @@ function NotesTab({ operationId, notes, users }: { operationId: string; notes: O
   );
 }
 
-function TasksTab({ operationId, tasks, employees, users }: { 
-  operationId: string; 
-  tasks: OperationTask[]; 
+function TasksTab({ operationId, tasks, employees, users }: {
+  operationId: string;
+  tasks: OperationTask[];
   employees: Employee[];
   users: User[];
 }) {
@@ -1322,8 +1446,8 @@ function TasksTab({ operationId, tasks, employees, users }: {
   );
 }
 
-function EmailsTab({ operationId, operation }: { 
-  operationId: string; 
+function EmailsTab({ operationId, operation }: {
+  operationId: string;
   operation: Operation;
 }) {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
@@ -1499,15 +1623,15 @@ function EmailsTab({ operationId, operation }: {
                         data-testid={`button-email-${email.id}`}
                         onClick={() => setSelectedMessageId(email.id)}
                         className={`w-full text-left px-2 py-2 rounded-md transition-all ${
-                          isSelected 
-                            ? 'bg-primary text-primary-foreground' 
+                          isSelected
+                            ? 'bg-primary text-primary-foreground'
                             : 'hover:bg-accent'
                         }`}
                       >
                         <div className="flex items-start gap-1.5 min-w-0 w-full">
                           <div className={`flex items-center justify-center w-6 h-6 rounded-full shrink-0 text-[10px] font-medium ${
-                            isSelected 
-                              ? 'bg-primary/20 text-primary' 
+                            isSelected
+                              ? 'bg-primary/20 text-primary'
                               : 'bg-muted text-muted-foreground'
                           }`}>
                             {email.fromEmail?.[0]?.toUpperCase() || 'U'}
@@ -1633,7 +1757,7 @@ function EmailsTab({ operationId, operation }: {
                     }}
                   />
                 ) : textBodyContent ? (
-                  <pre 
+                  <pre
                     className="text-sm whitespace-pre-wrap font-sans text-foreground"
                     data-testid="email-text-content"
                     style={{
@@ -1644,7 +1768,7 @@ function EmailsTab({ operationId, operation }: {
                     {textBodyContent}
                   </pre>
                 ) : selectedMessage.bodyText ? (
-                  <pre 
+                  <pre
                     className="text-sm whitespace-pre-wrap font-sans text-foreground"
                     data-testid="email-text-content-fallback"
                     style={{
@@ -1678,9 +1802,9 @@ function EmailsTab({ operationId, operation }: {
                           const isPdf = attachment.mimeType === 'application/pdf';
 
                           return (
-                            <div 
-                              key={attachment.id || index} 
-                              className="flex-shrink-0 w-48 rounded-lg border bg-card hover-elevate transition-all group cursor-pointer" 
+                            <div
+                              key={attachment.id || index}
+                              className="flex-shrink-0 w-48 rounded-lg border bg-card hover-elevate transition-all group cursor-pointer"
                               data-testid={`card-attachment-${attachment.id}`}
                               onClick={() => {
                                 if ((isImage || isPdf) && attachment.signedUrl) {
@@ -1709,7 +1833,7 @@ function EmailsTab({ operationId, operation }: {
                                     <Icon className="w-12 h-12 text-primary" />
                                   </div>
                                 )}
-                                
+
                                 {/* Botones de acción superpuestos */}
                                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   {(isImage || isPdf) && attachment.signedUrl && (
@@ -1966,7 +2090,7 @@ function FilesTab({ operationId }: { operationId: string }) {
 
   const handlePreview = (file: any) => {
     if (file.mimeType.startsWith("image/") || file.mimeType.includes("pdf")) {
-      const previewableFiles = files.filter((f: any) => 
+      const previewableFiles = files.filter((f: any) =>
         f.mimeType.startsWith("image/") || f.mimeType.includes("pdf")
       );
       const index = previewableFiles.findIndex((f: any) => f.id === file.id);
@@ -1976,7 +2100,7 @@ function FilesTab({ operationId }: { operationId: string }) {
   };
 
   const nextPreview = () => {
-    const previewableFiles = files.filter((f: any) => 
+    const previewableFiles = files.filter((f: any) =>
       f.mimeType.startsWith("image/") || f.mimeType.includes("pdf")
     );
     if (previewIndex < previewableFiles.length - 1) {
@@ -1987,7 +2111,7 @@ function FilesTab({ operationId }: { operationId: string }) {
   };
 
   const prevPreview = () => {
-    const previewableFiles = files.filter((f: any) => 
+    const previewableFiles = files.filter((f: any) =>
       f.mimeType.startsWith("image/") || f.mimeType.includes("pdf")
     );
     if (previewIndex > 0) {
@@ -2001,7 +2125,7 @@ function FilesTab({ operationId }: { operationId: string }) {
     return <div className="text-center py-8 text-muted-foreground">Cargando archivos...</div>;
   }
 
-  const previewableFiles = files.filter((f: any) => 
+  const previewableFiles = files.filter((f: any) =>
     f.mimeType.startsWith("image/") || f.mimeType.includes("pdf")
   );
 
@@ -2303,7 +2427,7 @@ function FilesTab({ operationId }: { operationId: string }) {
           <DialogHeader>
             <DialogTitle>Upload File to Operation</DialogTitle>
             <DialogDescription>
-              {selectedFolder 
+              {selectedFolder
                 ? `Upload a file to the "${folders.find((f: any) => f.id === selectedFolder)?.name}" folder`
                 : "Upload a file to the root directory"}
             </DialogDescription>
@@ -2713,8 +2837,8 @@ function ClientTab({ operation, client }: { operation: Operation; client?: Clien
               <Mail className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Email</Label>
-                <a 
-                  href={`mailto:${client.email}`} 
+                <a
+                  href={`mailto:${client.email}`}
                   className="font-medium text-primary hover:underline block truncate mt-1"
                   data-testid="link-client-email"
                 >
@@ -2728,8 +2852,8 @@ function ClientTab({ operation, client }: { operation: Operation; client?: Clien
                 <Phone className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wide">Teléfono</Label>
-                  <a 
-                    href={`tel:${client.phone}`} 
+                  <a
+                    href={`tel:${client.phone}`}
                     className="font-medium text-primary hover:underline block truncate mt-1"
                     data-testid="link-client-phone"
                   >

@@ -278,12 +278,25 @@ export default function OperationsPage() {
         if (assignedEmployees.length === 0) return "-";
         
         return (
-          <div className="flex flex-wrap gap-1">
-            {assignedEmployees.map((emp: any) => (
-              <Badge key={emp.id} variant="secondary" className="text-xs">
-                {emp.name}
-              </Badge>
+          <div className="flex items-center -space-x-2">
+            {assignedEmployees.slice(0, 3).map((emp: any, index: number) => (
+              <div
+                key={emp.id}
+                className="relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/80 text-white text-xs font-semibold border-2 border-background shadow-sm hover:z-10 transition-transform hover:scale-110"
+                style={{ zIndex: assignedEmployees.length - index }}
+                title={emp.name}
+              >
+                {emp.name.charAt(0).toUpperCase()}
+              </div>
             ))}
+            {assignedEmployees.length > 3 && (
+              <div
+                className="relative inline-flex items-center justify-center w-8 h-8 rounded-full bg-muted text-muted-foreground text-xs font-semibold border-2 border-background shadow-sm"
+                title={assignedEmployees.slice(3).map((e: any) => e.name).join(', ')}
+              >
+                +{assignedEmployees.length - 3}
+              </div>
+            )}
           </div>
         );
       },
