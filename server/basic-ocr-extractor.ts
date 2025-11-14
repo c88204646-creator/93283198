@@ -95,14 +95,15 @@ export class BasicOCRExtractor {
           // Ignore cleanup errors
         }
       }
-      console.error('[OCR Extractor] Error extracting text from image:', error);
-      throw error;
+      console.error('[OCR Extractor] ⚠️ Error extracting text from image (corrupted/invalid format):', error instanceof Error ? error.message : String(error));
+      // Return empty string instead of throwing - this prevents system crashes on invalid images
+      return '';
     }
   }
 
   async extractFromPDF(pdfPathOrBuffer: string | Buffer): Promise<ExtractionResult> {
+    let tempFilePath: string | null = null;
     try {
-      let tempFilePath: string | null = null;
       let pdfPath: string;
 
       // If Buffer, write to temp file
@@ -168,8 +169,14 @@ export class BasicOCRExtractor {
           // Ignore cleanup errors
         }
       }
-      console.error('[OCR Extractor] Error:', error);
-      throw error;
+      console.error('[OCR Extractor] ⚠️ Error processing PDF (corrupted/invalid format):', error instanceof Error ? error.message : String(error));
+      // Return empty result instead of throwing - this prevents system crashes
+      return {
+        data: {},
+        confidence: 0,
+        method: 'ocr_regex',
+        rawText: '',
+      };
     }
   }
 
