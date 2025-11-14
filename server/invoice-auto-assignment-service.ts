@@ -327,8 +327,9 @@ export class InvoiceAutoAssignmentService {
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            tax: item.taxAmount || 0,
-            total: amount,
+            amount: amount,
+            taxAmount: item.taxAmount || null,
+            taxRate: item.taxRate || null,
             
             // Campos SAT
             satProductCode: item.satProductCode,
@@ -372,9 +373,9 @@ export class InvoiceAutoAssignmentService {
           
           // Actualizar divisa si es incorrecta
           const invoiceCurrency = invoiceData.moneda?.toUpperCase() || 'MXN';
-          const currentCurrency = existingClient.currency?.toUpperCase() || 'XXX';
+          const currentCurrency = existingClient.currency?.toUpperCase() || 'MXN';
           
-          if (currentCurrency === 'XXX' || invoiceCurrency !== currentCurrency) {
+          if (invoiceCurrency !== currentCurrency) {
             await storage.updateClient(existingClient.id, {
               currency: invoiceCurrency
             });
@@ -424,8 +425,9 @@ export class InvoiceAutoAssignmentService {
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            tax: item.taxAmount || 0,
-            total: amount,
+            amount: amount,
+            taxAmount: item.taxAmount || null,
+            taxRate: item.taxRate || null,
             
             // Campos SAT
             satProductCode: item.satProductCode,
