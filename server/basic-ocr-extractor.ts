@@ -53,6 +53,53 @@ export class BasicOCRExtractor {
     ],
   };
 
+  async extractTextFromImage(buffer: Buffer): Promise<string> {
+    let tempFilePath: string | null = null;
+    try {
+      // Write buffer to temp file
+      tempFilePath = path.join('/tmp', `ocr-temp-image-${Date.now()}.png`);
+      await fs.writeFile(tempFilePath, buffer);
+      console.log('[OCR Extractor] Processing image from buffer');
+      
+      // Read image and extract text using Tesseract
+      const { data: { text } } = await Tesseract.recognize(
+        tempFilePath,
+        'eng+spa', // English and Spanish
+        {
+          logger: (m) => {
+            if (m.status === 'recognizing text') {
+              console.log(`[OCR Extractor] Progress: ${Math.round(m.progress * 100)}%`);
+            }
+          },
+        }
+      );
+
+      console.log('[OCR Extractor] Text extracted from image, length:', text.length);
+      
+      // Clean up temp file
+      if (tempFilePath) {
+        try {
+          await fs.unlink(tempFilePath);
+        } catch (cleanupError) {
+          console.warn('[OCR Extractor] Failed to cleanup temp file:', cleanupError);
+        }
+      }
+
+      return text;
+    } catch (error) {
+      // Clean up temp file if created
+      if (tempFilePath) {
+        try {
+          await fs.unlink(tempFilePath);
+        } catch {
+          // Ignore cleanup errors
+        }
+      }
+      console.error('[OCR Extractor] Error extracting text from image:', error);
+      throw error;
+    }
+  }
+
   async extractFromPDF(pdfPathOrBuffer: string | Buffer): Promise<ExtractionResult> {
     try {
       let tempFilePath: string | null = null;
