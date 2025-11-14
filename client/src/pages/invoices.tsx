@@ -407,12 +407,17 @@ export default function InvoicesPage() {
     {
       header: "Factura #",
       accessor: (row: Invoice) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <div className="font-medium">{row.invoiceNumber}</div>
           {row.folioFiscal && (
-            <Badge variant="outline" className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800">
-              <CheckCircle2 className="w-3 h-3 mr-1" />
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+              <CheckCircle2 className="w-2.5 h-2.5 mr-0.5" />
               Timbrada
+            </Badge>
+          )}
+          {row.createdAutomatically && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+              Auto
             </Badge>
           )}
         </div>

@@ -311,7 +311,10 @@ export class InvoiceAutoAssignmentService {
         issuerName: invoiceData.emisor?.nombre,
         emisorRegimenFiscal: invoiceData.emisor?.regimenFiscal,
         metodoPago: invoiceData.metodoPago,
-        formaPago: invoiceData.formaPago
+        formaPago: invoiceData.formaPago,
+        
+        // Marcar como creada automáticamente
+        createdAutomatically: true
       });
       
       console.log(`[Invoice Auto-Assignment] ✅ Factura creada: ${newInvoice.invoiceNumber}`);
