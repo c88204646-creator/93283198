@@ -6,11 +6,13 @@ import { financialSuggestions } from "@shared/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { CircuitBreaker } from "./circuit-breaker";
 import { BasicOCRExtractor } from "./basic-ocr-extractor";
+import { BasicFinancialAnalyzer } from "./basic-financial-analyzer";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const circuitBreaker = new CircuitBreaker("gemini-financial-detection");
 const ocrExtractor = new BasicOCRExtractor();
+const ruleBasedAnalyzer = new BasicFinancialAnalyzer();
 
 interface DetectedTransaction {
   type: "payment" | "expense";
@@ -265,10 +267,10 @@ Return empty array [] if no transactions detected.`;
   }
 
   /**
-   * Main method with 2-level fallback system:
+   * Main method with 3-level fallback system:
    * 1. Try Gemini AI (high confidence, context-aware)
-   * 2. If Gemini fails, try OCR (moderate confidence, pattern-based)
-   * 3. If both fail, log and continue (no manual queue needed - user reviews all suggestions anyway)
+   * 2. If Gemini fails, try rule-based analyzer (moderate confidence, pattern-based)
+   * 3. If all fail, log and continue (user reviews all suggestions anyway)
    */
   async detectWithFallback(
     fileBuffer: Buffer,
@@ -282,15 +284,15 @@ Return empty array [] if no transactions detected.`;
       gmailMessageId?: string;
       gmailAttachmentId?: string;
     }
-  ): Promise<{ transactions: DetectedTransaction[]; method: "gemini" | "ocr" | "none" }> {
+  ): Promise<{ transactions: DetectedTransaction[]; method: "gemini" | "rule-based" | "none" }> {
     // Detectar tipo de archivo
     const isImage = fileName.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i);
     const isPDF = fileName.match(/\.pdf$/i);
     
-    // Level 1: Try Gemini AI
+    let extractedText = '';
+    
+    // Level 1: Try Gemini AI (Extract text + Classify with AI)
     try {
-      let extractedText = '';
-      
       if (isImage) {
         // Para imágenes, usar OCR primero para extraer texto
         extractedText = await this.extractTextFromImage(fileBuffer);
@@ -318,19 +320,29 @@ Return empty array [] if no transactions detected.`;
       console.log(`[Financial Detection] ⚠️ Gemini failed for ${fileName}: ${error.message}`);
     }
 
-    // Level 2: Try OCR fallback
-    try {
-      const transactions = await this.detectWithOCRFallback(fileBuffer, operationContext);
-      if (transactions.length > 0) {
-        console.log(`[Financial Detection] ✅ SUCCESS via OCR: ${transactions.length} transactions found in ${fileName}`);
-        return { transactions, method: "ocr" };
+    // Level 2: Try Rule-Based Analyzer (use extracted text, classify with rules)
+    if (extractedText && extractedText.trim().length >= 50) {
+      try {
+        console.log(`[Financial Detection] 🔄 Gemini failed - trying rule-based analyzer...`);
+        const transactions = await ruleBasedAnalyzer.analyzeText(
+          extractedText,
+          fileName,
+          operationContext
+        );
+        
+        if (transactions.length > 0) {
+          console.log(`[Financial Detection] ✅ SUCCESS via rule-based: ${transactions.length} transactions found in ${fileName}`);
+          return { transactions, method: "rule-based" };
+        }
+      } catch (error) {
+        console.log(`[Financial Detection] ⚠️ Rule-based analyzer failed for ${fileName}: ${error}`);
       }
-    } catch (error) {
-      console.log(`[Financial Detection] ⚠️ OCR failed for ${fileName}: ${error}`);
+    } else {
+      console.log(`[Financial Detection] ⚠️ Insufficient text extracted (${extractedText.length} chars) - skipping rule-based analysis`);
     }
 
-    // Both methods failed - log and continue (user will review all suggestions anyway)
-    console.log(`[Financial Detection] ℹ️ No transactions detected in ${fileName} (both Gemini and OCR failed)`);
+    // All methods failed - log and continue (user will review all suggestions anyway)
+    console.log(`[Financial Detection] ℹ️ No transactions detected in ${fileName} (all methods failed)`);
     return { transactions: [], method: "none" };
   }
 
@@ -343,7 +355,7 @@ Return empty array [] if no transactions detected.`;
       operationId?: string;
       extractedText: string;
       attachmentHash?: string;
-      detectionMethod?: "gemini" | "ocr"; // How the transaction was detected
+      detectionMethod?: "gemini" | "rule-based"; // How the transaction was detected
     }
   ): Promise<Omit<InsertFinancialSuggestion, "createdAt" | "updatedAt">> {
     // Check for duplicates
@@ -353,12 +365,12 @@ Return empty array [] if no transactions detected.`;
       sourceInfo.attachmentHash
     );
 
-    const aiModel = sourceInfo.detectionMethod === "ocr" 
-      ? "tesseract-ocr-fallback" 
+    const aiModel = sourceInfo.detectionMethod === "rule-based" 
+      ? "rule-based-analyzer" 
       : "gemini-2.0-flash-exp";
 
-    const aiReasoning = sourceInfo.detectionMethod === "ocr"
-      ? `${transaction.reasoning}\n\n⚠️ Detected via OCR fallback (Gemini unavailable)`
+    const aiReasoning = sourceInfo.detectionMethod === "rule-based"
+      ? `${transaction.reasoning}\n\n⚠️ Detected via rule-based analyzer (Gemini unavailable)`
       : transaction.reasoning;
 
     return {
