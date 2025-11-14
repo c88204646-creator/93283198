@@ -94,6 +94,27 @@ export class InvoiceAutoAssignmentService {
         };
       }
       
+      // Validar tipo de comprobante - Solo procesar facturas de Ingreso (tipo I)
+      if (invoiceData.tipoComprobante && invoiceData.tipoComprobante !== 'I') {
+        console.log(`[Invoice Auto-Assignment] ⏭️  CFDI tipo "${invoiceData.tipoComprobante}" detectado - Solo se procesan facturas de Ingreso (tipo I)`);
+        console.log(`  - Folio: ${invoiceData.folio || 'N/A'}`);
+        console.log(`  - UUID: ${invoiceData.folioFiscal}`);
+        console.log(`  - Este documento NO se creará como factura`);
+        
+        const tipoNombre = {
+          'P': 'Complemento de Pago',
+          'E': 'Nota de Crédito (Egreso)',
+          'T': 'Carta Porte (Traslado)',
+          'N': 'Nómina'
+        }[invoiceData.tipoComprobante] || 'Otro tipo de CFDI';
+        
+        return {
+          success: false,
+          action: 'skipped',
+          reasoning: `${tipoNombre} - Solo se procesan facturas de Ingreso`
+        };
+      }
+      
       console.log(`[Invoice Auto-Assignment] ✅ Factura detectada - Folio Fiscal: ${invoiceData.folioFiscal}, Cliente: ${invoiceData.receptor.nombre}`);
       
       // 4. Crear o actualizar factura
