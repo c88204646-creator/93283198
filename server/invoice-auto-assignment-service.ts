@@ -222,7 +222,20 @@ export class InvoiceAutoAssignmentService {
   ): Promise<string | null> {
     
     try {
-      // 0. Obtener el primer empleado disponible para asignar a facturas automáticas
+      // 0. VALIDAR SI YA EXISTE UNA FACTURA CON ESTE UUID (evitar duplicados)
+      if (invoiceData.folioFiscal) {
+        const { invoices: invoicesTable } = await import('@shared/schema');
+        const existingInvoice = await db.query.invoices.findFirst({
+          where: eq(invoicesTable.folioFiscal, invoiceData.folioFiscal)
+        });
+        
+        if (existingInvoice) {
+          console.log(`[Invoice Auto-Assignment] ⏭️  Factura ya existe con UUID ${invoiceData.folioFiscal} - omitiendo creación`);
+          return null; // No crear duplicado
+        }
+      }
+      
+      // 1. Obtener el primer empleado disponible para asignar a facturas automáticas
       const firstEmployee = await db.query.employees.findFirst();
       
       if (!firstEmployee) {
@@ -230,7 +243,7 @@ export class InvoiceAutoAssignmentService {
         return null;
       }
       
-      // 1. Buscar o crear cliente
+      // 2. Buscar o crear cliente
       let clientId: string | undefined;
       
       if (invoiceData.receptor.rfc) {
@@ -278,7 +291,7 @@ export class InvoiceAutoAssignmentService {
         }
       }
       
-      // 2. Crear la factura principal
+      // 3. Crear la factura principal
       const newInvoice = await storage.createInvoice({
         operationId,
         employeeId: firstEmployee.id, // Asignar al primer empleado disponible
@@ -303,7 +316,7 @@ export class InvoiceAutoAssignmentService {
       
       console.log(`[Invoice Auto-Assignment] ✅ Factura creada: ${newInvoice.invoiceNumber}`);
       
-      // 3. Crear items de la factura
+      // 4. Crear items de la factura
       if (invoiceData.items && invoiceData.items.length > 0) {
         for (const item of invoiceData.items) {
           await storage.createInvoiceItem({
