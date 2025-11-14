@@ -449,6 +449,137 @@ export class InvoiceAutoAssignmentService {
   }
   
   /**
+   * Reprocesa facturas existentes que no tienen items
+   * Busca sus XMLs y crea los items faltantes
+   */
+  async reprocessInvoicesWithoutItems(): Promise<{
+    processed: number;
+    itemsCreated: number;
+    errors: number;
+  }> {
+    console.log('[Invoice Auto-Assignment] 🔄 Iniciando reprocesamiento de facturas sin items...');
+    
+    let processed = 0;
+    let itemsCreated = 0;
+    let errors = 0;
+    
+    try {
+      // 1. Obtener facturas sin items
+      const invoicesWithoutItems = await db.query.invoices.findMany({
+        with: {
+          items: true,
+          operation: true
+        }
+      });
+      
+      const invoicesToProcess = invoicesWithoutItems.filter(inv => 
+        !inv.items || inv.items.length === 0
+      );
+      
+      console.log(`[Invoice Auto-Assignment] 📋 Encontradas ${invoicesToProcess.length} facturas sin items`);
+      
+      // 2. Para cada factura, buscar el XML correspondiente
+      for (const invoice of invoicesToProcess) {
+        try {
+          if (!invoice.operation) {
+            console.log(`[Invoice Auto-Assignment] ⚠️ Factura ${invoice.invoiceNumber} no tiene operación asociada`);
+            errors++;
+            continue;
+          }
+          
+          // Buscar archivos XML de la operación
+          const files = await db.query.operationFiles.findMany({
+            where: eq(operationFiles.operationId, invoice.operationId)
+          });
+          
+          const xmlFiles = files.filter(f => 
+            f.name?.toLowerCase().endsWith('.xml') && 
+            f.b2Key &&
+            (f.name.includes(invoice.invoiceNumber) || f.name.includes('Factura'))
+          );
+          
+          if (xmlFiles.length === 0) {
+            console.log(`[Invoice Auto-Assignment] ⚠️ No se encontró XML para factura ${invoice.invoiceNumber}`);
+            errors++;
+            continue;
+          }
+          
+          // Usar el primer XML que coincida con el número de factura
+          const matchingXml = xmlFiles.find(f => f.name.includes(invoice.invoiceNumber)) || xmlFiles[0];
+          
+          console.log(`[Invoice Auto-Assignment] 📄 Procesando XML: ${matchingXml.name} para factura ${invoice.invoiceNumber}`);
+          
+          // 3. Descargar y parsear el XML
+          let fileBuffer: Buffer;
+          try {
+            fileBuffer = await backblazeStorage.downloadFile(matchingXml.b2Key!);
+          } catch (error) {
+            console.log(`[Invoice Auto-Assignment] ⚠️ No se pudo descargar XML para factura ${invoice.invoiceNumber}`);
+            errors++;
+            continue;
+          }
+          
+          // 4. Extraer datos de la factura
+          const invoiceData = await facturamaInvoiceExtractor.extractInvoiceData(
+            fileBuffer,
+            matchingXml.name || 'factura.xml'
+          );
+          
+          if (!invoiceData) {
+            console.log(`[Invoice Auto-Assignment] ⚠️ No se pudo extraer datos del XML para factura ${invoice.invoiceNumber}`);
+            errors++;
+            continue;
+          }
+          
+          // 5. Crear items si existen
+          if (invoiceData.items && invoiceData.items.length > 0) {
+            for (const item of invoiceData.items) {
+              const amount = item.amount || (item.quantity * item.unitPrice);
+              
+              await storage.createInvoiceItem({
+                invoiceId: invoice.id,
+                description: item.description,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                amount: amount,
+                taxAmount: item.taxAmount || null,
+                taxRate: item.taxRate || null,
+                satProductCode: item.satProductCode,
+                satUnitCode: item.satUnitCode,
+                satTaxObject: item.satTaxObject,
+                identification: item.identification
+              });
+              
+              itemsCreated++;
+            }
+            
+            console.log(`[Invoice Auto-Assignment] ✅ Factura ${invoice.invoiceNumber}: ${invoiceData.items.length} items creados`);
+            processed++;
+          } else {
+            console.log(`[Invoice Auto-Assignment] ⚠️ Factura ${invoice.invoiceNumber}: XML sin items`);
+            errors++;
+          }
+          
+        } catch (error) {
+          console.error(`[Invoice Auto-Assignment] ❌ Error procesando factura ${invoice.invoiceNumber}:`, error);
+          errors++;
+        }
+      }
+      
+    } catch (error) {
+      console.error('[Invoice Auto-Assignment] ❌ Error en reprocesamiento:', error);
+    }
+    
+    console.log(`[Invoice Auto-Assignment] ✅ Reprocesamiento completo - Procesadas: ${processed}, Items creados: ${itemsCreated}, Errores: ${errors}`);
+    
+    return {
+      processed,
+      itemsCreated,
+      errors
+    };
+  }
+  
+  /**
    * Procesa todas las operaciones que tienen attachments sin factura asignada
    */
   async processOperationsForInvoiceDetection(operationIds?: string[]): Promise<{

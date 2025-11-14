@@ -825,6 +825,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/invoices/reprocess-without-items", requireAuth, async (req, res) => {
+    try {
+      const { invoiceAutoAssignmentService } = await import("./invoice-auto-assignment-service");
+      const result = await invoiceAutoAssignmentService.reprocessInvoicesWithoutItems();
+      
+      res.json({ 
+        message: "Reprocesamiento completado",
+        ...result
+      });
+    } catch (error: any) {
+      console.error("Reprocess invoices error:", error);
+      res.status(500).json({ 
+        message: error?.message || "Error al reprocesar facturas" 
+      });
+    }
+  });
+
   // Proposal Routes
   app.get("/api/proposals", requireAuth, async (req, res) => {
     try {
