@@ -24,41 +24,32 @@ Design preference: Logistics-focused iconography and terminology.
 
 #### Database Schema
 - **Core Tables**: `users`, `employees`, `clients`, `operations`, `invoices`, `invoiceItems`, `proposals`, `expenses`, `leads`, `bank_accounts`, `chat_conversations`, `chat_messages`, `operationTasks`.
-- **Integration Tables**: `customFields`, `customFieldValues`, `gmailAccounts`, `gmailMessages`, `calendarEvents`.
-- **File Management Tables**: `operationFolders`, `operationFiles`, `gmailAttachments`, `fileThumbnails`.
-- **Automation Tables**: `automationConfigs`, `automationRules`, `automationLogs`.
-- **AI Tables**: `operationAnalyses`, `bankAccountAnalyses`, `knowledgeBase`, `financial_suggestions`.
-- **Patterns**: UUID primary keys, foreign key relationships, timestamp tracking, status enums, JSONB for metadata, B2 storage keys, SHA-256 file hashes.
-- **CFDI 4.0 Fields**: `invoices` table includes fiscal fields (folioFiscal/UUID, issuerRFC, issuerName, emisorRegimenFiscal, metodoPago, formaPago); `invoiceItems` table includes SAT codes (satProductCode, satUnitCode, satTaxObject, identification).
+- **Key Patterns**: UUID primary keys, foreign key relationships, timestamp tracking, status enums, JSONB for metadata, B2 storage keys, SHA-256 file hashes. CFDI 4.0 fields are integrated into invoices.
 
 #### Core Features
 - **Integrated Financial Management**: Comprehensive banking module, payments, expenses, and detailed financial dashboards.
-- **Client Management**: Clickable client rows with detailed dashboards and operation statistics.
-- **Gmail Integration**: OAuth 2.0, automatic background sync (messages, calendar events), multi-account support, email bodies and attachments stored in Backblaze B2, intelligent spam filtering, automatic message-to-operation linking, smart attachment filtering (automatically ignores email signatures, inline logos, tracking pixels, and duplicate files to optimize storage costs).
+- **Client Management**: Detailed client dashboards with operation statistics.
+- **Gmail Integration**: OAuth 2.0, automatic background sync (messages, calendar events), multi-account support, email bodies and attachments stored in Backblaze B2, intelligent spam filtering, automatic message-to-operation linking, smart attachment filtering.
 - **AI-Powered Assistance**:
     - **LiveChat Personal Assistant**: Optimistic updates, smart operation search, proactive assistance.
-    - **AI Task & Note Automation (Smart Gemini with Continuous Learning)**: 3-level resilient system with progressive learning that reduces Gemini API usage by 80-90% over time:
-        - **Level 1 - Task Learning Service (Priority, No API Cost)**: Reutiliza patrones profesionales aprendidos de ejecuciones previas. Busca en knowledge base taskPatterns (top 20) y notePatterns (top 15), genera contenido profesional cuando encuentra >= 2 keywords compartidos. Confianza dinámica: 90% (>10 patrones), 85% (>5 patrones), 70% (resto). Si no hay match con patrón, genera fallback profesional por mensaje usando transformaciones automáticas.
-        - **Level 2 - Gemini AI (Solo si Level 1 no tiene patrones)**: Genera contenido profesional con prompts MUY estrictos (sin saludos, despedidas, conversaciones). **Retroalimentación Automática**: Tareas y notas con confianza >= 80% se auto-guardan automáticamente en knowledge base como nuevos patrones profesionales para reutilización futura. Cada patrón incluye: triggerKeywords (15 keywords logísticos + generales), contentTemplate profesional, qualityScore, usageCount, successRate. Circuit breaker protection.
-        - **Level 3 - Fallback Básico (Si Gemini falla/límite alcanzado)**: BasicEmailAnalyzer con reglas profesionales, transformaciones de lenguaje conversacional a profesional, 100% open source y confiable.
-        - **Content Quality**: Los 3 niveles INTERPRETAN emails y transforman conversaciones informales en resúmenes profesionales de negocio. Limpieza agresiva de texto elimina saludos, despedidas, frases informales, y convierte lenguaje conversacional a terminología profesional objetiva. Deduplicación semántica (>75% similitud), status auto-update, respeta modificaciones manuales. **Ciclo de Aprendizaje Completo**: Gemini → Auto-guarda patrones (>= 80%) → Task Learning Service reutiliza → Sin usar API → Aprende y mejora continuamente.
-    - **AI Operation Analysis (3-Tier System)**: Robust analysis pipeline ensuring 100% uptime with professional output: (1) Gemini AI with enhanced prompts demanding business context, stakeholder identification, risk analysis, and self-explanatory summaries for non-assigned employees. (2) Knowledge Base reuse - progressive learning system reusing successful analyses to reduce API calls. (3) Rule-based fallback - professional analysis using BasicEmailAnalyzer with executive summaries including business context, stakeholders, risk flags, key milestones, and pending dependencies. Circuit breaker pattern (15min timeout, 3 failures to open, 2 successes to close) protects against API failures. System NEVER shows technical errors to users - always generates professional analysis. Gemini analyses cached for 24 hours, fallback for 2 hours.
-    - **AI Financial Analysis**: Expert financial analysis for bank accounts using Gemini AI with progressive learning, providing insights on cash flow, expenses, optimization, and actionable recommendations.
-    - **AI Knowledge Base System**: Progressive learning system storing and reusing successful analyses, tasks, and notes to reduce Gemini API calls. Stores task-pattern and note-pattern entries in B2 storage with metadata tracking (qualityScore, usageCount, successRate). Pattern matching uses >= 2 keyword threshold for high-confidence reuse.
-    - **AI-Powered Financial Transaction Detection**: 2-level resilient detection system (Gemini AI → OCR Fallback) with circuit breaker pattern. Automated detection of payments and expenses from email attachments, creating financial suggestions requiring user approval. **Complete Evidence Tracking**: Each detected transaction includes full source tracking (gmailMessageId, gmailAttachmentId, extractedText) enabling real-time preview of source PDF/image documents and direct links to originating emails. **Operation-Specific Display**: Financial suggestions now display exclusively within the relevant operation's detail page (Information tab), immediately below AI operation analysis, with full evidence UI showing attachment previews and email links. Includes intelligent duplicate detection via SHA-256 hash comparison, context-aware OCR amount extraction with keyword prioritization (Total/Amount/Monto), and configurable UI toggles. All suggestions go through approval workflow - no separate manual queue needed. Runs automatically every 15 minutes via automation service.
+    - **AI Task & Note Automation (Smart Gemini with Continuous Learning)**: 3-level resilient system using progressive learning to reduce Gemini API usage. Prioritizes pattern reuse from a knowledge base, falls back to Gemini AI with strict prompts, and uses a rule-based fallback if Gemini fails. Includes automatic feedback to save successful patterns.
+    - **AI Operation Analysis (3-Tier System)**: Robust analysis pipeline ensuring 100% uptime, using Gemini AI with enhanced prompts, knowledge base reuse, and a rule-based fallback. Includes circuit breaker protection.
+    - **AI Financial Analysis**: Expert financial analysis for bank accounts using Gemini AI with progressive learning.
+    - **AI Knowledge Base System**: Stores and reuses successful analyses, tasks, and notes to optimize Gemini API calls.
+    - **AI-Powered Financial Transaction Detection**: 2-level resilient detection system (Gemini AI → OCR Fallback) with circuit breaker pattern. Automated detection of payments and expenses from email attachments, creating user-approvable financial suggestions with complete evidence tracking and operation-specific display.
 - **Kanban Task Board System**: Drag-and-drop task management with configurable status columns, manual override of AI-generated tasks.
-- **File Management**: Backblaze B2 exclusive storage for all files, automatic attachment processing and categorization, SHA-256 hash-based deduplication, hierarchical folder organization, intelligent attachment filtering to prevent storing email signatures/logos/tracking pixels, professional thumbnail system with lazy loading similar to Dropbox/Google Drive. **Lazy Attachment Loading System**: Hybrid queue-based download system prevents Backblaze storage saturation by storing only metadata during Gmail sync, then downloading files on-demand (max 3 concurrent, exponential backoff 1min→6hr). Automatic downloads trigger when: (1) message links to operation, (2) automations need files (Facturama detection, payment/expense detection, AI analysis). All automations use `ensureAttachmentsReady()` to guarantee file availability without blocking 15-minute sync cycles. Background worker tracks download status (pending/downloading/ready/failed) with retry logic and detailed logging.
-- **Automation Module**: Plugin-based system for entity creation from email patterns, rule-based matching, custom folder name configuration, invoice auto-creation from Facturama PDFs.
-- **Invoice Auto-Creation System**: Automatically detects Facturama invoice PDFs, extracts complete fiscal data (CFDI 4.0), creates full invoices with itemized details and SAT codes, prevents duplicates via folioFiscal (UUID), and assigns to operations. Includes toggle in automation UI (autoAssignInvoices).
-- **Client Auto-Assignment System**: Automatically detects Facturama invoice PDFs from operation attachments, extracts client fiscal data (RFC, name, address, fiscal regime), creates clients if they don't exist or assigns existing clients to operations. **Smart Currency Auto-Correction**: When a Facturama invoice is detected with a different currency than the client's configured currency (e.g., client in MXN but invoice in USD), the system automatically updates the client's currency to match the invoice. This ensures future invoices are created with the correct currency. Invoice currency is considered the "source of truth" for client currency. Includes toggle in automation UI (autoAssignClients).
-- **Manual Invoice Creation & Facturama Stamping**: Professional dedicated-page invoice creation (/invoices/new) replacing previous modal for improved UX and reduced user fatigue. Features single-page ERP-style form with full CFDI 4.0 compliance organized in sections (General Information, Issuer Data, Recipient Data, Line Items). Users can create invoices manually with all fiscal fields (RFC, régimen fiscal, uso CFDI, método/forma de pago, lugar expedición, exportación) and configurable tax per item (not default 16% IVA). **Client Integration**: Client selector auto-populates recipient fiscal data when available, streamlining workflow. Optional fiscal fields in client creation (RFC, razón social, régimen fiscal, uso CFDI, código postal, domicilio fiscal) enable faster invoice generation. **Official SAT Catalog Integration**: Professional searchable dropdown components (SATCombobox) for all fiscal fields using official Mexican SAT Anexo 20 Version 4.0 catalogs (~52,000 product codes, unit codes, tax objects, fiscal regimes, payment methods/forms). SATCombobox supports compact mode for table usage and flexible label display. Autocomplete search functionality with ability to enter custom values when needed. All SAT codes comply with Mexican tax authority requirements. Created invoices can be stamped via Facturama API integration for SAT certification. System distinguishes between manually created invoices (pending stamping) and auto-detected Facturama invoices (already stamped). Requires FACTURAMA_API_USER and FACTURAMA_API_PASSWORD secrets. Includes POST /api/invoices/:invoiceId/stamp endpoint for manual stamping.
+- **File Management**: Backblaze B2 exclusive storage, automatic attachment processing and categorization, SHA-256 hash-based deduplication, hierarchical folder organization, intelligent attachment filtering, professional thumbnail system with lazy loading.
+- **Automation Module**: Plugin-based system for entity creation from email patterns, rule-based matching, custom folder configuration, and invoice auto-creation from Facturama PDFs.
+- **Invoice Auto-Creation System**: Automatically detects Facturama invoice PDFs, extracts CFDI 4.0 data, creates full invoices with itemized details and SAT codes, prevents duplicates, and assigns to operations.
+- **Client Auto-Assignment System**: Automatically detects Facturama invoice PDFs, extracts client fiscal data, creates new clients or assigns existing ones to operations. Includes smart currency auto-correction based on invoice currency.
+- **Manual Invoice Creation & Facturama Stamping**: Professional dedicated-page invoice creation with full CFDI 4.0 compliance, client integration, and official SAT Catalog Integration for all fiscal fields. Supports manual stamping via Facturama API.
 - **UI/UX**: Logistics-focused iconography, custom coral/orange color palette, dark mode, consistent UI/UX patterns.
 
 ### External Dependencies
 
 #### Database
-- Neon PostgreSQL Serverless (`@neondatabase/serverless`)
-- Drizzle ORM (v0.39.1) & Drizzle Kit
+- Neon PostgreSQL Serverless
+- Drizzle ORM & Drizzle Kit
 
 #### UI Libraries
 - Radix UI
@@ -76,39 +67,17 @@ Design preference: Logistics-focused iconography and terminology.
 - googleapis (for Gmail and Calendar API)
 
 #### Object Storage & Image Processing
-- Backblaze B2 (Exclusive storage solution, S3-compatible API via `@aws-sdk/client-s3`)
+- Backblaze B2 (S3-compatible API via `@aws-sdk/client-s3`)
 - Sharp (High-performance image processing for thumbnail generation)
 
 #### Artificial Intelligence
-- Google Gemini AI (via `GEMINI_API_KEY`)
+- Google Gemini AI
 
 #### Invoice & Tax Compliance
-- Facturama API (via `FACTURAMA_API_USER` and `FACTURAMA_API_PASSWORD`) - Mexican SAT CFDI 4.0 invoice stamping and certification
+- Facturama API (Mexican SAT CFDI 4.0 invoice stamping and certification)
 
 #### Background Services
-- **Automatic Gmail Sync**: Every 15 minutes, processes messages and calendar events, links messages to operations.
-- **Automatic Calendar Sync**: Every 5 minutes, syncs calendar events.
-- **Automation Service**: Every 15 minutes, processes operations for AI task/note creation, handles unprocessed messages, processes attachments, runs email thread analysis, client auto-assignment from Facturama invoices, invoice auto-creation from PDFs, and performs automatic cleanup of orphaned thumbnails.
-- **Professional File Preview System**: On-demand thumbnail generation for images and PDFs with three sizes (small 150x150, medium 400x400, large 800x800), intelligent caching in B2 storage, lazy loading for optimal performance, automatic cleanup of orphaned thumbnails. Similar to Dropbox/Google Drive interface with grid/list views, batch thumbnail generation, and progressive loading.
-
-### Recent Changes (November 12, 2025)
-
-#### Automation System Fixes
-- **Fixed Critical Blocking Issues**: Resolved automation blocking caused by processing 622 linked messages - reduced to 50 messages per execution for manageable processing time.
-- **Fixed Storage Method Errors**: Replaced missing storage methods:
-  - `getOperationAttachmentsByOperationId` → `getOperationFiles` (3 locations: client-auto-assignment-service.ts, routes.ts)
-  - `listOperations` → `getAllOperations` (invoice-auto-assignment-service.ts)
-- **Fixed SQL Syntax Error**: Added missing `desc` import from Drizzle in automation-service.ts processLinkedMessagesAttachments.
-- **Fixed Attachment Filtering**: Added null-safety check for `filename` property in client-auto-assignment-service.ts to prevent TypeError when processing attachments.
-
-#### Automation System Validation
-- ✅ **Client Auto-Assignment**: Successfully executing every 15 minutes, processing operations without clients, searching for Facturama invoice PDFs.
-- ✅ **Invoice Auto-Assignment**: Successfully executing every 15 minutes, processing all operations for invoice detection from attachments.
-- ✅ **Background Processing**: All automation functions now execute without errors in production automation service.
-
-#### System Status
-- **Automation Interval**: 15 minutes (configurable via automation_configs table)
-- **Message Processing**: Limited to 50 linked messages per execution to prevent blocking
-- **Currency Auto-Correction**: Fully functional - Facturama invoice currency updates client currency when different
-- **Client Auto-Creation**: Fully functional - Creates new clients from Facturama invoice RFC data
-- **Invoice Auto-Creation**: Fully functional - Creates invoices from Facturama PDFs with full CFDI 4.0 data
+- **Automatic Gmail Sync**: Every 15 minutes.
+- **Automatic Calendar Sync**: Every 5 minutes.
+- **Automation Service**: Every 15 minutes, handles AI task/note creation, message processing, attachment processing, email thread analysis, client auto-assignment, invoice auto-creation, and cleanup.
+- **Professional File Preview System**: On-demand thumbnail generation with intelligent caching, lazy loading, and automatic cleanup.
