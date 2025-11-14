@@ -281,7 +281,7 @@ export default function OperationsPage() {
           <div className="flex flex-wrap gap-1">
             {assignedEmployees.map((emp: any) => (
               <Badge key={emp.id} variant="secondary" className="text-xs">
-                {emp.position}
+                {emp.name}
               </Badge>
             ))}
           </div>

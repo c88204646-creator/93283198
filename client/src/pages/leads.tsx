@@ -161,7 +161,7 @@ export default function LeadsPage() {
       header: "Assigned To",
       accessor: (row: Lead) => {
         const employee = employees.find((e) => e.id === row.assignedEmployeeId);
-        return employee ? employee.position : "Unassigned";
+        return employee ? employee.name : "Unassigned";
       },
     },
     {
