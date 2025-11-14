@@ -13,6 +13,7 @@ export class AutomationService {
   private intervalId: NodeJS.Timeout | null = null;
   private readonly CHECK_INTERVAL = 15 * 60 * 1000; // 15 minutes (optimized to reduce DB transfer)
   private emailTaskAutomation: EmailTaskAutomation;
+  private invoiceAutoAssignmentService = invoiceAutoAssignmentService;
 
   constructor() {
     this.emailTaskAutomation = new EmailTaskAutomation();
@@ -574,13 +575,83 @@ export class AutomationService {
   }
 
   private async processLinkedMessagesAttachments(config: AutomationConfig) {
-    // CRITICAL BUG: Persistent PostgreSQL "syntax error at or near 'desc'" 
-    // despite multiple fix attempts (static/dynamic imports, SQL templates, tsx restart)
-    // Root cause suspected: tsx/Drizzle ORM incompatibility with dynamic schema imports in this specific context
-    // Function disabled to unblock primary XML invoice processing feature
-    // TODO: Investigate tsx caching/compilation issue or refactor to avoid this query pattern
-    console.log('[Automation] Linked messages attachments processing disabled due to unresolved SQL syntax error');
-    return;
+    try {
+      console.log('[Automation] 📎 Processing attachments for invoice auto-creation...');
+      
+      // Get ALL operations with clients assigned (not just linked messages)
+      // This ensures we process old operations that don't have linkedMessageId
+      const db = (await import('./db')).db;
+      const { operations: operationsTable } = await import('@shared/schema');
+      
+      const allOperations = await db.select()
+        .from(operationsTable)
+        .limit(200);
+      
+      // Filter for operations with clients (needed for invoice creation)
+      const operations = allOperations
+        .filter(op => op.clientId !== null)
+        .slice(0, 100);
+      
+      console.log(`[Automation] Found ${operations.length} operations with clients for invoice processing`);
+      
+      let processedCount = 0;
+      let errorCount = 0;
+      
+      for (const operation of operations) {
+        try {
+          // Get attachments for this operation
+          const { operationFiles } = await import('@shared/schema');
+          const attachments = await db
+            .select()
+            .from(operationFiles)
+            .where(eq(operationFiles.operationId, operation.id));
+          
+          if (attachments.length === 0) {
+            continue;
+          }
+          
+          console.log(`[Automation] Processing ${attachments.length} attachments for operation ${operation.name}`);
+          
+          // Process each attachment for invoice detection
+          for (const attachment of attachments) {
+            if (!attachment.b2Key) {
+              continue;
+            }
+            
+            try {
+              // Try to create/assign invoice from attachment
+              const result = await this.invoiceAutoAssignmentService.processAttachmentForInvoiceCreation(
+                operation.id,
+                attachment.id,
+                attachment.name,
+                attachment.b2Key
+              );
+              
+              if (result.success) {
+                console.log(`[Automation] ✅ Invoice processed: ${result.invoiceNumber} (${result.action})`);
+                processedCount++;
+              } else if (result.action !== 'skipped') {
+                console.log(`[Automation] ⚠️  Error processing ${attachment.name}: ${result.error}`);
+                errorCount++;
+              }
+              
+            } catch (error) {
+              console.error(`[Automation] Error processing attachment ${attachment.name}:`, error);
+              errorCount++;
+            }
+          }
+          
+        } catch (error) {
+          console.error(`[Automation] Error processing operation ${operation.name}:`, error);
+          errorCount++;
+        }
+      }
+      
+      console.log(`[Automation] ✅ Attachments processing complete. Processed: ${processedCount}, Errors: ${errorCount}`);
+      
+    } catch (error) {
+      console.error('[Automation] Error in processLinkedMessagesAttachments:', error);
+    }
   }
 
   private async processExistingOperationsForTasksAndNotes(config: AutomationConfig) {

@@ -294,20 +294,78 @@ export default function ClientDetailPage() {
               </CardContent>
             </Card>
 
-            {client.notes && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="w-4 h-4" />
-                    Notas
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{client.notes}</p>
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="w-4 h-4" />
+                  Datos Fiscales (CFDI)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 pt-0">
+                {client.rfc && (
+                  <div className="flex items-center justify-between gap-2 text-xs py-1.5 px-2 rounded bg-muted/30">
+                    <span className="text-muted-foreground font-medium">RFC:</span>
+                    <span className="font-mono">{client.rfc}</span>
+                  </div>
+                )}
+                {client.razonSocial && (
+                  <div className="flex items-center justify-between gap-2 text-xs py-1.5 px-2 rounded bg-muted/30">
+                    <span className="text-muted-foreground font-medium">Razón Social:</span>
+                    <span className="text-right flex-1">{client.razonSocial}</span>
+                  </div>
+                )}
+                {client.regimenFiscal && (
+                  <div className="flex items-center justify-between gap-2 text-xs py-1.5 px-2 rounded bg-muted/30">
+                    <span className="text-muted-foreground font-medium">Régimen Fiscal:</span>
+                    <span className="font-mono">{client.regimenFiscal}</span>
+                  </div>
+                )}
+                {client.usoCFDI && (
+                  <div className="flex items-center justify-between gap-2 text-xs py-1.5 px-2 rounded bg-muted/30">
+                    <span className="text-muted-foreground font-medium">Uso CFDI:</span>
+                    <span className="font-mono">{client.usoCFDI}</span>
+                  </div>
+                )}
+                {client.codigoPostal && (
+                  <div className="flex items-center justify-between gap-2 text-xs py-1.5 px-2 rounded bg-muted/30">
+                    <span className="text-muted-foreground font-medium">Código Postal:</span>
+                    <span>{client.codigoPostal}</span>
+                  </div>
+                )}
+                {(client.ciudad || client.estado) && (
+                  <div className="flex items-center justify-between gap-2 text-xs py-1.5 px-2 rounded bg-muted/30">
+                    <span className="text-muted-foreground font-medium">Ubicación:</span>
+                    <span>{[client.ciudad, client.estado].filter(Boolean).join(', ')}</span>
+                  </div>
+                )}
+                {client.pais && (
+                  <div className="flex items-center justify-between gap-2 text-xs py-1.5 px-2 rounded bg-muted/30">
+                    <span className="text-muted-foreground font-medium">País:</span>
+                    <span>{client.pais}</span>
+                  </div>
+                )}
+                {!client.rfc && !client.razonSocial && !client.regimenFiscal && !client.usoCFDI && (
+                  <div className="text-center py-4">
+                    <p className="text-xs text-muted-foreground">Sin datos fiscales registrados</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
+
+          {client.notes && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="w-4 h-4" />
+                  Notas
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">{client.notes}</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="operations" className="space-y-3 mt-4">

@@ -222,6 +222,14 @@ export class InvoiceAutoAssignmentService {
   ): Promise<string | null> {
     
     try {
+      // 0. Obtener el primer empleado disponible para asignar a facturas automáticas
+      const firstEmployee = await db.query.employees.findFirst();
+      
+      if (!firstEmployee) {
+        console.error('[Invoice Auto-Assignment] ❌ No se encontró ningún empleado para asignar factura');
+        return null;
+      }
+      
       // 1. Buscar o crear cliente
       let clientId: string | undefined;
       
@@ -250,8 +258,10 @@ export class InvoiceAutoAssignmentService {
           
         } else {
           // Crear nuevo cliente con la divisa correcta desde la factura
+          // Usar RFC como email temporal si no hay email disponible
           const newClient = await storage.createClient({
             name: invoiceData.receptor.nombre,
+            email: `${invoiceData.receptor.rfc}@temp.factura.mx`, // Email temporal basado en RFC
             rfc: invoiceData.receptor.rfc,
             address: invoiceData.receptor.direccion,
             city: invoiceData.receptor.ciudad,
@@ -271,6 +281,7 @@ export class InvoiceAutoAssignmentService {
       // 2. Crear la factura principal
       const newInvoice = await storage.createInvoice({
         operationId,
+        employeeId: firstEmployee.id, // Asignar al primer empleado disponible
         clientId,
         invoiceNumber: invoiceData.folio || invoiceData.folioFiscal?.substring(0, 15) || 'Sin Folio',
         date: invoiceData.fecha ? new Date(invoiceData.fecha.split('/').reverse().join('-')) : new Date(),
