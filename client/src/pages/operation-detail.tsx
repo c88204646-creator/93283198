@@ -160,9 +160,6 @@ export default function OperationDetail() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("info");
 
-  // State for selected employees in the operation details tab
-  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
-
   const { data: operation, isLoading: operationLoading, isError } = useQuery<Operation>({
     queryKey: [`/api/operations/${id}`],
     enabled: !!id,
@@ -189,13 +186,6 @@ export default function OperationDetail() {
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ['/api/users'],
   });
-
-  // Set selectedEmployeeIds when operation data is loaded
-  useEffect(() => {
-    if (operation && operation.employeeIds) {
-      setSelectedEmployeeIds(operation.employeeIds);
-    }
-  }, [operation]);
 
   if (operationLoading) {
     return (
@@ -480,7 +470,7 @@ export default function OperationDetail() {
           </TabsList>
 
           <TabsContent value="info" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
-            <InformationTab operation={operation} client={client} employees={employees} selectedEmployeeIds={selectedEmployeeIds} />
+            <InformationTab operation={operation} client={client} employees={employees} />
           </TabsContent>
 
           <TabsContent value="client" className="space-y-4 mt-6 animate-in fade-in-50 duration-300">
@@ -520,7 +510,7 @@ export default function OperationDetail() {
   );
 }
 
-function InformationTab({ operation, client, employees, selectedEmployeeIds }: { operation: Operation; client?: Client; employees: Employee[]; selectedEmployeeIds: string[] }) {
+function InformationTab({ operation, client, employees }: { operation: Operation; client?: Client; employees: Employee[] }) {
   return (
     <div className="space-y-6">
       {/* AI-Powered Operation Analysis */}
@@ -706,7 +696,7 @@ function InformationTab({ operation, client, employees, selectedEmployeeIds }: {
         </CardContent>
       </Card>
 
-      {/* Sección de Miembros Asignados - Mejorada con Avatares */}
+      {/* Sección de Miembros Asignados - Vista de Solo Lectura con Avatares */}
       <Card className="overflow-hidden border-primary/20 hover:border-primary/40 transition-all hover:shadow-lg bg-gradient-to-br from-card to-card/50">
         <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent pb-4">
           <CardTitle className="flex items-center gap-2 text-xl">
@@ -715,46 +705,49 @@ function InformationTab({ operation, client, employees, selectedEmployeeIds }: {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-5 pt-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Asignados</label>
-            <EmployeeMultiSelect
-              employees={employees}
-              selectedIds={selectedEmployeeIds}
-              onChange={setSelectedEmployeeIds}
-              placeholder="Seleccionar miembros..."
-            />
-            {selectedEmployeeIds.length > 0 && (
-              <div className="flex items-center gap-3 mt-2">
-                <div className="flex items-center -space-x-2">
-                  {selectedEmployeeIds.slice(0, 5).map((empId, index) => {
-                    const emp = employees.find(e => e.id === empId);
-                    if (!emp) return null;
-                    return (
-                      <div
-                        key={empId}
-                        className="relative inline-flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-primary to-primary/80 text-white text-sm font-semibold border-2 border-background shadow-md hover:z-10 transition-transform hover:scale-110"
-                        style={{ zIndex: selectedEmployeeIds.length - index }}
-                        title={emp.name}
-                      >
-                        {emp.name.charAt(0).toUpperCase()}
-                      </div>
-                    );
-                  })}
-                  {selectedEmployeeIds.length > 5 && (
+          {operation.employeeIds && operation.employeeIds.length > 0 ? (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center -space-x-2">
+                {operation.employeeIds.slice(0, 5).map((empId, index) => {
+                  const emp = employees.find(e => e.id === empId);
+                  if (!emp) return null;
+                  return (
                     <div
-                      className="relative inline-flex items-center justify-center w-9 h-9 rounded-full bg-muted text-muted-foreground text-sm font-semibold border-2 border-background shadow-md"
-                      title={selectedEmployeeIds.slice(5).map(id => employees.find(e => e.id === id)?.name).filter(Boolean).join(', ')}
+                      key={empId}
+                      className="relative inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/80 text-white text-sm font-semibold border-2 border-background shadow-md hover:z-10 transition-transform hover:scale-110"
+                      style={{ zIndex: operation.employeeIds.length - index }}
+                      title={emp.name}
                     >
-                      +{selectedEmployeeIds.length - 5}
+                      {emp.name.charAt(0).toUpperCase()}
                     </div>
-                  )}
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {selectedEmployeeIds.length} miembro{selectedEmployeeIds.length !== 1 ? 's' : ''} asignado{selectedEmployeeIds.length !== 1 ? 's' : ''}
-                </span>
+                  );
+                })}
+                {operation.employeeIds.length > 5 && (
+                  <div
+                    className="relative inline-flex items-center justify-center w-10 h-10 rounded-full bg-muted text-muted-foreground text-sm font-semibold border-2 border-background shadow-md"
+                    title={operation.employeeIds.slice(5).map(id => employees.find(e => e.id === id)?.name).filter(Boolean).join(', ')}
+                  >
+                    +{operation.employeeIds.length - 5}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+              <div>
+                <p className="text-sm font-medium">
+                  {operation.employeeIds.length} miembro{operation.employeeIds.length !== 1 ? 's' : ''} asignado{operation.employeeIds.length !== 1 ? 's' : ''}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {operation.employeeIds.slice(0, 3).map(id => employees.find(e => e.id === id)?.name).filter(Boolean).join(', ')}
+                  {operation.employeeIds.length > 3 && ` y ${operation.employeeIds.length - 3} más`}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <UserIcon className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+              <p className="text-sm text-muted-foreground">No hay miembros asignados</p>
+              <p className="text-xs text-muted-foreground mt-1">Edita la operación para asignar miembros</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
