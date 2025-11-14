@@ -96,36 +96,26 @@ export class InvoiceAutoAssignmentService {
       
       console.log(`[Invoice Auto-Assignment] ✅ Factura detectada - Folio Fiscal: ${invoiceData.folioFiscal}, Cliente: ${invoiceData.receptor.nombre}`);
       
-      // 4. Verificar si la factura ya existe (por UUID)
-      const matchResult = await this.findMatchingInvoice(invoiceData);
+      // 4. Crear o actualizar factura
+      // La función createInvoiceFromFacturama ahora maneja:
+      // - Creación de nuevas facturas
+      // - Actualización de facturas existentes creadas manualmente
+      // - Detección de facturas auto-creadas existentes
+      const newInvoiceId = await this.createInvoiceFromFacturama(invoiceData, operationId);
       
-      let invoiceId: string;
-      let action: 'assigned-existing' | 'created-and-assigned';
-      
-      if (matchResult.matched && matchResult.invoice) {
-        // Factura ya existe - solo asignar
-        invoiceId = matchResult.invoice.id;
-        action = 'assigned-existing';
-        
-        console.log(`[Invoice Auto-Assignment] ✅ Factura existente encontrada - ID: ${invoiceId}`);
-        
-      } else {
-        // Crear nueva factura
-        const newInvoiceId = await this.createInvoiceFromFacturama(invoiceData, operationId);
-        
-        if (!newInvoiceId) {
-          return {
-            success: false,
-            action: 'error',
-            error: 'No se pudo crear la factura'
-          };
-        }
-        
-        invoiceId = newInvoiceId;
-        action = 'created-and-assigned';
-        
-        console.log(`[Invoice Auto-Assignment] ✅ Nueva factura creada - ID: ${invoiceId}, Items: ${invoiceData.items?.length || 0}`);
+      if (!newInvoiceId) {
+        // null = factura auto-creada ya existe, no hacer nada
+        return {
+          success: true,
+          action: 'assigned-existing',
+          invoiceNumber: invoiceData.folio || invoiceData.folioFiscal?.substring(0, 8)
+        };
       }
+      
+      const invoiceId = newInvoiceId;
+      const action = 'created-and-assigned'; // Puede ser creación o actualización
+      
+      console.log(`[Invoice Auto-Assignment] ✅ Factura procesada - ID: ${invoiceId}, Items: ${invoiceData.items?.length || 0}`);
       
       // 5. Asignar la factura a la operación (si no está ya asignada)
       // Nota: Las facturas se vinculan a operaciones a través del campo operationId
@@ -215,6 +205,7 @@ export class InvoiceAutoAssignmentService {
   
   /**
    * Crea una nueva factura desde datos extraídos de Facturama
+   * O actualiza una existente si fue creada manualmente con datos incorrectos
    */
   private async createInvoiceFromFacturama(
     invoiceData: FacturamaInvoiceData,
@@ -222,7 +213,7 @@ export class InvoiceAutoAssignmentService {
   ): Promise<string | null> {
     
     try {
-      // 0. VALIDAR SI YA EXISTE UNA FACTURA CON ESTE UUID (evitar duplicados)
+      // 0. VALIDAR SI YA EXISTE UNA FACTURA CON ESTE UUID
       if (invoiceData.folioFiscal) {
         const { invoices: invoicesTable } = await import('@shared/schema');
         const existingInvoice = await db.query.invoices.findFirst({
@@ -230,8 +221,14 @@ export class InvoiceAutoAssignmentService {
         });
         
         if (existingInvoice) {
-          console.log(`[Invoice Auto-Assignment] ⏭️  Factura ya existe con UUID ${invoiceData.folioFiscal} - omitiendo creación`);
-          return null; // No crear duplicado
+          // Si la factura NO fue auto-creada, actualizarla con datos correctos del XML
+          if (!existingInvoice.createdAutomatically) {
+            console.log(`[Invoice Auto-Assignment] 🔄 Factura existente creada manualmente - actualizando con datos del XML`);
+            return await this.updateInvoiceWithXmlData(existingInvoice.id, invoiceData, operationId);
+          }
+          
+          console.log(`[Invoice Auto-Assignment] ⏭️  Factura auto-creada ya existe con UUID ${invoiceData.folioFiscal} - omitiendo`);
+          return null; // No actualizar facturas ya auto-creadas
         }
       }
       
@@ -322,13 +319,16 @@ export class InvoiceAutoAssignmentService {
       // 4. Crear items de la factura
       if (invoiceData.items && invoiceData.items.length > 0) {
         for (const item of invoiceData.items) {
+          // Calcular amount si no está disponible
+          const amount = item.amount || (item.quantity * item.unitPrice);
+          
           await storage.createInvoiceItem({
             invoiceId: newInvoice.id,
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             tax: item.taxAmount || 0,
-            total: item.amount,
+            total: amount,
             
             // Campos SAT
             satProductCode: item.satProductCode,
@@ -345,6 +345,103 @@ export class InvoiceAutoAssignmentService {
       
     } catch (error) {
       console.error('[Invoice Auto-Assignment] Error creando factura:', error);
+      return null;
+    }
+  }
+  
+  /**
+   * Actualiza una factura existente con datos correctos del XML
+   */
+  private async updateInvoiceWithXmlData(
+    invoiceId: string,
+    invoiceData: FacturamaInvoiceData,
+    operationId: string
+  ): Promise<string | null> {
+    
+    try {
+      // 1. Buscar o actualizar cliente
+      let clientId: string | undefined;
+      
+      if (invoiceData.receptor.rfc) {
+        const existingClient = await db.query.clients.findFirst({
+          where: eq(clients.rfc, invoiceData.receptor.rfc)
+        });
+        
+        if (existingClient) {
+          clientId = existingClient.id;
+          
+          // Actualizar divisa si es incorrecta
+          const invoiceCurrency = invoiceData.moneda?.toUpperCase() || 'MXN';
+          const currentCurrency = existingClient.currency?.toUpperCase() || 'XXX';
+          
+          if (currentCurrency === 'XXX' || invoiceCurrency !== currentCurrency) {
+            await storage.updateClient(existingClient.id, {
+              currency: invoiceCurrency
+            });
+            
+            console.log(`[Invoice Auto-Assignment] 💱 Divisa del cliente corregida de ${currentCurrency} a ${invoiceCurrency}`);
+          }
+        }
+      }
+      
+      // 2. Actualizar factura con datos correctos del XML
+      await storage.updateInvoice(invoiceId, {
+        operationId, // Asegurar que está vinculada a la operación correcta
+        clientId,
+        invoiceNumber: invoiceData.folio || invoiceData.folioFiscal?.substring(0, 15) || 'Sin Folio',
+        date: invoiceData.fecha ? new Date(invoiceData.fecha.split('/').reverse().join('-')) : new Date(),
+        subtotal: invoiceData.subtotal || 0,
+        tax: invoiceData.tax || 0,
+        total: invoiceData.total || 0,
+        currency: invoiceData.moneda?.toUpperCase() || 'MXN',
+        
+        // Campos CFDI 4.0
+        folioFiscal: invoiceData.folioFiscal,
+        issuerRFC: invoiceData.emisor?.rfc,
+        issuerName: invoiceData.emisor?.nombre,
+        emisorRegimenFiscal: invoiceData.emisor?.regimenFiscal,
+        metodoPago: invoiceData.metodoPago,
+        formaPago: invoiceData.formaPago,
+        
+        // Marcar como auto-actualizada
+        createdAutomatically: true
+      });
+      
+      console.log(`[Invoice Auto-Assignment] ✅ Factura actualizada: ${invoiceData.folio} (${invoiceData.moneda} ${invoiceData.total})`);
+      
+      // 3. Verificar y crear items si no existen
+      const existingItems = await db.query.invoiceItems.findMany({
+        where: eq(invoiceItems.invoiceId, invoiceId)
+      });
+      
+      if (existingItems.length === 0 && invoiceData.items && invoiceData.items.length > 0) {
+        for (const item of invoiceData.items) {
+          // Calcular amount si no está disponible
+          const amount = item.amount || (item.quantity * item.unitPrice);
+          
+          await storage.createInvoiceItem({
+            invoiceId,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            tax: item.taxAmount || 0,
+            total: amount,
+            
+            // Campos SAT
+            satProductCode: item.satProductCode,
+            satUnitCode: item.satUnitCode,
+            satTaxObject: item.satTaxObject,
+            identification: item.identification
+          });
+        }
+        
+        console.log(`[Invoice Auto-Assignment] ✅ ${invoiceData.items.length} items creados para factura actualizada`);
+      }
+      
+      return invoiceId;
+      
+    } catch (error) {
+      console.error('[Invoice Auto-Assignment] Error actualizando factura:', error);
       return null;
     }
   }
