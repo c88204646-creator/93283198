@@ -225,7 +225,6 @@ export interface IStorage {
 
   // Operation Employees
   assignEmployeeToOperation(operationId: string, employeeId: string): Promise<void>;
-  getOperationEmployees(operationId: string): Promise<Employee[]>;
 
   // Helper functions for automation
   getUnprocessedMessages(accountIds: string[], since: Date): Promise<GmailMessage[]>;
@@ -464,17 +463,6 @@ export class DatabaseStorage implements IStorage {
       operationId,
       employeeId,
     });
-  }
-
-  async getOperationEmployees(operationId: string): Promise<Employee[]> {
-    const result = await db.select({
-      employee: employees,
-    })
-      .from(operationEmployees)
-      .innerJoin(employees, eq(operationEmployees.employeeId, employees.id))
-      .where(eq(operationEmployees.operationId, operationId));
-
-    return result.map(r => r.employee);
   }
 
   // Invoices

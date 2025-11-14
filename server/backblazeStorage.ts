@@ -496,3 +496,26 @@ export const backblazeStorage = {
     return backblazeStorageInstance.deleteFile(fileKey);
   }
 };
+
+// Helper function to upload JSON data to B2
+export async function uploadJsonToB2(
+  jsonData: any,
+  path: string,
+  metadata?: B2FileMetadata
+): Promise<string> {
+  if (!backblazeStorageInstance) {
+    backblazeStorageInstance = new BackblazeStorage();
+  }
+  
+  const jsonString = JSON.stringify(jsonData, null, 2);
+  const buffer = Buffer.from(jsonString, 'utf-8');
+  
+  const result = await backblazeStorageInstance.uploadFile(
+    buffer,
+    path,
+    'application/json',
+    metadata
+  );
+  
+  return result.fileKey;
+}

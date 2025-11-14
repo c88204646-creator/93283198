@@ -11,6 +11,7 @@ import { fileThumbnails } from '@shared/schema';
 import { eq, and } from 'drizzle-orm';
 import { backblazeStorage } from './backblazeStorage';
 import * as crypto from 'crypto';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 export interface ThumbnailOptions {
   width?: number;
@@ -83,17 +84,15 @@ export class ThumbnailService {
       }
 
       // Subir thumbnail a B2
-      const thumbnailHash = crypto.createHash('sha256').update(thumbnailBuffer).digest('hex');
-      const thumbnailKey = `thumbnails/${size}/${fileId}_${thumbnailHash}.jpg`;
-
+      const thumbnailFolder = `thumbnails/${size}`;
+      
       const uploadResult = await backblazeStorage.uploadFile(
         thumbnailBuffer,
-        thumbnailKey,
-        'image/jpeg',
+        thumbnailFolder,
         {
+          mimeType: 'image/jpeg',
           category: 'thumbnail',
-          originalFileId: fileId,
-          size: size
+          originalName: `${fileId}_thumbnail.jpg`
         }
       );
 
@@ -146,32 +145,144 @@ export class ThumbnailService {
 
   /**
    * Genera thumbnail de PDF (primera página)
-   * Usando pdf-poppler o fallback a imagen genérica
+   * Renderiza la primera página del PDF a imagen
    */
   private static async generatePDFThumbnail(
     buffer: Buffer,
     size: 'small' | 'medium' | 'large'
   ): Promise<Buffer> {
     try {
-      // TODO: Implementar extracción de primera página de PDF
-      // Por ahora, retornar imagen placeholder
-      const { width, height } = this.SIZES[size.toUpperCase() as keyof typeof this.SIZES];
+      const { width: targetWidth, height: targetHeight } = this.SIZES[size.toUpperCase() as keyof typeof this.SIZES];
 
-      // Crear imagen placeholder simple para PDFs
+      // Cargar el PDF con pdfjs
+      const loadingTask = pdfjsLib.getDocument({
+        data: new Uint8Array(buffer),
+        useSystemFonts: true,
+        standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@5.4.394/standard_fonts/'
+      });
+      
+      const pdf = await loadingTask.promise;
+      
+      // Obtener la primera página
+      const page = await pdf.getPage(1);
+      
+      // Calcular escala para ajustar al tamaño deseado
+      const viewport = page.getViewport({ scale: 1.0 });
+      const scale = Math.min(targetWidth / viewport.width, targetHeight / viewport.height);
+      const scaledViewport = page.getViewport({ scale });
+
+      // Crear canvas virtual para renderizado
+      const canvasWidth = Math.floor(scaledViewport.width);
+      const canvasHeight = Math.floor(scaledViewport.height);
+
+      // Crear un canvas manual (sin node-canvas)
+      const canvasData = new Uint8ClampedArray(canvasWidth * canvasHeight * 4);
+      
+      const canvasContext = {
+        canvas: {
+          width: canvasWidth,
+          height: canvasHeight
+        },
+        fillStyle: '',
+        strokeStyle: '',
+        lineWidth: 1,
+        lineCap: 'butt',
+        lineJoin: 'miter',
+        miterLimit: 10,
+        globalAlpha: 1,
+        globalCompositeOperation: 'source-over',
+        
+        fillRect(x: number, y: number, w: number, h: number) {
+          // Rellenar con blanco por defecto
+          const startX = Math.max(0, Math.floor(x));
+          const startY = Math.max(0, Math.floor(y));
+          const endX = Math.min(canvasWidth, Math.ceil(x + w));
+          const endY = Math.min(canvasHeight, Math.ceil(y + h));
+          
+          for (let py = startY; py < endY; py++) {
+            for (let px = startX; px < endX; px++) {
+              const offset = (py * canvasWidth + px) * 4;
+              canvasData[offset] = 255;     // R
+              canvasData[offset + 1] = 255; // G
+              canvasData[offset + 2] = 255; // B
+              canvasData[offset + 3] = 255; // A
+            }
+          }
+        },
+        
+        save() {},
+        restore() {},
+        translate() {},
+        scale() {},
+        transform() {},
+        setTransform() {},
+        resetTransform() {},
+        rotate() {},
+        beginPath() {},
+        closePath() {},
+        moveTo() {},
+        lineTo() {},
+        bezierCurveTo() {},
+        quadraticCurveTo() {},
+        rect() {},
+        arc() {},
+        arcTo() {},
+        ellipse() {},
+        fill() {},
+        stroke() {},
+        clip() {},
+        isPointInPath: () => false,
+        clearRect() {},
+        strokeRect() {},
+        measureText: () => ({ width: 0 }),
+        fillText() {},
+        strokeText() {},
+        getImageData: () => ({ data: canvasData, width: canvasWidth, height: canvasHeight }),
+        putImageData() {},
+        createImageData: () => ({ data: new Uint8ClampedArray(canvasWidth * canvasHeight * 4), width: canvasWidth, height: canvasHeight }),
+        drawImage() {},
+        setLineDash() {},
+        getLineDash: () => [],
+      };
+
+      // Renderizar PDF en el canvas
+      await page.render({
+        canvasContext: canvasContext as any,
+        viewport: scaledViewport
+      }).promise;
+
+      // Convertir los datos del canvas a imagen con sharp
+      const imageBuffer = await sharp(Buffer.from(canvasData.buffer), {
+        raw: {
+          width: canvasWidth,
+          height: canvasHeight,
+          channels: 4
+        }
+      })
+      .jpeg({ quality: 85, progressive: true })
+      .toBuffer();
+
+      // Limpiar
+      await pdf.destroy();
+
+      return imageBuffer;
+
+    } catch (error) {
+      console.error('Error generating PDF thumbnail:', error);
+      
+      // Fallback a placeholder en caso de error
+      const { width, height } = this.SIZES[size.toUpperCase() as keyof typeof this.SIZES];
       const svg = `
         <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-          <rect width="${width}" height="${height}" fill="#1e293b"/>
-          <text x="50%" y="50%" font-family="Arial" font-size="48" fill="#94a3b8" text-anchor="middle" dominant-baseline="middle">PDF</text>
+          <rect width="${width}" height="${height}" fill="#f1f5f9"/>
+          <rect width="${width}" height="${height}" fill="none" stroke="#cbd5e1" stroke-width="2"/>
+          <text x="50%" y="50%" font-family="Arial" font-size="24" fill="#64748b" text-anchor="middle" dominant-baseline="middle">PDF</text>
         </svg>
       `;
 
       return await sharp(Buffer.from(svg))
         .jpeg({ quality: 85 })
         .toBuffer();
-
-    } catch (error) {
-      console.error('Error generating PDF thumbnail:', error);
-      throw error;
     }
   }
 

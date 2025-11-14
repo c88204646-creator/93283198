@@ -11,7 +11,7 @@ import { db } from './db';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { bankAccountAnalyses, knowledgeBase, payments, expenses } from '@shared/schema';
 import type { BankAccount, Payment, Expense, InsertBankAccountAnalysis, InsertKnowledgeBase } from '@shared/schema';
-import { uploadJsonToB2 } from './b2-service';
+import { uploadJsonToB2 } from './backblazeStorage';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
